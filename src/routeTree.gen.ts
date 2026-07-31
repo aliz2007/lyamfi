@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedPortefeuilleRouteImport } from './routes/_authenticated/portefeuille'
+import { Route as AuthenticatedAcademieIndexRouteImport } from './routes/_authenticated/academie.index'
 import { Route as AuthenticatedBourseIndexRouteImport } from './routes/_authenticated/bourse.index'
 import { Route as AuthenticatedBourseTickerRouteImport } from './routes/_authenticated/bourse.$ticker'
 
@@ -35,6 +37,18 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPortefeuilleRoute =
+  AuthenticatedPortefeuilleRouteImport.update({
+    id: '/portefeuille',
+    path: '/portefeuille',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAcademieIndexRoute =
+  AuthenticatedAcademieIndexRouteImport.update({
+    id: '/academie/',
+    path: '/academie/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBourseIndexRoute =
   AuthenticatedBourseIndexRouteImport.update({
     id: '/bourse/',
@@ -52,14 +66,18 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/portefeuille': typeof AuthenticatedPortefeuilleRoute
   '/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
+  '/academie/': typeof AuthenticatedAcademieIndexRoute
   '/bourse/': typeof AuthenticatedBourseIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/portefeuille': typeof AuthenticatedPortefeuilleRoute
   '/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
+  '/academie': typeof AuthenticatedAcademieIndexRoute
   '/bourse': typeof AuthenticatedBourseIndexRoute
 }
 export interface FileRoutesById {
@@ -68,21 +86,39 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/portefeuille': typeof AuthenticatedPortefeuilleRoute
   '/_authenticated/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
+  '/_authenticated/academie/': typeof AuthenticatedAcademieIndexRoute
   '/_authenticated/bourse/': typeof AuthenticatedBourseIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard' | '/bourse/$ticker' | '/bourse/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/portefeuille'
+    | '/bourse/$ticker'
+    | '/academie/'
+    | '/bourse/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/bourse/$ticker' | '/bourse'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/portefeuille'
+    | '/bourse/$ticker'
+    | '/academie'
+    | '/bourse'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
+    | '/_authenticated/portefeuille'
     | '/_authenticated/bourse/$ticker'
+    | '/_authenticated/academie/'
     | '/_authenticated/bourse/'
   fileRoutesById: FileRoutesById
 }
@@ -122,6 +158,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/portefeuille': {
+      id: '/_authenticated/portefeuille'
+      path: '/portefeuille'
+      fullPath: '/portefeuille'
+      preLoaderRoute: typeof AuthenticatedPortefeuilleRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/academie/': {
+      id: '/_authenticated/academie/'
+      path: '/academie'
+      fullPath: '/academie/'
+      preLoaderRoute: typeof AuthenticatedAcademieIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/bourse/': {
       id: '/_authenticated/bourse/'
       path: '/bourse'
@@ -141,13 +191,17 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedPortefeuilleRoute: typeof AuthenticatedPortefeuilleRoute
   AuthenticatedBourseTickerRoute: typeof AuthenticatedBourseTickerRoute
+  AuthenticatedAcademieIndexRoute: typeof AuthenticatedAcademieIndexRoute
   AuthenticatedBourseIndexRoute: typeof AuthenticatedBourseIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedPortefeuilleRoute: AuthenticatedPortefeuilleRoute,
   AuthenticatedBourseTickerRoute: AuthenticatedBourseTickerRoute,
+  AuthenticatedAcademieIndexRoute: AuthenticatedAcademieIndexRoute,
   AuthenticatedBourseIndexRoute: AuthenticatedBourseIndexRoute,
 }
 
