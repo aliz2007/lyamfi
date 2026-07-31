@@ -14,7 +14,232 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      lesson_progress: {
+        Row: {
+          completed: boolean
+          id: string
+          lesson_id: string
+          score: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          id?: string
+          lesson_id: string
+          score?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          id?: string
+          lesson_id?: string
+          score?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_progress_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons: {
+        Row: {
+          content: string
+          id: string
+          level: string
+          quiz: Json
+          slug: string
+          sort_order: number
+          summary: string
+          title: string
+        }
+        Insert: {
+          content: string
+          id?: string
+          level: string
+          quiz?: Json
+          slug: string
+          sort_order?: number
+          summary: string
+          title: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          level?: string
+          quiz?: Json
+          slug?: string
+          sort_order?: number
+          summary?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      portfolio_positions: {
+        Row: {
+          id: string
+          portfolio_id: string
+          stock_id: string
+          weight: number
+        }
+        Insert: {
+          id?: string
+          portfolio_id: string
+          stock_id: string
+          weight?: number
+        }
+        Update: {
+          id?: string
+          portfolio_id?: string
+          stock_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_positions_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portfolio_positions_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portfolios: {
+        Row: {
+          capital: number
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          capital?: number
+          created_at?: string
+          id?: string
+          name?: string
+          user_id: string
+        }
+        Update: {
+          capital?: number
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      stock_prices: {
+        Row: {
+          close: number
+          date: string
+          id: number
+          stock_id: string
+        }
+        Insert: {
+          close: number
+          date: string
+          id?: number
+          stock_id: string
+        }
+        Update: {
+          close?: number
+          date?: string
+          id?: number
+          stock_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_prices_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stocks: {
+        Row: {
+          bpa: number | null
+          change_pct: number
+          description: string | null
+          dividend_yield: number | null
+          id: string
+          market_cap: number
+          name: string
+          peg: number | null
+          per: number | null
+          price: number
+          sector: string
+          target_price: number | null
+          ticker: string
+          updated_at: string
+        }
+        Insert: {
+          bpa?: number | null
+          change_pct?: number
+          description?: string | null
+          dividend_yield?: number | null
+          id?: string
+          market_cap?: number
+          name: string
+          peg?: number | null
+          per?: number | null
+          price?: number
+          sector: string
+          target_price?: number | null
+          ticker: string
+          updated_at?: string
+        }
+        Update: {
+          bpa?: number | null
+          change_pct?: number
+          description?: string | null
+          dividend_yield?: number | null
+          id?: string
+          market_cap?: number
+          name?: string
+          peg?: number | null
+          per?: number | null
+          price?: number
+          sector?: string
+          target_price?: number | null
+          ticker?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
