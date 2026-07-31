@@ -54,7 +54,7 @@ function AuthPage() {
         options: { emailRedirectTo: window.location.origin },
       });
       setLoading(false);
-      if (error) return toast.error(error.message);
+      if (error) { toast.error(error.message); return; }
       if (!data.session) {
         toast.success("Compte créé. Vérifie ta boîte mail pour confirmer ton adresse.");
         return;
@@ -66,7 +66,7 @@ function AuthPage() {
         password: parsed.data.password,
       });
       setLoading(false);
-      if (error) return toast.error(error.message);
+      if (error) { toast.error(error.message); return; }
       navigate({ to: "/dashboard" });
     }
   };
