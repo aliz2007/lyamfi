@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedBudgetRouteImport } from './routes/_authenticated/budget'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPortefeuilleRouteImport } from './routes/_authenticated/portefeuille'
 import { Route as AuthenticatedAcademieIndexRouteImport } from './routes/_authenticated/academie.index'
+import { Route as AuthenticatedAcademieSlugRouteImport } from './routes/_authenticated/academie.$slug'
 import { Route as AuthenticatedBourseIndexRouteImport } from './routes/_authenticated/bourse.index'
 import { Route as AuthenticatedBourseTickerRouteImport } from './routes/_authenticated/bourse.$ticker'
 
@@ -31,6 +33,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedBudgetRoute = AuthenticatedBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
@@ -49,6 +56,12 @@ const AuthenticatedAcademieIndexRoute =
     path: '/academie/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAcademieSlugRoute =
+  AuthenticatedAcademieSlugRouteImport.update({
+    id: '/academie/$slug',
+    path: '/academie/$slug',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBourseIndexRoute =
   AuthenticatedBourseIndexRouteImport.update({
     id: '/bourse/',
@@ -65,8 +78,10 @@ const AuthenticatedBourseTickerRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/budget': typeof AuthenticatedBudgetRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/portefeuille': typeof AuthenticatedPortefeuilleRoute
+  '/academie/$slug': typeof AuthenticatedAcademieSlugRoute
   '/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
   '/academie/': typeof AuthenticatedAcademieIndexRoute
   '/bourse/': typeof AuthenticatedBourseIndexRoute
@@ -74,8 +89,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/budget': typeof AuthenticatedBudgetRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/portefeuille': typeof AuthenticatedPortefeuilleRoute
+  '/academie/$slug': typeof AuthenticatedAcademieSlugRoute
   '/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
   '/academie': typeof AuthenticatedAcademieIndexRoute
   '/bourse': typeof AuthenticatedBourseIndexRoute
@@ -85,8 +102,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/budget': typeof AuthenticatedBudgetRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/portefeuille': typeof AuthenticatedPortefeuilleRoute
+  '/_authenticated/academie/$slug': typeof AuthenticatedAcademieSlugRoute
   '/_authenticated/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
   '/_authenticated/academie/': typeof AuthenticatedAcademieIndexRoute
   '/_authenticated/bourse/': typeof AuthenticatedBourseIndexRoute
@@ -96,8 +115,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/budget'
     | '/dashboard'
     | '/portefeuille'
+    | '/academie/$slug'
     | '/bourse/$ticker'
     | '/academie/'
     | '/bourse/'
@@ -105,8 +126,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/budget'
     | '/dashboard'
     | '/portefeuille'
+    | '/academie/$slug'
     | '/bourse/$ticker'
     | '/academie'
     | '/bourse'
@@ -115,8 +138,10 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/budget'
     | '/_authenticated/dashboard'
     | '/_authenticated/portefeuille'
+    | '/_authenticated/academie/$slug'
     | '/_authenticated/bourse/$ticker'
     | '/_authenticated/academie/'
     | '/_authenticated/bourse/'
@@ -151,6 +176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/budget': {
+      id: '/_authenticated/budget'
+      path: '/budget'
+      fullPath: '/budget'
+      preLoaderRoute: typeof AuthenticatedBudgetRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -172,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAcademieIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/academie/$slug': {
+      id: '/_authenticated/academie/$slug'
+      path: '/academie/$slug'
+      fullPath: '/academie/$slug'
+      preLoaderRoute: typeof AuthenticatedAcademieSlugRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/bourse/': {
       id: '/_authenticated/bourse/'
       path: '/bourse'
@@ -190,16 +229,20 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBudgetRoute: typeof AuthenticatedBudgetRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedPortefeuilleRoute: typeof AuthenticatedPortefeuilleRoute
+  AuthenticatedAcademieSlugRoute: typeof AuthenticatedAcademieSlugRoute
   AuthenticatedBourseTickerRoute: typeof AuthenticatedBourseTickerRoute
   AuthenticatedAcademieIndexRoute: typeof AuthenticatedAcademieIndexRoute
   AuthenticatedBourseIndexRoute: typeof AuthenticatedBourseIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBudgetRoute: AuthenticatedBudgetRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedPortefeuilleRoute: AuthenticatedPortefeuilleRoute,
+  AuthenticatedAcademieSlugRoute: AuthenticatedAcademieSlugRoute,
   AuthenticatedBourseTickerRoute: AuthenticatedBourseTickerRoute,
   AuthenticatedAcademieIndexRoute: AuthenticatedAcademieIndexRoute,
   AuthenticatedBourseIndexRoute: AuthenticatedBourseIndexRoute,
