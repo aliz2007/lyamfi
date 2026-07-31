@@ -19,11 +19,11 @@ export const Route = createFileRoute("/")({
         content:
           "Plateforme marocaine d'éducation financière : fiches valeurs BVC, simulateur de portefeuille, modules pédagogiques et calculateur d'intérêts composés.",
       },
-      { property: "og:title", content: "Lyamfi — la bourse marocaine expliquée simplement" },
+      { property: "og:title", content: "Lyamfi — Apprends, simule, investis à la Bourse de Casablanca" },
       {
         property: "og:description",
         content:
-          "Apprends la Bourse de Casablanca, simule un portefeuille et projette ton épargne.",
+          "Plateforme marocaine d'éducation financière : fiches valeurs BVC, simulateur de portefeuille, modules pédagogiques et calculateur d'intérêts composés.",
       },
     ],
   }),

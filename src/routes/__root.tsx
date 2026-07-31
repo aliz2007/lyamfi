@@ -78,19 +78,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lyamfi — la bourse marocaine expliquée simplement" },
+      { title: "Lyamfi — Apprends, simule, investis à la Bourse de Casablanca" },
       {
         name: "description",
         content:
-          "Apprends, simule et comprends la Bourse de Casablanca : fiches valeurs, simulateur de portefeuille, modules pédagogiques et intérêts composés.",
+          "Plateforme marocaine d'éducation financière : fiches valeurs BVC, simulateur de portefeuille, modules pédagogiques et calculateur d'intérêts composés.",
       },
-      { property: "og:title", content: "Lyamfi — éducation financière au Maroc" },
+      { property: "og:title", content: "Lyamfi — Apprends, simule, investis à la Bourse de Casablanca" },
       {
         property: "og:description",
-        content: "Apprends, simule, investis : la Bourse de Casablanca expliquée simplement.",
+        content: "Plateforme marocaine d'éducation financière : fiches valeurs BVC, simulateur de portefeuille, modules pédagogiques et calculateur d'intérêts composés.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Lyamfi — Apprends, simule, investis à la Bourse de Casablanca" },
+      { name: "twitter:description", content: "Plateforme marocaine d'éducation financière : fiches valeurs BVC, simulateur de portefeuille, modules pédagogiques et calculateur d'intérêts composés." },
     ],
     links: [
       {
