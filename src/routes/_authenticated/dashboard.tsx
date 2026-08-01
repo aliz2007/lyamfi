@@ -75,8 +75,8 @@ function Dashboard() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
-
         <div className="surface-card p-6">
+
           <p className="text-xs text-muted-foreground">Valeurs suivies</p>
           <p className="mt-3 text-4xl font-bold text-gradient-gold">{stocks.length}</p>
           <p className="mt-4 text-xs text-muted-foreground">Bourse de Casablanca</p>
