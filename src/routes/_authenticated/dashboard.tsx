@@ -23,8 +23,7 @@ function Dashboard() {
   const { data: lessons = [] } = useQuery(lessonsQuery);
   const { data: progress = [] } = useQuery(progressQuery);
 
-  const done = progress.filter((p) => p.completed).length;
-  const ratio = lessons.length ? Math.round((done / lessons.length) * 100) : 0;
+  const { levels, done, total, ratio } = buildLevelProgress(lessons, progress);
   const movers = [...stocks].sort((a, b) => Number(b.change_pct) - Number(a.change_pct)).slice(0, 4);
 
   return (
@@ -36,17 +35,47 @@ function Dashboard() {
         </h1>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        <div className="surface-card p-6">
-          <p className="text-xs text-muted-foreground">Progression pédagogique</p>
-          <p className="mt-3 text-4xl font-bold text-gradient-gold">{ratio}%</p>
-          <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-gradient-gold" style={{ width: `${ratio}%` }} />
+      <section className="surface-card p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Progression pédagogique globale</p>
+            <p className="mt-2 text-4xl font-bold text-gradient-gold">{ratio}%</p>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            {done} leçon(s) validée(s) sur {lessons.length}
-          </p>
+          <Link to="/academie" className="text-xs text-primary">
+            Voir les modules
+          </Link>
         </div>
+        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-gradient-gold" style={{ width: `${ratio}%` }} />
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {done} module(s) validé(s) sur {total}
+        </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {levels.map((l) => (
+            <div key={l.level}>
+              <div className="flex items-center justify-between text-xs">
+                <span className={l.unlocked ? "text-foreground" : "text-muted-foreground"}>
+                  {l.level}
+                  {!l.unlocked && " (verrouillé)"}
+                </span>
+                <span className="text-muted-foreground">
+                  {l.done}/{l.total}
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-gradient-gold"
+                  style={{ width: `${l.total ? (l.done / l.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2">
+
         <div className="surface-card p-6">
           <p className="text-xs text-muted-foreground">Valeurs suivies</p>
           <p className="mt-3 text-4xl font-bold text-gradient-gold">{stocks.length}</p>
