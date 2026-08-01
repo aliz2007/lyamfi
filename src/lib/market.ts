@@ -61,3 +61,36 @@ export const progressQuery = {
 };
 
 export const LEVELS = ["Débutant", "Intermédiaire", "Avancé"] as const;
+
+/** Score minimum (en %) pour valider un module et débloquer son badge. */
+export const PASS_SCORE = 80;
+
+/**
+ * Progression par niveau + déverrouillage progressif :
+ * un niveau n'est accessible que si tous les modules du niveau précédent sont validés.
+ */
+export function buildLevelProgress(lessons: Lesson[], progress: LessonProgress[]) {
+  const doneIds = new Set(progress.filter((p) => p.completed).map((p) => p.lesson_id));
+  let previousComplete = true;
+
+  const levels = LEVELS.map((level) => {
+    const items = lessons
+      .filter((l) => l.level === level)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const done = items.filter((l) => doneIds.has(l.id)).length;
+    const unlocked = previousComplete;
+    const complete = items.length > 0 && done === items.length;
+    previousComplete = previousComplete && complete;
+    return { level, items, done, total: items.length, unlocked, complete };
+  });
+
+  const total = lessons.length;
+  const done = doneIds.size;
+  return {
+    levels,
+    doneIds,
+    done,
+    total,
+    ratio: total ? Math.round((done / total) * 100) : 0,
+  };
+}
