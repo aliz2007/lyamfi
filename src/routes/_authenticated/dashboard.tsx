@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, BarChart3, GraduationCap, LineChart, PieChart } from "lucide-react";
-import { lessonsQuery, progressQuery, stocksQuery } from "@/lib/market";
+import { buildLevelProgress, lessonsQuery, progressQuery, stocksQuery } from "@/lib/market";
 import { compact, pct } from "@/lib/format";
 import { useAuth } from "@/hooks/useAuth";
 
