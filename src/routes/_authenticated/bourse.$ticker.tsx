@@ -13,6 +13,8 @@ import {
 import { stockQuery } from "@/lib/market";
 import { compact, mad, num, pct } from "@/lib/format";
 import { Disclaimer } from "@/components/Disclaimer";
+import { TradingViewWidget } from "@/components/TradingViewWidget";
+import { hasCseQuote } from "@/lib/cse-symbols";
 
 export const Route = createFileRoute("/_authenticated/bourse/$ticker")({
   head: ({ params }) => ({
@@ -102,8 +104,31 @@ function StockPage() {
         </p>
       )}
 
+      {hasCseQuote(stock.ticker) && (
+        <section className="surface-card overflow-hidden p-2 sm:p-4">
+          <h2 className="px-2 pb-2 pt-1 text-sm font-semibold">Cours en direct (TradingView)</h2>
+          <TradingViewWidget
+            widget="advanced-chart"
+            className="h-[420px] w-full"
+            config={{
+              symbol: `CSEMA:${stock.ticker.toUpperCase()}`,
+              interval: "D",
+              timezone: "Africa/Casablanca",
+              theme: "dark",
+              style: "3",
+              locale: "fr",
+              hide_side_toolbar: true,
+              allow_symbol_change: false,
+              withdateranges: true,
+              autosize: true,
+            }}
+          />
+        </section>
+      )}
+
       <section className="surface-card p-5 sm:p-7">
-        <h2 className="text-sm font-semibold">Évolution du cours (12 mois)</h2>
+        <h2 className="text-sm font-semibold">Historique pédagogique (12 mois)</h2>
+
         <div className="mt-5 h-64 w-full sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chart} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>

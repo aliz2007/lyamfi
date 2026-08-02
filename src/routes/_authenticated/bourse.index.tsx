@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { stocksQuery } from "@/lib/market";
 import { compact, num, pct } from "@/lib/format";
+import { TradingViewWidget } from "@/components/TradingViewWidget";
+import { CSE_GROUPS, cseName } from "@/lib/cse-symbols";
 
 export const Route = createFileRoute("/_authenticated/bourse/")({
   head: () => ({
@@ -58,10 +60,37 @@ function BoursePage() {
       <header>
         <h1 className="text-3xl font-bold sm:text-4xl">Bourse de Casablanca</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          {stocks.length} valeurs suivies. Les données sont indicatives et mises à jour
-          manuellement.
+          Cotations en direct de la BVC (TradingView) et fiches pédagogiques de {stocks.length}{" "}
+          valeurs suivies.
         </p>
       </header>
+
+      <section className="surface-card overflow-hidden p-2 sm:p-4">
+        <h2 className="px-2 pb-2 pt-1 text-sm font-semibold">Cours en direct</h2>
+        <TradingViewWidget
+          widget="market-quotes"
+          className="h-[620px] w-full"
+          config={{
+            width: "100%",
+            height: 580,
+            symbolsGroups: CSE_GROUPS.map((g) => ({
+              name: g.name,
+              symbols: g.tickers.map((t) => ({
+                name: `CSEMA:${t}`,
+                displayName: cseName(t) ?? t,
+              })),
+            })),
+            showSymbolLogo: true,
+            isTransparent: true,
+            colorTheme: "dark",
+            locale: "fr",
+          }}
+        />
+        <p className="px-2 pb-1 text-xs text-muted-foreground">
+          Données de marché fournies par TradingView, différées ou temps réel selon la source.
+        </p>
+      </section>
+
 
       <div className="space-y-3">
         <div className="relative">
