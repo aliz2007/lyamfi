@@ -103,10 +103,10 @@ function StockPage() {
           </p>
           <p
             className={`mt-1 text-sm ${
-              Number(stock.change_pct) >= 0 ? "text-[var(--success)]" : "text-destructive"
+              changePct >= 0 ? "text-[var(--success)]" : "text-destructive"
             }`}
           >
-            {pct(Number(stock.change_pct))}
+            {pct(changePct)}
           </p>
         </div>
       </header>
