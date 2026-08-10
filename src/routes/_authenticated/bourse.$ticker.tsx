@@ -111,7 +111,7 @@ function StockPage() {
             widget="advanced-chart"
             className="h-[420px] w-full"
             config={{
-              symbol: `CSEMA:${stock.ticker.toUpperCase()}`,
+              symbol: tvSymbol(stock.ticker),
               interval: "D",
               timezone: "Africa/Casablanca",
               theme: "dark",
