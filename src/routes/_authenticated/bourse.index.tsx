@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { stocksQuery } from "@/lib/market";
-import { compact, num, pct } from "@/lib/format";
+import { compact, num } from "@/lib/format";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
-import { CSE_GROUPS, cseName } from "@/lib/cse-symbols";
+import { CSE_SYMBOLS, tvSymbol, hasCseQuote } from "@/lib/cse-symbols";
 
 export const Route = createFileRoute("/_authenticated/bourse/")({
   head: () => ({
@@ -34,63 +34,46 @@ function BoursePage() {
   const [sector, setSector] = useState("all");
   const [cap, setCap] = useState<string>("all");
   const [q, setQ] = useState("");
+  const [tableQ, setTableQ] = useState("");
 
   const sectors = useMemo(
     () => Array.from(new Set(stocks.map((s) => s.sector))).sort(),
     [stocks],
   );
 
-  const filtered = stocks.filter((s) => {
-    const mc = Number(s.market_cap);
-    const capOk =
-      cap === "all" ||
-      (cap === "large" && mc > 20e9) ||
-      (cap === "mid" && mc >= 5e9 && mc <= 20e9) ||
-      (cap === "small" && mc < 5e9);
-    const sectorOk = sector === "all" || s.sector === sector;
-    const qOk =
-      !q ||
-      s.name.toLowerCase().includes(q.toLowerCase()) ||
-      s.ticker.toLowerCase().includes(q.toLowerCase());
-    return capOk && sectorOk && qOk;
-  });
+  const filtered = stocks
+    .filter((s) => {
+      const mc = Number(s.market_cap);
+      const capOk =
+        cap === "all" ||
+        (cap === "large" && mc > 20e9) ||
+        (cap === "mid" && mc >= 5e9 && mc <= 20e9) ||
+        (cap === "small" && mc < 5e9);
+      const sectorOk = sector === "all" || s.sector === sector;
+      const qOk =
+        !q ||
+        s.name.toLowerCase().includes(q.toLowerCase()) ||
+        s.ticker.toLowerCase().includes(q.toLowerCase());
+      return capOk && sectorOk && qOk;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+
+  const tableSymbols = CSE_SYMBOLS.filter(
+    ([proName, title]) =>
+      !tableQ ||
+      title.toLowerCase().includes(tableQ.toLowerCase()) ||
+      proName.toLowerCase().includes(tableQ.toLowerCase()),
+  );
 
   return (
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-bold sm:text-4xl">Bourse de Casablanca</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Cotations en direct de la BVC (TradingView) et fiches pédagogiques de {stocks.length}{" "}
-          valeurs suivies.
+          Cotations en direct de la BVC (TradingView) et fiches pédagogiques, classées par ordre
+          alphabétique.
         </p>
       </header>
-
-      <section className="surface-card overflow-hidden p-2 sm:p-4">
-        <h2 className="px-2 pb-2 pt-1 text-sm font-semibold">Cours en direct</h2>
-        <TradingViewWidget
-          widget="market-quotes"
-          className="h-[620px] w-full"
-          config={{
-            width: "100%",
-            height: 580,
-            symbolsGroups: CSE_GROUPS.map((g) => ({
-              name: g.name,
-              symbols: g.tickers.map((t) => ({
-                name: `CSEMA:${t}`,
-                displayName: cseName(t) ?? t,
-              })),
-            })),
-            showSymbolLogo: true,
-            isTransparent: true,
-            colorTheme: "dark",
-            locale: "fr",
-          }}
-        />
-        <p className="px-2 pb-1 text-xs text-muted-foreground">
-          Données de marché fournies par TradingView, différées ou temps réel selon la source.
-        </p>
-      </section>
-
 
       <div className="space-y-3">
         <div className="relative">
@@ -126,33 +109,39 @@ function BoursePage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((s) => (
-            <Link
-              key={s.id}
-              to="/bourse/$ticker"
-              params={{ ticker: s.ticker }}
-              className="surface-card p-5 transition-colors hover:border-primary/50"
-            >
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">{s.name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {s.ticker} · {s.sector}
-                  </p>
+            <div key={s.id} className="surface-card p-5">
+              <Link
+                to="/bourse/$ticker"
+                params={{ ticker: s.ticker }}
+                className="block transition-colors hover:text-primary"
+              >
+                <p className="truncate font-semibold">{s.name}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {s.ticker} · {s.sector}
+                </p>
+              </Link>
+
+              {hasCseQuote(s.ticker) ? (
+                <div className="-mx-2 mt-3">
+                  <TradingViewWidget
+                    widget="single-quote"
+                    className="h-[112px] w-full"
+                    config={{
+                      symbol: tvSymbol(s.ticker),
+                      width: "100%",
+                      isTransparent: true,
+                      colorTheme: "dark",
+                      locale: "fr",
+                    }}
+                  />
                 </div>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-1 text-xs ${
-                    Number(s.change_pct) >= 0
-                      ? "bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]"
-                      : "bg-destructive/15 text-destructive"
-                  }`}
-                >
-                  {pct(Number(s.change_pct))}
-                </span>
-              </div>
-              <p className="mt-5 text-2xl font-bold">
-                {Number(s.price).toLocaleString("fr-MA")}{" "}
-                <span className="text-sm font-normal text-muted-foreground">MAD</span>
-              </p>
+              ) : (
+                <p className="mt-5 text-2xl font-bold">
+                  {Number(s.price).toLocaleString("fr-MA")}{" "}
+                  <span className="text-sm font-normal text-muted-foreground">MAD</span>
+                </p>
+              )}
+
               <dl className="mt-4 grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <dt className="text-muted-foreground">PER</dt>
@@ -167,13 +156,53 @@ function BoursePage() {
                   <dd className="mt-0.5 font-medium">{compact(Number(s.market_cap))}</dd>
                 </div>
               </dl>
-            </Link>
+            </div>
           ))}
           {filtered.length === 0 && (
             <p className="text-sm text-muted-foreground">Aucune valeur ne correspond aux filtres.</p>
           )}
         </div>
       )}
+
+      <section className="surface-card overflow-hidden p-2 sm:p-4">
+        <h2 className="px-2 pb-2 pt-1 text-sm font-semibold">
+          Toutes les valeurs cotées ({CSE_SYMBOLS.length})
+        </h2>
+        <div className="relative px-2 pb-3">
+          <Search className="absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={tableQ}
+            onChange={(e) => setTableQ(e.target.value)}
+            placeholder="Rechercher dans la cote (nom ou ticker)"
+            className="w-full rounded-xl border border-input bg-card py-2.5 pl-11 pr-4 text-sm outline-none focus:border-primary"
+          />
+        </div>
+        <TradingViewWidget
+          key={tableSymbols.length}
+          widget="market-quotes"
+          className="h-[620px] w-full"
+          config={{
+            width: "100%",
+            height: 580,
+            symbolsGroups: [
+              {
+                name: "Bourse de Casablanca",
+                symbols: tableSymbols.map(([proName, title]) => ({
+                  name: proName,
+                  displayName: title,
+                })),
+              },
+            ],
+            showSymbolLogo: true,
+            isTransparent: true,
+            colorTheme: "dark",
+            locale: "fr",
+          }}
+        />
+        <p className="px-2 pb-1 text-xs text-muted-foreground">
+          Données de marché fournies par TradingView, différées ou temps réel selon la source.
+        </p>
+      </section>
     </div>
   );
 }
