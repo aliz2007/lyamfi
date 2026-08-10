@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getLiveQuotes } from "@/lib/quotes.functions";
 import { ArrowLeft } from "lucide-react";
 import {
   Area,
