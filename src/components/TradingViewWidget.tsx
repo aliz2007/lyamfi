@@ -22,6 +22,8 @@ export function TradingViewWidget({ widget, config, className }: Props) {
     el.innerHTML = "";
     const mount = document.createElement("div");
     mount.className = "tradingview-widget-container__widget";
+    mount.style.height = "100%";
+    mount.style.width = "100%";
     el.appendChild(mount);
 
     const script = document.createElement("script");
