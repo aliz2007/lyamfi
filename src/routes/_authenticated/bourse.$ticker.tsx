@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getLiveQuotes } from "@/lib/quotes.functions";
 import { ArrowLeft } from "lucide-react";
 import {
   Area,
@@ -34,6 +36,13 @@ export const Route = createFileRoute("/_authenticated/bourse/$ticker")({
 function StockPage() {
   const { ticker } = Route.useParams();
   const { data, isLoading } = useQuery(stockQuery(ticker));
+  const fetchQuotes = useServerFn(getLiveQuotes);
+  const { data: quotes = [] } = useQuery({
+    queryKey: ["cse-quotes"],
+    queryFn: () => fetchQuotes(),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
   const stock = data?.stock;
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Chargement…</p>;
@@ -47,7 +56,11 @@ function StockPage() {
       </div>
     );
 
-  const price = Number(stock.price);
+  const live = quotes.find(
+    (q) => q.ticker.toUpperCase() === tvSymbol(stock.ticker).split(":")[1],
+  );
+  const price = live?.price ?? Number(stock.price);
+  const changePct = live?.changePct ?? Number(stock.change_pct);
   const target = Number(stock.target_price ?? 0);
   const upside = target ? ((target - price) / price) * 100 : 0;
   const chart = (data?.prices ?? []).map((p) => ({
@@ -90,10 +103,10 @@ function StockPage() {
           </p>
           <p
             className={`mt-1 text-sm ${
-              Number(stock.change_pct) >= 0 ? "text-[var(--success)]" : "text-destructive"
+              changePct >= 0 ? "text-[var(--success)]" : "text-destructive"
             }`}
           >
-            {pct(Number(stock.change_pct))}
+            {pct(changePct)}
           </p>
         </div>
       </header>

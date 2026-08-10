@@ -82,6 +82,41 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolio_holdings: {
+        Row: {
+          avg_price: number
+          id: string
+          portfolio_id: string
+          quantity: number
+          ticker: string
+          updated_at: string
+        }
+        Insert: {
+          avg_price?: number
+          id?: string
+          portfolio_id: string
+          quantity?: number
+          ticker: string
+          updated_at?: string
+        }
+        Update: {
+          avg_price?: number
+          id?: string
+          portfolio_id?: string
+          quantity?: number
+          ticker?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_holdings_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portfolio_positions: {
         Row: {
           id: string
@@ -118,9 +153,80 @@ export type Database = {
           },
         ]
       }
+      portfolio_snapshots: {
+        Row: {
+          date: string
+          id: string
+          masi: number | null
+          portfolio_id: string
+          value: number
+        }
+        Insert: {
+          date?: string
+          id?: string
+          masi?: number | null
+          portfolio_id: string
+          value: number
+        }
+        Update: {
+          date?: string
+          id?: string
+          masi?: number | null
+          portfolio_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_snapshots_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portfolio_trades: {
+        Row: {
+          created_at: string
+          id: string
+          portfolio_id: string
+          price: number
+          quantity: number
+          side: string
+          ticker: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          portfolio_id: string
+          price: number
+          quantity: number
+          side: string
+          ticker: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          portfolio_id?: string
+          price?: number
+          quantity?: number
+          side?: string
+          ticker?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_trades_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portfolios: {
         Row: {
           capital: number
+          cash: number
           created_at: string
           id: string
           name: string
@@ -128,6 +234,7 @@ export type Database = {
         }
         Insert: {
           capital?: number
+          cash?: number
           created_at?: string
           id?: string
           name?: string
@@ -135,6 +242,7 @@ export type Database = {
         }
         Update: {
           capital?: number
+          cash?: number
           created_at?: string
           id?: string
           name?: string
