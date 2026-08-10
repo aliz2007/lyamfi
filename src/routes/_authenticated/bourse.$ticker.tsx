@@ -14,7 +14,7 @@ import { stockQuery } from "@/lib/market";
 import { compact, mad, num, pct } from "@/lib/format";
 import { Disclaimer } from "@/components/Disclaimer";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
-import { hasCseQuote } from "@/lib/cse-symbols";
+import { hasCseQuote, tvSymbol } from "@/lib/cse-symbols";
 
 export const Route = createFileRoute("/_authenticated/bourse/$ticker")({
   head: ({ params }) => ({
