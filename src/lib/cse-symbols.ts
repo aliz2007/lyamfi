@@ -1,63 +1,110 @@
 export const CSE_SYMBOLS: ReadonlyArray<readonly [string, string]> = [
-  ["CSEMA:MASI", "MASI"],
-  ["CSEMA:IAM", "Maroc Telecom"],
-  ["CSEMA:ATW", "Attijariwafa"],
-  ["CSEMA:BCP", "Banque Populaire"],
-  ["CSEMA:BOA", "Bank of Africa"],
-  ["CSEMA:CDM", "Crédit du Maroc"],
-  ["CSEMA:CIH", "CIH Bank"],
-  ["CSEMA:EQD", "Eqdom"],
-  ["CSEMA:LFA", "LafargeHolcim"],
-  ["CSEMA:CIM", "Ciments du Maroc"],
-  ["CSEMA:ADH", "Addoha"],
-  ["CSEMA:RDS", "Res. Dar Saada"],
-  ["CSEMA:RMA", "RMA"],
-  ["CSEMA:MNG", "Managem"],
-  ["CSEMA:CMT", "Minière Touissit"],
-  ["CSEMA:SMI", "SMI"],
-  ["CSEMA:TQM", "Taqa Morocco"],
-  ["CSEMA:AFG", "Afriquia Gaz"],
-  ["CSEMA:MSA", "Marsa Maroc"],
-  ["CSEMA:HPS", "HPS"],
-  ["CSEMA:LHM", "Label Vie"],
-  ["CSEMA:MUT", "Mutandis"],
-  ["CSEMA:OUL", "Oulmès"],
-  ["CSEMA:LES", "Lesieur Cristal"],
-  ["CSEMA:CDA", "Centrale Danone"],
-  ["CSEMA:SNP", "SNEP"],
-  ["CSEMA:SID", "Sonasid"],
-  ["CSEMA:COL", "Colorado"],
-  ["CSEMA:JET", "Jet Contractors"],
-  ["CSEMA:WAA", "Wafa Assurance"],
-  ["CSEMA:ATL", "AtlantaSanad"],
+  ["CSEMA:MASI", "MASI (indice)"],
   ["CSEMA:AFM", "AFMA"],
-  ["CSEMA:CTM", "CTM"],
+  ["CSEMA:AFI", "Afric Industries"],
+  ["CSEMA:GAZ", "Afriquia Gaz"],
+  ["CSEMA:AGM", "Agma"],
+  ["CSEMA:AKT", "Akdital"],
+  ["CSEMA:ADI", "Alliances Developpement Immobiliere"],
+  ["CSEMA:ALM", "Aluminium du Maroc"],
+  ["CSEMA:ARD", "Aradei Capital"],
+  ["CSEMA:ATL", "AtlantaSanad"],
+  ["CSEMA:ATW", "Attijariwafa Bank"],
+  ["CSEMA:ATH", "Auto Hall"],
+  ["CSEMA:NEJ", "Auto Nejma"],
+  ["CSEMA:BOA", "Bank of Africa"],
+  ["CSEMA:BCP", "Banque Centrale Populaire"],
+  ["CSEMA:BCI", "Banque Marocaine pour le Commerce et l'Industrie"],
+  ["CSEMA:CRS", "Cartier Saada"],
+  ["CSEMA:CAP", "Cash plus"],
+  ["CSEMA:CFG", "CFG Bank"],
+  ["CSEMA:CMA", "Ciments du Maroc"],
+  ["CSEMA:CMG", "CMGP GROUP"],
+  ["CSEMA:COL", "Colorado"],
+  ["CSEMA:CTM", "Compagnie de Transport au Maroc"],
+  ["CSEMA:CMT", "Compagnie Miniere de Touissit"],
+  ["CSEMA:CSR", "COSUMAR"],
+  ["CSEMA:CDM", "Credit du Maroc"],
+  ["CSEMA:CIH", "Credit Immobilier et Hotelier"],
+  ["CSEMA:DRI", "DARI Couspate S.A."],
+  ["CSEMA:DLM", "Delattre Levivier Maroc"],
+  ["CSEMA:DHO", "Delta Holding"],
+  ["CSEMA:DIS", "DIAC Salaf"],
+  ["CSEMA:DYT", "Disty Technologies"],
+  ["CSEMA:DWY", "Disway"],
+  ["CSEMA:ADH", "Douja Promotion Groupe Addoha"],
+  ["CSEMA:NKL", "Ennakl"],
+  ["CSEMA:FBR", "Fenie Brossette"],
+  ["CSEMA:HPS", "Hightech Payment Systems"],
+  ["CSEMA:LHM", "Holcim Maroc"],
+  ["CSEMA:IBC", "IBMaroc.com"],
+  ["CSEMA:IMO", "Immorente Invest"],
+  ["CSEMA:INV", "Involys"],
+  ["CSEMA:JET", "Jet Contractors"],
+  ["CSEMA:LBV", "Label'Vie"],
+  ["CSEMA:OUL", "Les Eaux Minerales d'Oulmes"],
+  ["CSEMA:LES", "Lesieur Cristal"],
+  ["CSEMA:M2M", "M2M Group"],
+  ["CSEMA:MOX", "Maghreb Oxygene"],
+  ["CSEMA:MAB", "Maghrebail"],
+  ["CSEMA:MNG", "Managem"],
+  ["CSEMA:MLE", "Maroc Leasing"],
+  ["CSEMA:IAM", "Maroc Telecom"],
+  ["CSEMA:SAM", "Marocaine de l'Industrie du Raffinage"],
+  ["CSEMA:MSA", "Marsa Maroc"],
+  ["CSEMA:MDP", "Med Paper"],
+  ["CSEMA:MIC", "Microdata"],
+  ["CSEMA:MUT", "Mutandis"],
+  ["CSEMA:SNP", "Nationale d'Electrolyse et de Petrochimie"],
+  ["CSEMA:PRO", "Promopharm"],
+  ["CSEMA:REB", "Rebab Company"],
+  ["CSEMA:RDS", "Residences Dar Saada"],
+  ["CSEMA:RIS", "Risma"],
+  ["CSEMA:SLF", "Salafin"],
+  ["CSEMA:SAH", "Sanlam Maroc"],
+  ["CSEMA:EQD", "Societe d'Equipement Domestique et Menager"],
+  ["CSEMA:SRM", "Societe de Realisations Mecaniques"],
+  ["CSEMA:SBM", "Societe des Boissons du Maroc"],
+  ["CSEMA:GTM", "Societe Generale des Travaux du Maroc"],
+  ["CSEMA:BAL", "Societe Immobiliere Balima"],
+  ["CSEMA:S2M", "Societe Maghrebine de Monetique"],
+  ["CSEMA:SMI", "Societe Metallurgique d'Imiter"],
+  ["CSEMA:SID", "SONASID"],
   ["CSEMA:SOT", "Sothema"],
+  ["CSEMA:SNA", "Stokvis Nord Afrique"],
+  ["CSEMA:STR", "STROC Industrie"],
+  ["CSEMA:T2S", "T2S Group Holding"],
+  ["CSEMA:TQM", "TAQA Morocco"],
+  ["CSEMA:TMA", "TotalEnergies Marketing Maroc"],
+  ["CSEMA:TGC", "Travaux Generaux de Construction de Casablanca"],
+  ["CSEMA:UMR", "Unimer"],
+  ["CSEMA:VCN", "Vicenne"],
+  ["CSEMA:WAA", "Wafa Assurance"],
+  ["CSEMA:ZDJ", "Zellidja"],
 ];
 
-/** Groupes thématiques pour le widget de cotations en direct. */
-export const CSE_GROUPS: { name: string; tickers: string[] }[] = [
-  { name: "Indice & Télécom", tickers: ["MASI", "IAM"] },
-  {
-    name: "Banques & Assurances",
-    tickers: ["ATW", "BCP", "BOA", "CDM", "CIH", "EQD", "WAA", "ATL", "AFM"],
-  },
-  {
-    name: "Industrie & Matériaux",
-    tickers: ["LFA", "CIM", "SNP", "SID", "COL", "JET", "SOT"],
-  },
-  { name: "Mines & Énergie", tickers: ["MNG", "CMT", "SMI", "TQM", "AFG"] },
-  {
-    name: "Consommation & Services",
-    tickers: ["LHM", "MUT", "OUL", "LES", "CDA", "MSA", "HPS", "CTM", "ADH", "RDS", "RMA"],
-  },
-];
+/** Alias entre les tickers utilisés en base et les symboles TradingView. */
+const TV_ALIASES: Record<string, string> = {
+  DIS: "DWY",
+  LFA: "LHM",
+  CIM: "CMA",
+  AFG: "GAZ",
+};
 
 const NAME_BY_TICKER = new Map(
   CSE_SYMBOLS.map(([proName, title]) => [proName.split(":")[1]!, title]),
 );
 
-export const cseName = (ticker: string) => NAME_BY_TICKER.get(ticker.toUpperCase());
+/** Symbole TradingView correspondant à un ticker de la base. */
+export const tvSymbol = (ticker: string) => {
+  const t = ticker.toUpperCase();
+  return `CSEMA:${TV_ALIASES[t] ?? t}`;
+};
+
+export const cseName = (ticker: string) => NAME_BY_TICKER.get(tvSymbol(ticker).split(":")[1]!);
 
 /** Vrai si la valeur dispose d'une cotation temps réel TradingView. */
-export const hasCseQuote = (ticker: string) => NAME_BY_TICKER.has(ticker.toUpperCase());
+export const hasCseQuote = (ticker: string) => NAME_BY_TICKER.has(tvSymbol(ticker).split(":")[1]!);
+
+/** Tous les tickers TradingView, triés alphabétiquement par nom. */
+export const CSE_TICKERS = CSE_SYMBOLS.map(([proName]) => proName.split(":")[1]!);
