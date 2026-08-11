@@ -268,6 +268,51 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_fundamentals: {
+        Row: {
+          as_of: string
+          bpa_2025: number | null
+          bpa_2026e: number | null
+          dpa_2025: number | null
+          dpa_2026e: number | null
+          dy_2025: number | null
+          dy_2026e: number | null
+          name: string
+          per_2025: number | null
+          per_2026e: number | null
+          shares_m: number
+          ticker: string
+        }
+        Insert: {
+          as_of?: string
+          bpa_2025?: number | null
+          bpa_2026e?: number | null
+          dpa_2025?: number | null
+          dpa_2026e?: number | null
+          dy_2025?: number | null
+          dy_2026e?: number | null
+          name: string
+          per_2025?: number | null
+          per_2026e?: number | null
+          shares_m: number
+          ticker: string
+        }
+        Update: {
+          as_of?: string
+          bpa_2025?: number | null
+          bpa_2026e?: number | null
+          dpa_2025?: number | null
+          dpa_2026e?: number | null
+          dy_2025?: number | null
+          dy_2026e?: number | null
+          name?: string
+          per_2025?: number | null
+          per_2026e?: number | null
+          shares_m?: number
+          ticker?: string
+        }
+        Relationships: []
+      }
       stock_prices: {
         Row: {
           close: number

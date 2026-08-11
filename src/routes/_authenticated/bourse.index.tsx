@@ -7,6 +7,7 @@ import { compact, num } from "@/lib/format";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { LazyTradingView } from "@/components/LazyTradingView";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
+import { LiquidStocks } from "@/components/LiquidStocks";
 
 export const Route = createFileRoute("/_authenticated/bourse/")({
   head: () => ({
@@ -93,6 +94,10 @@ function BoursePage() {
           du cours (TradingView), classées par ordre alphabétique.
         </p>
       </header>
+
+      <LiquidStocks />
+
+
 
       <div className="space-y-3">
         <div className="relative">
