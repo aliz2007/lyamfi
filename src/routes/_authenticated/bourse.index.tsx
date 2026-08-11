@@ -7,6 +7,7 @@ import { compact, num } from "@/lib/format";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { LazyTradingView } from "@/components/LazyTradingView";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
+import { LiquidStocks } from "@/components/LiquidStocks";
 
 export const Route = createFileRoute("/_authenticated/bourse/")({
   head: () => ({
