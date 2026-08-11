@@ -19,8 +19,8 @@ export const Route = createFileRoute("/auth")({
       { property: "og:description", content: "Accède à ton parcours d'éducation financière." },
     ],
   }),
-  validateSearch: (s: Record<string, unknown>) => ({
-    mode: s['mode'] === "signup" ? ("signup" as const) : ("login" as const),
+  validateSearch: (s: Record<string, unknown>): { mode?: "signup" | "login" } => ({
+    mode: s['mode'] === "signup" ? "signup" : "login",
   }),
   component: AuthPage,
 });
