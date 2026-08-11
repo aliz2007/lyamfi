@@ -5,6 +5,16 @@ export type Stock = Tables<"stocks">;
 export type StockPrice = Tables<"stock_prices">;
 export type Lesson = Tables<"lessons">;
 export type LessonProgress = Tables<"lesson_progress">;
+export type StockFundamental = Tables<"stock_fundamentals">;
+
+export const fundamentalsQuery = {
+  queryKey: ["stock_fundamentals"],
+  queryFn: async (): Promise<StockFundamental[]> => {
+    const { data, error } = await supabase.from("stock_fundamentals").select("*");
+    if (error) throw error;
+    return data ?? [];
+  },
+};
 
 export type QuizQuestion = { q: string; options: string[]; answer: number };
 
