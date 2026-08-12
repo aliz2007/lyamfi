@@ -386,8 +386,49 @@ function PortfolioPage() {
         cash={cash}
         holdings={pf?.holdings ?? []}
         onTrade={(v) => trade.mutate(v)}
-        pending={trade.isPending}
+        onPlaceOrder={(v) => placeOrder.mutate(v)}
+        pending={trade.isPending || placeOrder.isPending}
       />
+
+      {(pf?.orders ?? []).length > 0 && (
+        <section className="surface-card p-5 sm:p-7">
+          <h2 className="text-sm font-semibold">Ordres limités en attente</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Un ordre s'exécute automatiquement dès que le cours en direct atteint ton seuil (achat :
+            cours ≤ limite, vente : cours ≥ limite).
+          </p>
+          <ul className="mt-4 space-y-2 text-sm">
+            {pf!.orders.map((o) => {
+              const last = quoteMap.get(o.ticker.toUpperCase())?.price ?? null;
+              return (
+                <li
+                  key={o.id}
+                  className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-2 last:border-0"
+                >
+                  <span>
+                    <span
+                      className={o.side === "buy" ? "text-[var(--success)]" : "text-destructive"}
+                    >
+                      {o.side === "buy" ? "Achat" : "Vente"} limité
+                    </span>{" "}
+                    {num(o.quantity, 0)} × {o.ticker} à {num(o.limit_price)} MAD
+                  </span>
+                  <span className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>Cours : {last === null ? "—" : `${num(last)} MAD`}</span>
+                    <button
+                      onClick={() => cancelOrder.mutate(o.id)}
+                      className="underline-offset-4 hover:text-destructive hover:underline"
+                    >
+                      Annuler
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
 
       <section className="surface-card overflow-hidden">
         <div className="flex items-center justify-between p-5 sm:p-7 sm:pb-4">
