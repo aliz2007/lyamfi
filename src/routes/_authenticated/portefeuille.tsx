@@ -595,6 +595,7 @@ function TradePanel({
   cash,
   holdings,
   onTrade,
+  onPlaceOrder,
   pending,
 }: {
   quotes: LiveQuote[];
@@ -602,11 +603,20 @@ function TradePanel({
   cash: number;
   holdings: Holding[];
   onTrade: (v: { ticker: string; side: "buy" | "sell"; quantity: number; price: number }) => void;
+  onPlaceOrder: (v: {
+    ticker: string;
+    side: "buy" | "sell";
+    quantity: number;
+    limitPrice: number;
+  }) => void;
   pending: boolean;
 }) {
   const [q, setQ] = useState("");
   const [ticker, setTicker] = useState("");
   const [qty, setQty] = useState(10);
+  const [orderType, setOrderType] = useState<"market" | "limit">("market");
+  const [limitPrice, setLimitPrice] = useState("");
+
 
   const list = useMemo(
     () =>
