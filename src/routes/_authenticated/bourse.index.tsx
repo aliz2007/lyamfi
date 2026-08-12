@@ -2,12 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { stocksQuery } from "@/lib/market";
-import { compact, num } from "@/lib/format";
+import { useServerFn } from "@tanstack/react-start";
+import { fundamentalsQuery, stocksQuery } from "@/lib/market";
+import { getLiveQuotes } from "@/lib/quotes.functions";
+import { compact, num, pct } from "@/lib/format";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { LazyTradingView } from "@/components/LazyTradingView";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
-import { LiquidStocks } from "@/components/LiquidStocks";
 
 export const Route = createFileRoute("/_authenticated/bourse/")({
   head: () => ({
@@ -15,7 +16,8 @@ export const Route = createFileRoute("/_authenticated/bourse/")({
       { title: "Valeurs de la Bourse de Casablanca — Lyamfi" },
       {
         name: "description",
-        content: "Cours, secteur, capitalisation et ratios de valorisation des valeurs cotées à la BVC.",
+        content:
+          "Cours en direct, graphiques et données fondamentales (BPA, DPA, PER, rendement) des valeurs cotées à la Bourse de Casablanca.",
       },
       { property: "og:title", content: "Valeurs cotées à la BVC — Lyamfi" },
       { property: "og:description", content: "Explore les valeurs de la Bourse de Casablanca." },
@@ -32,9 +34,19 @@ const CAPS = [
 ] as const;
 
 const PAGE = 24;
+const NR = "NR";
 
 function BoursePage() {
   const { data: stocks = [] } = useQuery(stocksQuery);
+  const { data: fundamentals = [] } = useQuery(fundamentalsQuery);
+  const fetchQuotes = useServerFn(getLiveQuotes);
+  const { data: quotes = [] } = useQuery({
+    queryKey: ["cse-quotes"],
+    queryFn: () => fetchQuotes(),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
   const [sector, setSector] = useState("all");
   const [cap, setCap] = useState<string>("all");
   const [q, setQ] = useState("");
@@ -46,37 +58,86 @@ function BoursePage() {
     [stocks],
   );
 
-  /** Toutes les valeurs cotées (TradingView), enrichies des données pédagogiques en base. */
+  const fundByCode = useMemo(
+    () => new Map(fundamentals.map((f) => [f.ticker.toUpperCase(), f])),
+    [fundamentals],
+  );
+  const quoteByCode = useMemo(
+    () => new Map(quotes.map((x) => [x.ticker.toUpperCase(), x])),
+    [quotes],
+  );
+  const stockByCode = useMemo(
+    () => new Map(stocks.map((s) => [tvSymbol(s.ticker).split(":")[1]!.toUpperCase(), s])),
+    [stocks],
+  );
+
+  /** Toutes les valeurs cotées : fondamentaux renseignés (valeurs liquides) d'abord. */
   const listings = useMemo(() => {
-    const byTv = new Map(stocks.map((s) => [tvSymbol(s.ticker), s]));
-    return CSE_SYMBOLS.map(([symbol, title]) => ({
-      symbol,
-      code: symbol.split(":")[1]!,
-      title,
-      stock: byTv.get(symbol) ?? null,
-    })).sort((a, b) => a.title.localeCompare(b.title, "fr"));
-  }, [stocks]);
+    const rows = CSE_SYMBOLS.filter(([symbol]) => symbol !== "CSEMA:MASI").map(
+      ([symbol, title]) => {
+        const code = symbol.split(":")[1]!.toUpperCase();
+        const f = fundByCode.get(code) ?? null;
+        const live = quoteByCode.get(code) ?? null;
+        const stock = stockByCode.get(code) ?? null;
+        const price = live?.price ?? null;
+        const per = (bpa: number | null) => (price && bpa && bpa > 0 ? price / bpa : null);
+        const dy = (dpa: number | null) =>
+          price && price > 0 && dpa !== null ? (dpa / price) * 100 : null;
+        const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+
+        return {
+          symbol,
+          code,
+          title: stock?.name ?? f?.name ?? title,
+          sector: stock?.sector ?? null,
+          stockTicker: stock?.ticker ?? null,
+          covered: !!f,
+          price,
+          changePct: live?.changePct ?? null,
+          marketCap: f && price ? price * Number(f.shares_m) * 1e6 : null,
+          bpa25: n(f?.bpa_2025),
+          bpa26: n(f?.bpa_2026e),
+          dpa25: n(f?.dpa_2025),
+          dpa26: n(f?.dpa_2026e),
+          per25: per(n(f?.bpa_2025)),
+          per26: per(n(f?.bpa_2026e)),
+          dy25: dy(n(f?.dpa_2025)),
+          dy26: dy(n(f?.dpa_2026e)),
+        };
+      },
+    );
+
+    return rows.sort((a, b) => {
+      if (a.covered !== b.covered) return a.covered ? -1 : 1;
+      if (a.covered && b.covered) return (b.marketCap ?? 0) - (a.marketCap ?? 0);
+      return a.title.localeCompare(b.title, "fr");
+    });
+  }, [fundByCode, quoteByCode, stockByCode]);
 
   const filtered = useMemo(
     () =>
-      listings.filter(({ symbol, title, stock }) => {
-        const mc = Number(stock?.market_cap ?? 0);
+      listings.filter((l) => {
+        const mc = l.marketCap ?? 0;
         const capOk =
           cap === "all" ||
-          (!!stock &&
+          (l.marketCap !== null &&
             ((cap === "large" && mc > 20e9) ||
               (cap === "mid" && mc >= 5e9 && mc <= 20e9) ||
               (cap === "small" && mc < 5e9)));
-        const sectorOk = sector === "all" || stock?.sector === sector;
-        const needle = q.toLowerCase();
+        const sectorOk = sector === "all" || l.sector === sector;
+        const needle = q.trim().toLowerCase();
         const qOk =
-          !q || title.toLowerCase().includes(needle) || symbol.toLowerCase().includes(needle);
+          !needle ||
+          l.title.toLowerCase().includes(needle) ||
+          l.code.toLowerCase().includes(needle);
         return capOk && sectorOk && qOk;
       }),
     [listings, cap, sector, q],
   );
 
   useEffect(() => setLimit(PAGE), [q, sector, cap]);
+
+  const coveredCount = listings.filter((l) => l.covered).length;
 
   const tableSymbols = CSE_SYMBOLS.filter(
     ([proName, title]) =>
@@ -90,14 +151,12 @@ function BoursePage() {
       <header>
         <h1 className="text-3xl font-bold sm:text-4xl">Bourse de Casablanca</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Toutes les valeurs cotées ({CSE_SYMBOLS.length}) avec leur cours en direct et l'évolution
-          du cours (TradingView), classées par ordre alphabétique.
+          Toutes les valeurs cotées ({CSE_SYMBOLS.length - 1}) avec leur cours en direct et leur
+          graphique (TradingView). Les {coveredCount} valeurs les plus liquides — celles couvertes
+          par le consensus d'analystes — apparaissent en premier avec leurs données fondamentales
+          2025 / 2026e. Pour les autres, les fondamentaux sont indiqués « NR » (non renseigné).
         </p>
       </header>
-
-      <LiquidStocks />
-
-
 
       <div className="space-y-3">
         <div className="relative">
@@ -129,24 +188,43 @@ function BoursePage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.slice(0, limit).map(({ symbol, code, title, stock }) => (
-          <div key={symbol} className="surface-card p-5">
-            {stock ? (
-              <Link
-                to="/bourse/$ticker"
-                params={{ ticker: stock.ticker }}
-                className="block transition-colors hover:text-primary"
-              >
-                <p className="truncate font-semibold">{stock.name}</p>
+        {filtered.slice(0, limit).map((l) => (
+          <article key={l.symbol} className="surface-card p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                {l.stockTicker ? (
+                  <Link
+                    to="/bourse/$ticker"
+                    params={{ ticker: l.stockTicker }}
+                    className="block transition-colors hover:text-primary"
+                  >
+                    <p className="truncate font-semibold">{l.title}</p>
+                  </Link>
+                ) : (
+                  <p className="truncate font-semibold">{l.title}</p>
+                )}
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {code} · {stock.sector}
+                  {l.code} · {l.sector ?? "BVC"}
                 </p>
-              </Link>
-            ) : (
-              <>
-                <p className="truncate font-semibold">{title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{code} · BVC</p>
-              </>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-semibold">
+                  {l.price === null ? "—" : `${l.price.toLocaleString("fr-MA")} MAD`}
+                </p>
+                <p
+                  className={`text-xs ${
+                    (l.changePct ?? 0) >= 0 ? "text-[var(--success)]" : "text-destructive"
+                  }`}
+                >
+                  {l.changePct === null ? "—" : pct(l.changePct)}
+                </p>
+              </div>
+            </div>
+
+            {l.covered && (
+              <span className="mt-3 inline-block rounded-full border border-primary/40 bg-accent px-2.5 py-0.5 text-[10px] font-medium text-accent-foreground">
+                Valeur liquide · fondamentaux suivis
+              </span>
             )}
 
             <LazyTradingView className="-mx-2 mt-3 h-[180px]">
@@ -154,7 +232,7 @@ function BoursePage() {
                 widget="mini-symbol-overview"
                 className="h-full w-full"
                 config={{
-                  symbol,
+                  symbol: l.symbol,
                   width: "100%",
                   height: "100%",
                   locale: "fr",
@@ -168,23 +246,30 @@ function BoursePage() {
               />
             </LazyTradingView>
 
-            {stock && (
-              <dl className="mt-4 grid grid-cols-3 gap-2 text-xs">
-                <div>
-                  <dt className="text-muted-foreground">PER</dt>
-                  <dd className="mt-0.5 font-medium">{num(Number(stock.per), 1)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">DY</dt>
-                  <dd className="mt-0.5 font-medium">{num(Number(stock.dividend_yield), 1)} %</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Cap.</dt>
-                  <dd className="mt-0.5 font-medium">{compact(Number(stock.market_cap))}</dd>
-                </div>
-              </dl>
-            )}
-          </div>
+            <dl className="mt-4 space-y-2 text-xs">
+              <Row label="Capitalisation" value={l.marketCap ? compact(l.marketCap) : NR} />
+              <Row
+                label="BPA 25 / 26e"
+                value={
+                  l.covered ? `${num(l.bpa25, 1)} / ${num(l.bpa26, 1)}` : NR
+                }
+              />
+              <Row
+                label="DPA 25 / 26e"
+                value={l.covered ? `${num(l.dpa25, 1)} / ${num(l.dpa26, 1)}` : NR}
+              />
+              <Row
+                label="PER 25 / 26e"
+                value={l.covered ? `${num(l.per25, 1)}x / ${num(l.per26, 1)}x` : NR}
+                strong
+              />
+              <Row
+                label="Rendement 25 / 26e"
+                value={l.covered ? `${num(l.dy25, 1)} % / ${num(l.dy26, 1)} %` : NR}
+                strong
+              />
+            </dl>
+          </article>
         ))}
         {filtered.length === 0 && (
           <p className="text-sm text-muted-foreground">Aucune valeur ne correspond aux filtres.</p>
@@ -241,10 +326,24 @@ function BoursePage() {
           Données de marché fournies par TradingView, différées ou temps réel selon la source.
         </p>
       </section>
+
+      <p className="text-xs text-muted-foreground">
+        Prévisions BPA / DPA issues d'un consensus d'analystes ; PER, rendement et capitalisation
+        recalculés au cours du jour. « NR » signifie non renseigné pour l'instant. Outil pédagogique,
+        ne constitue pas un conseil en investissement.
+      </p>
     </div>
   );
 }
 
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={strong ? "font-semibold" : "font-medium"}>{value}</dd>
+    </div>
+  );
+}
 
 function Chip({
   active,

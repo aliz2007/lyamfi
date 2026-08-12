@@ -85,23 +85,30 @@ function PortfolioPage() {
         p = created;
       }
 
-      const [{ data: holdings }, { data: trades }, { data: snaps }] = await Promise.all([
-        supabase
-          .from("portfolio_holdings")
-          .select("id, ticker, quantity, avg_price")
-          .eq("portfolio_id", p.id),
-        supabase
-          .from("portfolio_trades")
-          .select("id, ticker, side, quantity, price, created_at")
-          .eq("portfolio_id", p.id)
-          .order("created_at", { ascending: false })
-          .limit(20),
-        supabase
-          .from("portfolio_snapshots")
-          .select("date, value, masi")
-          .eq("portfolio_id", p.id)
-          .order("date", { ascending: true }),
-      ]);
+      const [{ data: holdings }, { data: trades }, { data: snaps }, { data: orders }] =
+        await Promise.all([
+          supabase
+            .from("portfolio_holdings")
+            .select("id, ticker, quantity, avg_price")
+            .eq("portfolio_id", p.id),
+          supabase
+            .from("portfolio_trades")
+            .select("id, ticker, side, quantity, price, created_at")
+            .eq("portfolio_id", p.id)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          supabase
+            .from("portfolio_snapshots")
+            .select("date, value, masi")
+            .eq("portfolio_id", p.id)
+            .order("date", { ascending: true }),
+          supabase
+            .from("portfolio_orders")
+            .select("id, ticker, side, quantity, limit_price, status, created_at")
+            .eq("portfolio_id", p.id)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false }),
+        ]);
 
       return {
         id: p.id,
@@ -115,6 +122,14 @@ function PortfolioPage() {
           }))
           .filter((h) => h.quantity > 0) as Holding[],
         trades: trades ?? [],
+        orders: (orders ?? []).map((o) => ({
+          id: o.id,
+          ticker: o.ticker,
+          side: o.side as "buy" | "sell",
+          quantity: Number(o.quantity),
+          limit_price: Number(o.limit_price),
+          created_at: o.created_at,
+        })),
         snapshots: (snaps ?? []).map((s) => ({
           date: s.date,
           value: Number(s.value),
@@ -123,6 +138,7 @@ function PortfolioPage() {
       };
     },
   });
+
 
   const rows = (pf?.holdings ?? []).map((h) => {
     const q = quoteMap.get(h.ticker.toUpperCase());
@@ -164,60 +180,63 @@ function PortfolioPage() {
     }));
   }, [pf?.snapshots]);
 
+  /** Exécute réellement un ordre (marché ou limite déclenchée) sur le portefeuille. */
+  const applyTrade = async ({
+    ticker,
+    side,
+    quantity,
+    price,
+  }: {
+    ticker: string;
+    side: "buy" | "sell";
+    quantity: number;
+    price: number;
+  }) => {
+    if (!pf?.id) throw new Error("Portefeuille introuvable");
+    if (!(quantity > 0)) throw new Error("Quantité invalide");
+    const amount = quantity * price;
+    const existing = pf.holdings.find((h) => h.ticker === ticker);
+
+    if (side === "buy") {
+      if (amount > pf.cash + 1e-9) throw new Error("Liquidités insuffisantes");
+      const newQty = (existing?.quantity ?? 0) + quantity;
+      const newAvg = ((existing?.quantity ?? 0) * (existing?.avg_price ?? 0) + amount) / newQty;
+      const { error } = await supabase
+        .from("portfolio_holdings")
+        .upsert(
+          { portfolio_id: pf.id, ticker, quantity: newQty, avg_price: newAvg, updated_at: new Date().toISOString() },
+          { onConflict: "portfolio_id,ticker" },
+        );
+      if (error) throw error;
+      const { error: cErr } = await supabase
+        .from("portfolios")
+        .update({ cash: pf.cash - amount })
+        .eq("id", pf.id);
+      if (cErr) throw cErr;
+    } else {
+      if (!existing || quantity > existing.quantity + 1e-9)
+        throw new Error("Quantité détenue insuffisante");
+      const newQty = existing.quantity - quantity;
+      const { error } = await supabase
+        .from("portfolio_holdings")
+        .update({ quantity: newQty, updated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+      if (error) throw error;
+      const { error: cErr } = await supabase
+        .from("portfolios")
+        .update({ cash: pf.cash + amount })
+        .eq("id", pf.id);
+      if (cErr) throw cErr;
+    }
+
+    const { error: tErr } = await supabase
+      .from("portfolio_trades")
+      .insert({ portfolio_id: pf.id, ticker, side, quantity, price });
+    if (tErr) throw tErr;
+  };
+
   const trade = useMutation({
-    mutationFn: async ({
-      ticker,
-      side,
-      quantity,
-      price,
-    }: {
-      ticker: string;
-      side: "buy" | "sell";
-      quantity: number;
-      price: number;
-    }) => {
-      if (!pf?.id) throw new Error("Portefeuille introuvable");
-      if (!(quantity > 0)) throw new Error("Quantité invalide");
-      const amount = quantity * price;
-      const existing = pf.holdings.find((h) => h.ticker === ticker);
-
-      if (side === "buy") {
-        if (amount > pf.cash + 1e-9) throw new Error("Liquidités insuffisantes");
-        const newQty = (existing?.quantity ?? 0) + quantity;
-        const newAvg = ((existing?.quantity ?? 0) * (existing?.avg_price ?? 0) + amount) / newQty;
-        const { error } = await supabase
-          .from("portfolio_holdings")
-          .upsert(
-            { portfolio_id: pf.id, ticker, quantity: newQty, avg_price: newAvg, updated_at: new Date().toISOString() },
-            { onConflict: "portfolio_id,ticker" },
-          );
-        if (error) throw error;
-        const { error: cErr } = await supabase
-          .from("portfolios")
-          .update({ cash: pf.cash - amount })
-          .eq("id", pf.id);
-        if (cErr) throw cErr;
-      } else {
-        if (!existing || quantity > existing.quantity + 1e-9)
-          throw new Error("Quantité détenue insuffisante");
-        const newQty = existing.quantity - quantity;
-        const { error } = await supabase
-          .from("portfolio_holdings")
-          .update({ quantity: newQty, updated_at: new Date().toISOString() })
-          .eq("id", existing.id);
-        if (error) throw error;
-        const { error: cErr } = await supabase
-          .from("portfolios")
-          .update({ cash: pf.cash + amount })
-          .eq("id", pf.id);
-        if (cErr) throw cErr;
-      }
-
-      const { error: tErr } = await supabase
-        .from("portfolio_trades")
-        .insert({ portfolio_id: pf.id, ticker, side, quantity, price });
-      if (tErr) throw tErr;
-    },
+    mutationFn: applyTrade,
     onSuccess: (_d, v) => {
       toast.success(
         `${v.side === "buy" ? "Achat" : "Vente"} de ${v.quantity} ${v.ticker} à ${num(v.price)} MAD`,
@@ -227,12 +246,108 @@ function PortfolioPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const placeOrder = useMutation({
+    mutationFn: async (v: {
+      ticker: string;
+      side: "buy" | "sell";
+      quantity: number;
+      limitPrice: number;
+    }) => {
+      if (!pf?.id) throw new Error("Portefeuille introuvable");
+      if (!(v.quantity > 0)) throw new Error("Quantité invalide");
+      if (!(v.limitPrice > 0)) throw new Error("Cours limite invalide");
+      const { error } = await supabase.from("portfolio_orders").insert({
+        portfolio_id: pf.id,
+        ticker: v.ticker,
+        side: v.side,
+        quantity: v.quantity,
+        limit_price: v.limitPrice,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      toast.success(
+        `Ordre limité enregistré : ${v.side === "buy" ? "achat" : "vente"} de ${v.quantity} ${
+          v.ticker
+        } à ${num(v.limitPrice)} MAD`,
+      );
+      qc.invalidateQueries({ queryKey: ["vportfolio"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const cancelOrder = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("portfolio_orders")
+        .update({ status: "cancelled" })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Ordre annulé");
+      qc.invalidateQueries({ queryKey: ["vportfolio"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Exécution des ordres limités dès que le cours en direct atteint le seuil.
+  const [filling, setFilling] = useState(false);
+  useEffect(() => {
+    const orders = pf?.orders ?? [];
+    if (!pf?.id || filling || orders.length === 0 || quotes.length === 0) return;
+
+    const eligible = orders.find((o) => {
+      const price = quoteMap.get(o.ticker.toUpperCase())?.price;
+      if (!price) return false;
+      return o.side === "buy" ? price <= o.limit_price : price >= o.limit_price;
+    });
+    if (!eligible) return;
+
+    const fillPrice = quoteMap.get(eligible.ticker.toUpperCase())!.price;
+    setFilling(true);
+    void (async () => {
+      try {
+        await applyTrade({
+          ticker: eligible.ticker,
+          side: eligible.side,
+          quantity: eligible.quantity,
+          price: fillPrice,
+        });
+        await supabase
+          .from("portfolio_orders")
+          .update({ status: "filled", filled_price: fillPrice, filled_at: new Date().toISOString() })
+          .eq("id", eligible.id);
+        toast.success(
+          `Ordre limité exécuté : ${eligible.side === "buy" ? "achat" : "vente"} de ${
+            eligible.quantity
+          } ${eligible.ticker} à ${num(fillPrice)} MAD`,
+        );
+      } catch (e) {
+        await supabase
+          .from("portfolio_orders")
+          .update({ status: "cancelled" })
+          .eq("id", eligible.id);
+        toast.error(
+          `Ordre limité annulé (${eligible.ticker}) : ${(e as Error).message}`,
+        );
+      } finally {
+        setFilling(false);
+        qc.invalidateQueries({ queryKey: ["vportfolio"] });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pf?.orders, quoteMap, filling]);
+
+
   const reset = useMutation({
     mutationFn: async () => {
       if (!pf?.id) return;
       await supabase.from("portfolio_holdings").delete().eq("portfolio_id", pf.id);
       await supabase.from("portfolio_trades").delete().eq("portfolio_id", pf.id);
       await supabase.from("portfolio_snapshots").delete().eq("portfolio_id", pf.id);
+      await supabase.from("portfolio_orders").delete().eq("portfolio_id", pf.id);
+
       await supabase.from("portfolios").update({ cash: START_CAPITAL }).eq("id", pf.id);
     },
     onSuccess: () => {
@@ -271,8 +386,49 @@ function PortfolioPage() {
         cash={cash}
         holdings={pf?.holdings ?? []}
         onTrade={(v) => trade.mutate(v)}
-        pending={trade.isPending}
+        onPlaceOrder={(v) => placeOrder.mutate(v)}
+        pending={trade.isPending || placeOrder.isPending}
       />
+
+      {(pf?.orders ?? []).length > 0 && (
+        <section className="surface-card p-5 sm:p-7">
+          <h2 className="text-sm font-semibold">Ordres limités en attente</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Un ordre s'exécute automatiquement dès que le cours en direct atteint ton seuil (achat :
+            cours ≤ limite, vente : cours ≥ limite).
+          </p>
+          <ul className="mt-4 space-y-2 text-sm">
+            {pf!.orders.map((o) => {
+              const last = quoteMap.get(o.ticker.toUpperCase())?.price ?? null;
+              return (
+                <li
+                  key={o.id}
+                  className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-2 last:border-0"
+                >
+                  <span>
+                    <span
+                      className={o.side === "buy" ? "text-[var(--success)]" : "text-destructive"}
+                    >
+                      {o.side === "buy" ? "Achat" : "Vente"} limité
+                    </span>{" "}
+                    {num(o.quantity, 0)} × {o.ticker} à {num(o.limit_price)} MAD
+                  </span>
+                  <span className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>Cours : {last === null ? "—" : `${num(last)} MAD`}</span>
+                    <button
+                      onClick={() => cancelOrder.mutate(o.id)}
+                      className="underline-offset-4 hover:text-destructive hover:underline"
+                    >
+                      Annuler
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
 
       <section className="surface-card overflow-hidden">
         <div className="flex items-center justify-between p-5 sm:p-7 sm:pb-4">
@@ -439,6 +595,7 @@ function TradePanel({
   cash,
   holdings,
   onTrade,
+  onPlaceOrder,
   pending,
 }: {
   quotes: LiveQuote[];
@@ -446,11 +603,20 @@ function TradePanel({
   cash: number;
   holdings: Holding[];
   onTrade: (v: { ticker: string; side: "buy" | "sell"; quantity: number; price: number }) => void;
+  onPlaceOrder: (v: {
+    ticker: string;
+    side: "buy" | "sell";
+    quantity: number;
+    limitPrice: number;
+  }) => void;
   pending: boolean;
 }) {
   const [q, setQ] = useState("");
   const [ticker, setTicker] = useState("");
   const [qty, setQty] = useState(10);
+  const [orderType, setOrderType] = useState<"market" | "limit">("market");
+  const [limitPrice, setLimitPrice] = useState("");
+
 
   const list = useMemo(
     () =>
@@ -469,7 +635,12 @@ function TradePanel({
 
   const selected = quotes.find((s) => s.ticker === ticker) ?? null;
   const held = holdings.find((h) => h.ticker === ticker)?.quantity ?? 0;
-  const amount = selected ? selected.price * qty : 0;
+  const limitValue = Number(limitPrice.replace(",", "."));
+  const validLimit = Number.isFinite(limitValue) && limitValue > 0;
+  const execPrice =
+    orderType === "limit" && validLimit ? limitValue : (selected?.price ?? 0);
+  const amount = execPrice * qty;
+
 
   return (
     <section className="surface-card p-5 sm:p-7">
@@ -546,29 +717,109 @@ function TradePanel({
             </div>
           </div>
 
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setOrderType("market")}
+              className={`rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
+                orderType === "market"
+                  ? "border-primary/60 bg-accent text-accent-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Ordre au marché
+            </button>
+            <button
+              onClick={() => {
+                setOrderType("limit");
+                if (!limitPrice) setLimitPrice(String(selected.price));
+              }}
+              className={`rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
+                orderType === "limit"
+                  ? "border-primary/60 bg-accent text-accent-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Ordre à cours limité
+            </button>
+            {orderType === "limit" && (
+              <span className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground" htmlFor="limit">
+                  Cours limite
+                </label>
+                <input
+                  id="limit"
+                  inputMode="decimal"
+                  value={limitPrice}
+                  onChange={(e) => setLimitPrice(e.target.value)}
+                  className="w-28 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                />
+                <span className="text-xs text-muted-foreground">MAD</span>
+              </span>
+            )}
+          </div>
+
           <p className="mt-3 text-xs text-muted-foreground">
             Montant de l'ordre : <span className="font-semibold text-foreground">{mad(amount, 2)}</span>{" "}
             · liquidités disponibles : {mad(cash, 2)}
+            {orderType === "limit" && (
+              <>
+                {" "}
+                · l'ordre s'exécutera automatiquement dès que le cours atteindra ta limite (achat si
+                cours ≤ limite, vente si cours ≥ limite).
+              </>
+            )}
           </p>
 
           <div className="mt-4 flex gap-3">
             <button
-              disabled={pending || amount > cash}
-              onClick={() => onTrade({ ticker: selected.ticker, side: "buy", quantity: qty, price: selected.price })}
+              disabled={
+                pending ||
+                (orderType === "market" ? amount > cash : !validLimit)
+              }
+              onClick={() =>
+                orderType === "market"
+                  ? onTrade({
+                      ticker: selected.ticker,
+                      side: "buy",
+                      quantity: qty,
+                      price: selected.price,
+                    })
+                  : onPlaceOrder({
+                      ticker: selected.ticker,
+                      side: "buy",
+                      quantity: qty,
+                      limitPrice: limitValue,
+                    })
+              }
               className="flex-1 rounded-full bg-gradient-gold px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
-              Acheter
+              {orderType === "market" ? "Acheter" : "Placer un achat limité"}
             </button>
             <button
-              disabled={pending || held < qty}
-              onClick={() => onTrade({ ticker: selected.ticker, side: "sell", quantity: qty, price: selected.price })}
+              disabled={pending || held < qty || (orderType === "limit" && !validLimit)}
+              onClick={() =>
+                orderType === "market"
+                  ? onTrade({
+                      ticker: selected.ticker,
+                      side: "sell",
+                      quantity: qty,
+                      price: selected.price,
+                    })
+                  : onPlaceOrder({
+                      ticker: selected.ticker,
+                      side: "sell",
+                      quantity: qty,
+                      limitPrice: limitValue,
+                    })
+              }
               className="flex-1 rounded-full border border-border px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
             >
-              Vendre
+              {orderType === "market" ? "Vendre" : "Placer une vente limitée"}
             </button>
           </div>
         </div>
       )}
+
     </section>
   );
 }
