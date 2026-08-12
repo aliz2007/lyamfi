@@ -346,6 +346,8 @@ function PortfolioPage() {
       await supabase.from("portfolio_holdings").delete().eq("portfolio_id", pf.id);
       await supabase.from("portfolio_trades").delete().eq("portfolio_id", pf.id);
       await supabase.from("portfolio_snapshots").delete().eq("portfolio_id", pf.id);
+      await supabase.from("portfolio_orders").delete().eq("portfolio_id", pf.id);
+
       await supabase.from("portfolios").update({ cash: START_CAPITAL }).eq("id", pf.id);
     },
     onSuccess: () => {
