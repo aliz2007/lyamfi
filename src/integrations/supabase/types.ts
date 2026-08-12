@@ -117,6 +117,56 @@ export type Database = {
           },
         ]
       }
+      portfolio_orders: {
+        Row: {
+          created_at: string
+          filled_at: string | null
+          filled_price: number | null
+          id: string
+          limit_price: number
+          portfolio_id: string
+          quantity: number
+          side: string
+          status: string
+          ticker: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          filled_at?: string | null
+          filled_price?: number | null
+          id?: string
+          limit_price: number
+          portfolio_id: string
+          quantity: number
+          side: string
+          status?: string
+          ticker: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          filled_at?: string | null
+          filled_price?: number | null
+          id?: string
+          limit_price?: number
+          portfolio_id?: string
+          quantity?: number
+          side?: string
+          status?: string
+          ticker?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_orders_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portfolio_positions: {
         Row: {
           id: string
