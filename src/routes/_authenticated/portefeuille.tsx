@@ -635,7 +635,12 @@ function TradePanel({
 
   const selected = quotes.find((s) => s.ticker === ticker) ?? null;
   const held = holdings.find((h) => h.ticker === ticker)?.quantity ?? 0;
-  const amount = selected ? selected.price * qty : 0;
+  const limitValue = Number(limitPrice.replace(",", "."));
+  const validLimit = Number.isFinite(limitValue) && limitValue > 0;
+  const execPrice =
+    orderType === "limit" && validLimit ? limitValue : (selected?.price ?? 0);
+  const amount = execPrice * qty;
+
 
   return (
     <section className="surface-card p-5 sm:p-7">
