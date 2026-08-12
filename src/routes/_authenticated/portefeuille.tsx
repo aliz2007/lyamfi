@@ -180,60 +180,63 @@ function PortfolioPage() {
     }));
   }, [pf?.snapshots]);
 
+  /** Exécute réellement un ordre (marché ou limite déclenchée) sur le portefeuille. */
+  const applyTrade = async ({
+    ticker,
+    side,
+    quantity,
+    price,
+  }: {
+    ticker: string;
+    side: "buy" | "sell";
+    quantity: number;
+    price: number;
+  }) => {
+    if (!pf?.id) throw new Error("Portefeuille introuvable");
+    if (!(quantity > 0)) throw new Error("Quantité invalide");
+    const amount = quantity * price;
+    const existing = pf.holdings.find((h) => h.ticker === ticker);
+
+    if (side === "buy") {
+      if (amount > pf.cash + 1e-9) throw new Error("Liquidités insuffisantes");
+      const newQty = (existing?.quantity ?? 0) + quantity;
+      const newAvg = ((existing?.quantity ?? 0) * (existing?.avg_price ?? 0) + amount) / newQty;
+      const { error } = await supabase
+        .from("portfolio_holdings")
+        .upsert(
+          { portfolio_id: pf.id, ticker, quantity: newQty, avg_price: newAvg, updated_at: new Date().toISOString() },
+          { onConflict: "portfolio_id,ticker" },
+        );
+      if (error) throw error;
+      const { error: cErr } = await supabase
+        .from("portfolios")
+        .update({ cash: pf.cash - amount })
+        .eq("id", pf.id);
+      if (cErr) throw cErr;
+    } else {
+      if (!existing || quantity > existing.quantity + 1e-9)
+        throw new Error("Quantité détenue insuffisante");
+      const newQty = existing.quantity - quantity;
+      const { error } = await supabase
+        .from("portfolio_holdings")
+        .update({ quantity: newQty, updated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+      if (error) throw error;
+      const { error: cErr } = await supabase
+        .from("portfolios")
+        .update({ cash: pf.cash + amount })
+        .eq("id", pf.id);
+      if (cErr) throw cErr;
+    }
+
+    const { error: tErr } = await supabase
+      .from("portfolio_trades")
+      .insert({ portfolio_id: pf.id, ticker, side, quantity, price });
+    if (tErr) throw tErr;
+  };
+
   const trade = useMutation({
-    mutationFn: async ({
-      ticker,
-      side,
-      quantity,
-      price,
-    }: {
-      ticker: string;
-      side: "buy" | "sell";
-      quantity: number;
-      price: number;
-    }) => {
-      if (!pf?.id) throw new Error("Portefeuille introuvable");
-      if (!(quantity > 0)) throw new Error("Quantité invalide");
-      const amount = quantity * price;
-      const existing = pf.holdings.find((h) => h.ticker === ticker);
-
-      if (side === "buy") {
-        if (amount > pf.cash + 1e-9) throw new Error("Liquidités insuffisantes");
-        const newQty = (existing?.quantity ?? 0) + quantity;
-        const newAvg = ((existing?.quantity ?? 0) * (existing?.avg_price ?? 0) + amount) / newQty;
-        const { error } = await supabase
-          .from("portfolio_holdings")
-          .upsert(
-            { portfolio_id: pf.id, ticker, quantity: newQty, avg_price: newAvg, updated_at: new Date().toISOString() },
-            { onConflict: "portfolio_id,ticker" },
-          );
-        if (error) throw error;
-        const { error: cErr } = await supabase
-          .from("portfolios")
-          .update({ cash: pf.cash - amount })
-          .eq("id", pf.id);
-        if (cErr) throw cErr;
-      } else {
-        if (!existing || quantity > existing.quantity + 1e-9)
-          throw new Error("Quantité détenue insuffisante");
-        const newQty = existing.quantity - quantity;
-        const { error } = await supabase
-          .from("portfolio_holdings")
-          .update({ quantity: newQty, updated_at: new Date().toISOString() })
-          .eq("id", existing.id);
-        if (error) throw error;
-        const { error: cErr } = await supabase
-          .from("portfolios")
-          .update({ cash: pf.cash + amount })
-          .eq("id", pf.id);
-        if (cErr) throw cErr;
-      }
-
-      const { error: tErr } = await supabase
-        .from("portfolio_trades")
-        .insert({ portfolio_id: pf.id, ticker, side, quantity, price });
-      if (tErr) throw tErr;
-    },
+    mutationFn: applyTrade,
     onSuccess: (_d, v) => {
       toast.success(
         `${v.side === "buy" ? "Achat" : "Vente"} de ${v.quantity} ${v.ticker} à ${num(v.price)} MAD`,
@@ -242,6 +245,100 @@ function PortfolioPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const placeOrder = useMutation({
+    mutationFn: async (v: {
+      ticker: string;
+      side: "buy" | "sell";
+      quantity: number;
+      limitPrice: number;
+    }) => {
+      if (!pf?.id) throw new Error("Portefeuille introuvable");
+      if (!(v.quantity > 0)) throw new Error("Quantité invalide");
+      if (!(v.limitPrice > 0)) throw new Error("Cours limite invalide");
+      const { error } = await supabase.from("portfolio_orders").insert({
+        portfolio_id: pf.id,
+        ticker: v.ticker,
+        side: v.side,
+        quantity: v.quantity,
+        limit_price: v.limitPrice,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      toast.success(
+        `Ordre limité enregistré : ${v.side === "buy" ? "achat" : "vente"} de ${v.quantity} ${
+          v.ticker
+        } à ${num(v.limitPrice)} MAD`,
+      );
+      qc.invalidateQueries({ queryKey: ["vportfolio"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const cancelOrder = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("portfolio_orders")
+        .update({ status: "cancelled" })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Ordre annulé");
+      qc.invalidateQueries({ queryKey: ["vportfolio"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Exécution des ordres limités dès que le cours en direct atteint le seuil.
+  const [filling, setFilling] = useState(false);
+  useEffect(() => {
+    const orders = pf?.orders ?? [];
+    if (!pf?.id || filling || orders.length === 0 || quotes.length === 0) return;
+
+    const eligible = orders.find((o) => {
+      const price = quoteMap.get(o.ticker.toUpperCase())?.price;
+      if (!price) return false;
+      return o.side === "buy" ? price <= o.limit_price : price >= o.limit_price;
+    });
+    if (!eligible) return;
+
+    const fillPrice = quoteMap.get(eligible.ticker.toUpperCase())!.price;
+    setFilling(true);
+    void (async () => {
+      try {
+        await applyTrade({
+          ticker: eligible.ticker,
+          side: eligible.side,
+          quantity: eligible.quantity,
+          price: fillPrice,
+        });
+        await supabase
+          .from("portfolio_orders")
+          .update({ status: "filled", filled_price: fillPrice, filled_at: new Date().toISOString() })
+          .eq("id", eligible.id);
+        toast.success(
+          `Ordre limité exécuté : ${eligible.side === "buy" ? "achat" : "vente"} de ${
+            eligible.quantity
+          } ${eligible.ticker} à ${num(fillPrice)} MAD`,
+        );
+      } catch (e) {
+        await supabase
+          .from("portfolio_orders")
+          .update({ status: "cancelled" })
+          .eq("id", eligible.id);
+        toast.error(
+          `Ordre limité annulé (${eligible.ticker}) : ${(e as Error).message}`,
+        );
+      } finally {
+        setFilling(false);
+        qc.invalidateQueries({ queryKey: ["vportfolio"] });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pf?.orders, quoteMap, filling]);
+
 
   const reset = useMutation({
     mutationFn: async () => {
