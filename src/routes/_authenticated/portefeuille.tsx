@@ -717,29 +717,109 @@ function TradePanel({
             </div>
           </div>
 
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setOrderType("market")}
+              className={`rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
+                orderType === "market"
+                  ? "border-primary/60 bg-accent text-accent-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Ordre au marché
+            </button>
+            <button
+              onClick={() => {
+                setOrderType("limit");
+                if (!limitPrice) setLimitPrice(String(selected.price));
+              }}
+              className={`rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
+                orderType === "limit"
+                  ? "border-primary/60 bg-accent text-accent-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Ordre à cours limité
+            </button>
+            {orderType === "limit" && (
+              <span className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground" htmlFor="limit">
+                  Cours limite
+                </label>
+                <input
+                  id="limit"
+                  inputMode="decimal"
+                  value={limitPrice}
+                  onChange={(e) => setLimitPrice(e.target.value)}
+                  className="w-28 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                />
+                <span className="text-xs text-muted-foreground">MAD</span>
+              </span>
+            )}
+          </div>
+
           <p className="mt-3 text-xs text-muted-foreground">
             Montant de l'ordre : <span className="font-semibold text-foreground">{mad(amount, 2)}</span>{" "}
             · liquidités disponibles : {mad(cash, 2)}
+            {orderType === "limit" && (
+              <>
+                {" "}
+                · l'ordre s'exécutera automatiquement dès que le cours atteindra ta limite (achat si
+                cours ≤ limite, vente si cours ≥ limite).
+              </>
+            )}
           </p>
 
           <div className="mt-4 flex gap-3">
             <button
-              disabled={pending || amount > cash}
-              onClick={() => onTrade({ ticker: selected.ticker, side: "buy", quantity: qty, price: selected.price })}
+              disabled={
+                pending ||
+                (orderType === "market" ? amount > cash : !validLimit)
+              }
+              onClick={() =>
+                orderType === "market"
+                  ? onTrade({
+                      ticker: selected.ticker,
+                      side: "buy",
+                      quantity: qty,
+                      price: selected.price,
+                    })
+                  : onPlaceOrder({
+                      ticker: selected.ticker,
+                      side: "buy",
+                      quantity: qty,
+                      limitPrice: limitValue,
+                    })
+              }
               className="flex-1 rounded-full bg-gradient-gold px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
-              Acheter
+              {orderType === "market" ? "Acheter" : "Placer un achat limité"}
             </button>
             <button
-              disabled={pending || held < qty}
-              onClick={() => onTrade({ ticker: selected.ticker, side: "sell", quantity: qty, price: selected.price })}
+              disabled={pending || held < qty || (orderType === "limit" && !validLimit)}
+              onClick={() =>
+                orderType === "market"
+                  ? onTrade({
+                      ticker: selected.ticker,
+                      side: "sell",
+                      quantity: qty,
+                      price: selected.price,
+                    })
+                  : onPlaceOrder({
+                      ticker: selected.ticker,
+                      side: "sell",
+                      quantity: qty,
+                      limitPrice: limitValue,
+                    })
+              }
               className="flex-1 rounded-full border border-border px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
             >
-              Vendre
+              {orderType === "market" ? "Vendre" : "Placer une vente limitée"}
             </button>
           </div>
         </div>
       )}
+
     </section>
   );
 }
