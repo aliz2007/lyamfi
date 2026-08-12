@@ -85,23 +85,30 @@ function PortfolioPage() {
         p = created;
       }
 
-      const [{ data: holdings }, { data: trades }, { data: snaps }] = await Promise.all([
-        supabase
-          .from("portfolio_holdings")
-          .select("id, ticker, quantity, avg_price")
-          .eq("portfolio_id", p.id),
-        supabase
-          .from("portfolio_trades")
-          .select("id, ticker, side, quantity, price, created_at")
-          .eq("portfolio_id", p.id)
-          .order("created_at", { ascending: false })
-          .limit(20),
-        supabase
-          .from("portfolio_snapshots")
-          .select("date, value, masi")
-          .eq("portfolio_id", p.id)
-          .order("date", { ascending: true }),
-      ]);
+      const [{ data: holdings }, { data: trades }, { data: snaps }, { data: orders }] =
+        await Promise.all([
+          supabase
+            .from("portfolio_holdings")
+            .select("id, ticker, quantity, avg_price")
+            .eq("portfolio_id", p.id),
+          supabase
+            .from("portfolio_trades")
+            .select("id, ticker, side, quantity, price, created_at")
+            .eq("portfolio_id", p.id)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          supabase
+            .from("portfolio_snapshots")
+            .select("date, value, masi")
+            .eq("portfolio_id", p.id)
+            .order("date", { ascending: true }),
+          supabase
+            .from("portfolio_orders")
+            .select("id, ticker, side, quantity, limit_price, status, created_at")
+            .eq("portfolio_id", p.id)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false }),
+        ]);
 
       return {
         id: p.id,
@@ -115,6 +122,14 @@ function PortfolioPage() {
           }))
           .filter((h) => h.quantity > 0) as Holding[],
         trades: trades ?? [],
+        orders: (orders ?? []).map((o) => ({
+          id: o.id,
+          ticker: o.ticker,
+          side: o.side as "buy" | "sell",
+          quantity: Number(o.quantity),
+          limit_price: Number(o.limit_price),
+          created_at: o.created_at,
+        })),
         snapshots: (snaps ?? []).map((s) => ({
           date: s.date,
           value: Number(s.value),
@@ -123,6 +138,7 @@ function PortfolioPage() {
       };
     },
   });
+
 
   const rows = (pf?.holdings ?? []).map((h) => {
     const q = quoteMap.get(h.ticker.toUpperCase());
