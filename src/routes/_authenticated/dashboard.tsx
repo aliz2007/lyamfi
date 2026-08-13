@@ -232,13 +232,12 @@ function Dashboard() {
           <p className="mt-4 text-xs text-muted-foreground">Bourse de Casablanca</p>
         </div>
         <div className="surface-card p-6">
-          <p className="text-xs text-muted-foreground">Portefeuille simulé</p>
-          <p className="mt-3 text-4xl font-bold text-gradient-gold">100 000</p>
+          <p className="text-xs text-muted-foreground">Indice MASI</p>
+          <p className="mt-3 text-4xl font-bold text-gradient-gold">
+            {quoteMap.get("MASI")?.price.toLocaleString("fr-MA") ?? "—"}
+          </p>
           <p className="mt-4 text-xs text-muted-foreground">
-            Capital virtuel de départ (MAD) —{" "}
-            <Link to="/portefeuille" className="text-primary">
-              construire
-            </Link>
+            {quoteMap.get("MASI") ? pct(quoteMap.get("MASI")!.changePct) : "Cours en direct"}
           </p>
         </div>
       </section>
