@@ -268,35 +268,7 @@ function Dashboard() {
         </div>
       </section>
 
-      <section>
-        <h2 className="text-lg font-semibold">Plus fortes hausses du jour</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {movers.map((s) => (
-            <Link
-              key={s.id}
-              to="/bourse/$ticker"
-              params={{ ticker: s.ticker }}
-              className="surface-card p-5 transition-colors hover:border-primary/50"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-semibold">{s.ticker}</span>
-                <span
-                  className={
-                    Number(s.change_pct) >= 0
-                      ? "text-xs text-[var(--success)]"
-                      : "text-xs text-destructive"
-                  }
-                >
-                  {pct(Number(s.change_pct))}
-                </span>
-              </div>
-              <p className="mt-1 truncate text-xs text-muted-foreground">{s.name}</p>
-              <p className="mt-4 text-xl font-semibold">{Number(s.price).toLocaleString("fr-MA")}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{compact(Number(s.market_cap))}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
+
     </div>
   );
 }
