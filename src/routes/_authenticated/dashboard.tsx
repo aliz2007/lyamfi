@@ -1,9 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, BarChart3, GraduationCap, LineChart, PieChart } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useMemo } from "react";
+import { ArrowUpRight, BarChart3, GraduationCap, LineChart, PieChart, TrendingDown, TrendingUp } from "lucide-react";
 import { buildLevelProgress, lessonsQuery, progressQuery, stocksQuery } from "@/lib/market";
-import { compact, pct } from "@/lib/format";
+import { compact, mad, pct } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
+import { getLiveQuotes, type LiveQuote } from "@/lib/quotes.functions";
 import { useAuth } from "@/hooks/useAuth";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
