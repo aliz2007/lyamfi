@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
 import { ArrowUpRight, BarChart3, GraduationCap, LineChart, PieChart, TrendingDown, TrendingUp } from "lucide-react";
 import { buildLevelProgress, lessonsQuery, progressQuery, stocksQuery } from "@/lib/market";
-import { compact, mad, pct } from "@/lib/format";
+import { mad, pct } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { getLiveQuotes, type LiveQuote } from "@/lib/quotes.functions";
 import { useAuth } from "@/hooks/useAuth";
