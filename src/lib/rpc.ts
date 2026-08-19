@@ -14,7 +14,17 @@ type RpcFn = (
   args?: Record<string, unknown>,
 ) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
 
-export const rpc = supabase.rpc as unknown as RpcFn;
+/**
+ * ⚠️ Doit être appelée COMME MÉTHODE de `supabase`.
+ *
+ * `supabase` est un Proxy paresseux : détacher la méthode
+ * (`const rpc = supabase.rpc`) puis l'appeler seule perd le `this`, et
+ * supabase-js échoue sur « Cannot read properties of undefined (reading
+ * 'rest') ». On garde donc l'appel sous forme `client.rpc(...)`.
+ */
+const client = supabase as unknown as { rpc: RpcFn };
+
+export const rpc: RpcFn = (fn, args) => client.rpc(fn, args);
 
 /**
  * Traduit les erreurs PostgREST en messages lisibles.
