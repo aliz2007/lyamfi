@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { rpc } from "@/lib/rpc";
+import { callRpc } from "@/lib/rpc";
 
 /**
  * Accès à l'espace d'administration.
@@ -79,19 +79,16 @@ export const myRoleQuery = {
 
 export const adminUsersQuery = {
   queryKey: ["admin-users"],
-  queryFn: async (): Promise<AdminUserRow[]> => {
-    const { data, error } = await rpc("admin_list_users");
-    if (error) throw new Error(error.message);
-    return (data as AdminUserRow[] | null) ?? [];
-  },
+  queryFn: async (): Promise<AdminUserRow[]> => callRpc<AdminUserRow[] | null>("admin_list_users").then((r) => r ?? []),
 };
 
 export const adminActivityQuery = (userId: string) => ({
   queryKey: ["admin-activity", userId],
   queryFn: async (): Promise<AdminActivity> => {
-    const { data, error } = await rpc("admin_user_activity", { target_user: userId });
-    if (error) throw new Error(error.message);
-    const raw = (data ?? {}) as Partial<AdminActivity>;
+    const data = await callRpc<Partial<AdminActivity>>("admin_user_activity", {
+      target_user: userId,
+    });
+    const raw = data ?? {};
     return {
       account: raw.account ?? null,
       lessons: raw.lessons ?? [],
@@ -103,9 +100,5 @@ export const adminActivityQuery = (userId: string) => ({
 });
 
 export async function setUserRole(targetUser: string, newRole: "admin" | "user") {
-  const { error } = await rpc("admin_set_role", {
-    target_user: targetUser,
-    new_role: newRole,
-  });
-  if (error) throw new Error(error.message);
+  await callRpc<void>("admin_set_role", { target_user: targetUser, new_role: newRole });
 }
