@@ -1,25 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
+import { rpc } from "@/lib/rpc";
 
 /**
  * Accès à l'espace d'administration.
  *
- * `src/integrations/supabase/types.ts` est régénéré depuis la base et ne
- * contient pas encore les fonctions ajoutées par la migration
- * `20260819090000_admin_roles.sql`. Plutôt que d'éditer un fichier généré,
- * tous les casts sont regroupés ici : le reste de l'application consomme
- * les types propres exportés ci-dessous.
+ * Les RPC sont appelées via `@/lib/rpc`, qui isole le cast nécessaire (le
+ * fichier de types généré ne déclare aucune fonction). Ce module n'expose
+ * que des types propres.
  *
  * ⚠️ Le contrôle d'accès réel est côté base : chaque RPC est SECURITY DEFINER
  * et rejette l'appel si `is_admin()` est faux. Les gardes côté client ne font
  * que masquer l'interface — elles ne protègent rien à elles seules.
  */
-
-type RpcFn = (
-  fn: string,
-  args?: Record<string, unknown>,
-) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
-
-const rpc = supabase.rpc as unknown as RpcFn;
 
 export type AdminUserRow = {
   user_id: string;

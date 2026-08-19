@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Menu, ShieldCheck, X } from "lucide-react";
+import { LogOut, Menu, ShieldCheck, UserRound, X } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/Logo";
 import { myRoleQuery } from "@/lib/admin";
@@ -62,6 +62,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <ShieldCheck className="h-4 w-4" /> Admin
               </Link>
             )}
+            <Link
+              to="/compte"
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm transition-colors ${
+                path.startsWith("/compte")
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <UserRound className="h-4 w-4" /> Mon compte
+            </Link>
             <button
               onClick={signOut}
               className="ml-2 flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -98,6 +108,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <ShieldCheck className="h-4 w-4" /> Admin
               </Link>
             )}
+            <Link
+              to="/compte"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <UserRound className="h-4 w-4" /> Mon compte
+            </Link>
             <button
               onClick={signOut}
               className="rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground"
