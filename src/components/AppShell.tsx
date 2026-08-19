@@ -1,7 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LogOut, Menu, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { LogOut, Menu, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/Logo";
+import { myRoleQuery } from "@/lib/admin";
 import { supabase } from "@/integrations/supabase/client";
 
 const NAV = [
@@ -15,6 +17,8 @@ const NAV = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const { data: role } = useQuery(myRoleQuery);
+  const isAdmin = role === "admin";
 
   return (
     <div className="min-h-screen bg-background">
@@ -37,6 +41,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {n.label}
               </Link>
             ))}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm transition-colors ${
+                  path.startsWith("/admin")
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4" /> Admin
+              </Link>
+            )}
             <button
               onClick={() => supabase.auth.signOut()}
               className="ml-2 flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -64,6 +80,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {n.label}
               </Link>
             ))}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                <ShieldCheck className="h-4 w-4" /> Admin
+              </Link>
+            )}
             <button
               onClick={() => supabase.auth.signOut()}
               className="rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground"
