@@ -11,7 +11,7 @@
 
 -- ---------------------------------------------------------------- roles table
 
-CREATE TABLE public.user_roles (
+CREATE TABLE IF NOT EXISTS public.user_roles (
   user_id    uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   role       text NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
   granted_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -43,6 +43,7 @@ REVOKE EXECUTE ON FUNCTION public.is_admin(uuid) FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION public.is_admin(uuid) TO authenticated;
 
 -- A user sees their own role; an admin sees everyone's.
+DROP POLICY IF EXISTS "read own role or all as admin" ON public.user_roles;
 CREATE POLICY "read own role or all as admin" ON public.user_roles
 FOR SELECT TO authenticated
 USING (user_id = auth.uid() OR public.is_admin());
