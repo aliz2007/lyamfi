@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { LogOut, Menu, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
@@ -19,6 +19,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { data: role } = useQuery(myRoleQuery);
   const isAdmin = role === "admin";
+  const navigate = useNavigate();
+
+  // signOut() seul ne change pas de page : l'utilisateur resterait sur l'écran
+  // en cours — potentiellement la table des comptes de l'espace admin, encore
+  // rendue dans le DOM. On quitte donc explicitement vers l'accueil.
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/" });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,7 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             <button
-              onClick={() => supabase.auth.signOut()}
+              onClick={signOut}
               className="ml-2 flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               <LogOut className="h-4 w-4" /> Quitter
@@ -90,7 +99,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             )}
             <button
-              onClick={() => supabase.auth.signOut()}
+              onClick={signOut}
               className="rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground"
             >
               Se déconnecter

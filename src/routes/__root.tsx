@@ -7,11 +7,12 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { CseTickerTape } from "@/components/CseTickerTape";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -127,6 +128,24 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Le cache React Query survit à la déconnexion (une seule instance par
+  // chargement de page, gcTime de 5 min) et aucune clé n'est indexée par
+  // utilisateur. Sans purge, le compte suivant connecté dans le même onglet
+  // réafficherait brièvement les données du précédent — y compris la table
+  // des comptes de l'espace admin. On vide donc le cache à chaque changement
+  // de titulaire de session.
+  useEffect(() => {
+    let currentUserId: string | null | undefined;
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUserId = session?.user?.id ?? null;
+      if (currentUserId !== undefined && currentUserId !== nextUserId) {
+        queryClient.clear();
+      }
+      currentUserId = nextUserId;
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>

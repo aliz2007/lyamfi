@@ -51,41 +51,36 @@ function ResetPasswordPage() {
       return;
     }
 
+    let cancelled = false;
+
     // Le lien de récupération crée une session via detectSessionInUrl.
     // On écoute l'événement ET on interroge la session : selon le flux
     // (implicite ou PKCE) l'un ou l'autre arrive en premier.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || (session && event === "SIGNED_IN")) {
-        setStatus("ready");
+        if (!cancelled) setStatus("ready");
       }
     });
 
-    let settled = false;
+    // Pas de minuterie ici : getSession() ne résout qu'une fois l'échange du
+    // jeton de récupération terminé, ce qui inclut un aller-retour réseau.
+    // Une minuterie fixe déclarait « lien invalide » un lien parfaitement
+    // valide dès que la connexion dépassait le délai.
     supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
       if (data.session) {
-        settled = true;
         setStatus("ready");
+        return;
       }
+      setReason(
+        "Ce lien n'est plus valide ou a déjà été utilisé. Demande-en un nouveau depuis la page de connexion.",
+      );
+      setStatus((s) => (s === "checking" ? "invalid" : s));
     });
-
-    // Filet de sécurité : si aucune session n'apparaît, le lien est invalide.
-    const timer = setTimeout(() => {
-      if (!settled) {
-        setStatus((s) => {
-          if (s === "checking") {
-            setReason(
-              "Ce lien n'est plus valide ou a déjà été utilisé. Demande-en un nouveau depuis la page de connexion.",
-            );
-            return "invalid";
-          }
-          return s;
-        });
-      }
-    }, 3000);
 
     return () => {
+      cancelled = true;
       sub.subscription.unsubscribe();
-      clearTimeout(timer);
     };
   }, []);
 
