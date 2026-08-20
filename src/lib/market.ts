@@ -16,7 +16,14 @@ export const fundamentalsQuery = {
   },
 };
 
-export type QuizQuestion = { q: string; options: string[]; answer: number };
+export type QuizQuestion = {
+  q: string;
+  options: string[];
+  /** Index de la bonne réponse dans `options`. */
+  answer: number;
+  /** Pourquoi cette réponse est la bonne — affiché après validation. */
+  explanation?: string;
+};
 
 export const stocksQuery = {
   queryKey: ["stocks"],

@@ -10,12 +10,12 @@ export const Route = createFileRoute("/_authenticated/academie/")({
       {
         name: "description",
         content:
-          "15 modules en 3 niveaux progressifs : actions, Bourse de Casablanca, OPCVM, MASI, IPO, OPA et obligations.",
+          "14 modules en 3 niveaux progressifs : actions et obligations, Bourse de Casablanca, analyse fondamentale, carnet d'ordres, IPO, OPA et opérations sur titres.",
       },
       { property: "og:title", content: "Modules pédagogiques — Lyamfi" },
       {
         property: "og:description",
-        content: "Leçons courtes, quiz de 10 questions et badges de progression.",
+        content: "Cours complets, quiz de 10 questions et badges de progression.",
       },
     ],
   }),

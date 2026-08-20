@@ -10,6 +10,7 @@ import {
   progressQuery,
   type QuizQuestion,
 } from "@/lib/market";
+import { LessonContent } from "@/components/LessonContent";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/academie/$slug")({
@@ -114,12 +115,8 @@ function LessonPage() {
         )}
       </header>
 
-      <article className="surface-card space-y-4 p-6 sm:p-8">
-        {lesson.content.split("\n\n").map((para, i) => (
-          <p key={i} className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-            {para.replace(/\*\*/g, "")}
-          </p>
-        ))}
+      <article className="surface-card p-6 sm:p-8">
+        <LessonContent content={lesson.content} />
       </article>
 
       {quiz.length > 0 && (
@@ -135,34 +132,53 @@ function LessonPage() {
             />
           </div>
           <ol className="mt-6 space-y-6">
-            {quiz.map((q, i) => (
-              <li key={i}>
-                <p className="text-sm font-medium">
-                  {i + 1}. {q.q}
-                </p>
-                <div className="mt-3 space-y-2">
-                  {q.options.map((o, oi) => {
-                    const selected = answers[i] === oi;
-                    const showCorrect = result && oi === q.answer;
-                    return (
-                      <button
-                        key={oi}
-                        onClick={() => setAnswers({ ...answers, [i]: oi })}
-                        className={`block w-full rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
-                          showCorrect
-                            ? "border-[var(--success)] text-[var(--success)]"
-                            : selected
-                              ? "border-primary/60 bg-accent text-accent-foreground"
-                              : "border-border text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {o}
-                      </button>
-                    );
-                  })}
-                </div>
-              </li>
-            ))}
+            {quiz.map((q, i) => {
+              const chosen = answers[i];
+              const correct = chosen === q.answer;
+              return (
+                <li key={i}>
+                  <p className="text-sm font-medium">
+                    {i + 1}. {q.q}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {q.options.map((o, oi) => {
+                      const selected = chosen === oi;
+                      // Après validation on montre la bonne réponse, et on
+                      // marque en rouge le mauvais choix effectivement fait.
+                      const isAnswer = oi === q.answer;
+                      const wrongPick = Boolean(result) && selected && !isAnswer;
+                      const showCorrect = Boolean(result) && isAnswer;
+                      return (
+                        <button
+                          key={oi}
+                          disabled={Boolean(result)}
+                          onClick={() => setAnswers({ ...answers, [i]: oi })}
+                          className={`block w-full rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
+                            showCorrect
+                              ? "border-[var(--success)] text-[var(--success)]"
+                              : wrongPick
+                                ? "border-destructive text-destructive"
+                                : selected
+                                  ? "border-primary/60 bg-accent text-accent-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground"
+                          } ${result ? "cursor-default" : ""}`}
+                        >
+                          {o}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {result && q.explanation && (
+                    <p className="mt-2.5 flex gap-2 text-xs leading-relaxed text-muted-foreground">
+                      <span aria-hidden="true" className={correct ? "text-[var(--success)]" : "text-destructive"}>
+                        {correct ? "✓" : "✗"}
+                      </span>
+                      <span>{q.explanation}</span>
+                    </p>
+                  )}
+                </li>
+              );
+            })}
           </ol>
           <button
             onClick={submit}

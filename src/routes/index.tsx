@@ -44,7 +44,7 @@ const MODULES = [
   {
     icon: GraduationCap,
     title: "Académie",
-    text: "Parcours Débutant, Intermédiaire et Avancé : leçons courtes, quiz de validation et badges.",
+    text: "Parcours Débutant, Intermédiaire et Avancé : 14 modules, quiz de validation et badges.",
   },
   {
     icon: LineChart,
@@ -123,7 +123,7 @@ function Landing() {
           <dl className="mt-20 grid max-w-3xl grid-cols-2 gap-8 sm:grid-cols-4">
             {[
               ["20", "valeurs suivies"],
-              ["6", "leçons + quiz"],
+              ["14", "modules + quiz"],
               ["3", "niveaux"],
               ["0 MAD", "pour commencer"],
             ].map(([v, l]) => (

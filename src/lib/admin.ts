@@ -36,23 +36,74 @@ export type AdminActivity = {
     created_at: string;
     last_sign_in_at: string | null;
     email_confirmed: boolean;
+    confirmed_at: string | null;
+    role_granted_at: string | null;
   } | null;
+  progress: {
+    total: number;
+    completed: number;
+    ratio: number;
+    avg_score: number;
+    best_score: number;
+    attempted: number;
+    last_activity: string | null;
+    by_level: { level: string; total: number; completed: number }[];
+  };
   lessons: {
     title: string;
     level: string;
+    sort_order: number;
+    slug: string;
     completed: boolean;
     score: number;
-    updated_at: string;
+    attempted: boolean;
+    updated_at: string | null;
   }[];
-  portfolio: { cash: number; created_at: string } | null;
-  holdings: { ticker: string; quantity: number; avg_price: number }[];
+  portfolio: {
+    cash: number;
+    created_at: string;
+    cost_basis: number;
+    trades_count: number;
+    buy_count: number;
+    sell_count: number;
+    first_trade: string | null;
+    last_trade: string | null;
+  } | null;
+  holdings: {
+    ticker: string;
+    quantity: number;
+    avg_price: number;
+    cost: number;
+    updated_at: string | null;
+  }[];
+  orders: {
+    ticker: string;
+    side: "buy" | "sell";
+    quantity: number;
+    limit_price: number;
+    status: string;
+    created_at: string;
+  }[];
   trades: {
     ticker: string;
     side: "buy" | "sell";
     quantity: number;
     price: number;
+    amount: number;
     created_at: string;
   }[];
+  snapshots: { date: string; value: number; masi: number | null }[];
+};
+
+const EMPTY_PROGRESS: AdminActivity["progress"] = {
+  total: 0,
+  completed: 0,
+  ratio: 0,
+  avg_score: 0,
+  best_score: 0,
+  attempted: 0,
+  last_activity: null,
+  by_level: [],
 };
 
 /** Rôle de l'utilisateur connecté. Renvoie "user" si aucune ligne n'existe. */
@@ -91,10 +142,13 @@ export const adminActivityQuery = (userId: string) => ({
     const raw = data ?? {};
     return {
       account: raw.account ?? null,
+      progress: raw.progress ?? EMPTY_PROGRESS,
       lessons: raw.lessons ?? [],
       portfolio: raw.portfolio ?? null,
       holdings: raw.holdings ?? [],
+      orders: raw.orders ?? [],
       trades: raw.trades ?? [],
+      snapshots: raw.snapshots ?? [],
     };
   },
 });

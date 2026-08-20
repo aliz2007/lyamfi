@@ -13,13 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedBudgetRouteImport } from './routes/_authenticated/budget'
 import { Route as AuthenticatedCompteRouteImport } from './routes/_authenticated/compte'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPortefeuilleRouteImport } from './routes/_authenticated/portefeuille'
 import { Route as AuthenticatedAcademieIndexRouteImport } from './routes/_authenticated/academie.index'
 import { Route as AuthenticatedAcademieSlugRouteImport } from './routes/_authenticated/academie.$slug'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminUserIdRouteImport } from './routes/_authenticated/admin.$userId'
 import { Route as AuthenticatedBourseIndexRouteImport } from './routes/_authenticated/bourse.index'
 import { Route as AuthenticatedBourseTickerRouteImport } from './routes/_authenticated/bourse.$ticker'
 
@@ -41,11 +42,6 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBudgetRoute = AuthenticatedBudgetRouteImport.update({
   id: '/budget',
@@ -80,6 +76,17 @@ const AuthenticatedAcademieSlugRoute =
     path: '/academie/$slug',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminUserIdRoute =
+  AuthenticatedAdminUserIdRouteImport.update({
+    id: '/admin/$userId',
+    path: '/admin/$userId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBourseIndexRoute =
   AuthenticatedBourseIndexRouteImport.update({
     id: '/bourse/',
@@ -97,28 +104,30 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/admin': typeof AuthenticatedAdminRoute
   '/budget': typeof AuthenticatedBudgetRoute
   '/compte': typeof AuthenticatedCompteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/portefeuille': typeof AuthenticatedPortefeuilleRoute
   '/academie/$slug': typeof AuthenticatedAcademieSlugRoute
+  '/admin/$userId': typeof AuthenticatedAdminUserIdRoute
   '/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
   '/academie/': typeof AuthenticatedAcademieIndexRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/bourse/': typeof AuthenticatedBourseIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/admin': typeof AuthenticatedAdminRoute
   '/budget': typeof AuthenticatedBudgetRoute
   '/compte': typeof AuthenticatedCompteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/portefeuille': typeof AuthenticatedPortefeuilleRoute
   '/academie/$slug': typeof AuthenticatedAcademieSlugRoute
+  '/admin/$userId': typeof AuthenticatedAdminUserIdRoute
   '/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
   '/academie': typeof AuthenticatedAcademieIndexRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
   '/bourse': typeof AuthenticatedBourseIndexRoute
 }
 export interface FileRoutesById {
@@ -127,14 +136,15 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/budget': typeof AuthenticatedBudgetRoute
   '/_authenticated/compte': typeof AuthenticatedCompteRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/portefeuille': typeof AuthenticatedPortefeuilleRoute
   '/_authenticated/academie/$slug': typeof AuthenticatedAcademieSlugRoute
+  '/_authenticated/admin/$userId': typeof AuthenticatedAdminUserIdRoute
   '/_authenticated/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
   '/_authenticated/academie/': typeof AuthenticatedAcademieIndexRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/bourse/': typeof AuthenticatedBourseIndexRoute
 }
 export interface FileRouteTypes {
@@ -143,28 +153,30 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
-    | '/admin'
     | '/budget'
     | '/compte'
     | '/dashboard'
     | '/portefeuille'
     | '/academie/$slug'
+    | '/admin/$userId'
     | '/bourse/$ticker'
     | '/academie/'
+    | '/admin/'
     | '/bourse/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/reset-password'
-    | '/admin'
     | '/budget'
     | '/compte'
     | '/dashboard'
     | '/portefeuille'
     | '/academie/$slug'
+    | '/admin/$userId'
     | '/bourse/$ticker'
     | '/academie'
+    | '/admin'
     | '/bourse'
   id:
     | '__root__'
@@ -172,14 +184,15 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
-    | '/_authenticated/admin'
     | '/_authenticated/budget'
     | '/_authenticated/compte'
     | '/_authenticated/dashboard'
     | '/_authenticated/portefeuille'
     | '/_authenticated/academie/$slug'
+    | '/_authenticated/admin/$userId'
     | '/_authenticated/bourse/$ticker'
     | '/_authenticated/academie/'
+    | '/_authenticated/admin/'
     | '/_authenticated/bourse/'
   fileRoutesById: FileRoutesById
 }
@@ -219,13 +232,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/budget': {
       id: '/_authenticated/budget'
@@ -269,6 +275,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAcademieSlugRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/$userId': {
+      id: '/_authenticated/admin/$userId'
+      path: '/admin/$userId'
+      fullPath: '/admin/$userId'
+      preLoaderRoute: typeof AuthenticatedAdminUserIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/bourse/': {
       id: '/_authenticated/bourse/'
       path: '/bourse'
@@ -287,26 +307,28 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedBudgetRoute: typeof AuthenticatedBudgetRoute
   AuthenticatedCompteRoute: typeof AuthenticatedCompteRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedPortefeuilleRoute: typeof AuthenticatedPortefeuilleRoute
   AuthenticatedAcademieSlugRoute: typeof AuthenticatedAcademieSlugRoute
+  AuthenticatedAdminUserIdRoute: typeof AuthenticatedAdminUserIdRoute
   AuthenticatedBourseTickerRoute: typeof AuthenticatedBourseTickerRoute
   AuthenticatedAcademieIndexRoute: typeof AuthenticatedAcademieIndexRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedBourseIndexRoute: typeof AuthenticatedBourseIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedBudgetRoute: AuthenticatedBudgetRoute,
   AuthenticatedCompteRoute: AuthenticatedCompteRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedPortefeuilleRoute: AuthenticatedPortefeuilleRoute,
   AuthenticatedAcademieSlugRoute: AuthenticatedAcademieSlugRoute,
+  AuthenticatedAdminUserIdRoute: AuthenticatedAdminUserIdRoute,
   AuthenticatedBourseTickerRoute: AuthenticatedBourseTickerRoute,
   AuthenticatedAcademieIndexRoute: AuthenticatedAcademieIndexRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedBourseIndexRoute: AuthenticatedBourseIndexRoute,
 }
 
