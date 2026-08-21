@@ -1,10 +1,16 @@
 -- =====================================================================
 -- Lyamfi — complete database setup, in one file.
 --
--- Paste into the Supabase SQL Editor of a project and press Run.
--- Creates every table, security policy, seed row and function the app needs.
+-- Paste into the Supabase SQL Editor and press Run. Creates every table,
+-- security policy, seed row and function the app needs.
 --
--- Generated from supabase/migrations/*.sql in filename order.
+-- SAFE TO RE-RUN. Supabase executes the whole script in one transaction,
+-- so a single "already exists" aborts and rolls back everything. Every
+-- statement below is therefore guarded: CREATE TABLE IF NOT EXISTS,
+-- DROP POLICY/TRIGGER IF EXISTS before CREATE, CREATE OR REPLACE for
+-- functions, and ON CONFLICT on every seed insert.
+--
+-- Generated from supabase/migrations/*.sql — do not edit by hand.
 -- =====================================================================
 
 
@@ -12,7 +18,7 @@
 -- 20260731161137_3048eb73-cb9b-49f1-9c84-80bb70fbe9f9.sql
 -- ---------------------------------------------------------------------
 
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name text,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -20,6 +26,7 @@ CREATE TABLE public.profiles (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
 GRANT ALL ON public.profiles TO service_role;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own profile" ON public.profiles;
 CREATE POLICY "own profile" ON public.profiles FOR ALL TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -30,10 +37,11 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END; $$;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
-CREATE TABLE public.stocks (
+CREATE TABLE IF NOT EXISTS public.stocks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   ticker text NOT NULL UNIQUE,
   name text NOT NULL,
@@ -52,9 +60,10 @@ CREATE TABLE public.stocks (
 GRANT SELECT ON public.stocks TO anon, authenticated;
 GRANT ALL ON public.stocks TO service_role;
 ALTER TABLE public.stocks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "stocks public read" ON public.stocks;
 CREATE POLICY "stocks public read" ON public.stocks FOR SELECT TO anon, authenticated USING (true);
 
-CREATE TABLE public.stock_prices (
+CREATE TABLE IF NOT EXISTS public.stock_prices (
   id bigserial PRIMARY KEY,
   stock_id uuid NOT NULL REFERENCES public.stocks(id) ON DELETE CASCADE,
   date date NOT NULL,
@@ -64,9 +73,10 @@ CREATE TABLE public.stock_prices (
 GRANT SELECT ON public.stock_prices TO anon, authenticated;
 GRANT ALL ON public.stock_prices TO service_role;
 ALTER TABLE public.stock_prices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "prices public read" ON public.stock_prices;
 CREATE POLICY "prices public read" ON public.stock_prices FOR SELECT TO anon, authenticated USING (true);
 
-CREATE TABLE public.lessons (
+CREATE TABLE IF NOT EXISTS public.lessons (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   slug text NOT NULL UNIQUE,
   level text NOT NULL,
@@ -79,9 +89,10 @@ CREATE TABLE public.lessons (
 GRANT SELECT ON public.lessons TO anon, authenticated;
 GRANT ALL ON public.lessons TO service_role;
 ALTER TABLE public.lessons ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "lessons public read" ON public.lessons;
 CREATE POLICY "lessons public read" ON public.lessons FOR SELECT TO anon, authenticated USING (true);
 
-CREATE TABLE public.lesson_progress (
+CREATE TABLE IF NOT EXISTS public.lesson_progress (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   lesson_id uuid NOT NULL REFERENCES public.lessons(id) ON DELETE CASCADE,
@@ -93,9 +104,10 @@ CREATE TABLE public.lesson_progress (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.lesson_progress TO authenticated;
 GRANT ALL ON public.lesson_progress TO service_role;
 ALTER TABLE public.lesson_progress ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own progress" ON public.lesson_progress;
 CREATE POLICY "own progress" ON public.lesson_progress FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-CREATE TABLE public.portfolios (
+CREATE TABLE IF NOT EXISTS public.portfolios (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name text NOT NULL DEFAULT 'Mon portefeuille',
@@ -105,9 +117,10 @@ CREATE TABLE public.portfolios (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.portfolios TO authenticated;
 GRANT ALL ON public.portfolios TO service_role;
 ALTER TABLE public.portfolios ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own portfolios" ON public.portfolios;
 CREATE POLICY "own portfolios" ON public.portfolios FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-CREATE TABLE public.portfolio_positions (
+CREATE TABLE IF NOT EXISTS public.portfolio_positions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   portfolio_id uuid NOT NULL REFERENCES public.portfolios(id) ON DELETE CASCADE,
   stock_id uuid NOT NULL REFERENCES public.stocks(id) ON DELETE CASCADE,
@@ -117,6 +130,7 @@ CREATE TABLE public.portfolio_positions (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.portfolio_positions TO authenticated;
 GRANT ALL ON public.portfolio_positions TO service_role;
 ALTER TABLE public.portfolio_positions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own positions" ON public.portfolio_positions;
 CREATE POLICY "own positions" ON public.portfolio_positions FOR ALL TO authenticated
 USING (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_id AND p.user_id = auth.uid()))
 WITH CHECK (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_id AND p.user_id = auth.uid()));
@@ -141,13 +155,15 @@ INSERT INTO public.stocks (ticker, name, sector, price, change_pct, market_cap, 
 ('SAH','Saham Assurance','Assurances',1290.00,-0.35,5300000000,13.2,97.7,3.00,1.40,1450.00,'Compagnie d''assurance généraliste.'),
 ('HPS','HPS','Technologies',6300.00,2.41,4400000000,34.8,181.0,0.90,1.75,7000.00,'Éditeur de solutions de paiement électronique.'),
 ('DIS','Disway','Technologies',680.00,0.44,1300000000,11.6,58.6,5.30,1.10,760.00,'Distributeur de produits informatiques.'),
-('SBM','Société des Boissons du Maroc','Agroalimentaire',2600.00,0.08,7300000000,16.4,158.5,5.60,1.85,2800.00,'Producteur et distributeur de boissons.');
+('SBM','Société des Boissons du Maroc','Agroalimentaire',2600.00,0.08,7300000000,16.4,158.5,5.60,1.85,2800.00,'Producteur et distributeur de boissons.')
+ON CONFLICT (ticker) DO NOTHING;
 
 INSERT INTO public.stock_prices (stock_id, date, close)
 SELECT s.id,
        (CURRENT_DATE - (g || ' days')::interval)::date,
        ROUND((s.price * (1 - (g::numeric/1400) + (sin(g::numeric/6 + (('x'||substr(md5(s.ticker),1,8))::bit(32)::int % 50)) * 0.035)))::numeric, 2)
-FROM public.stocks s, generate_series(0, 364) g;
+FROM public.stocks s, generate_series(0, 364) g
+ON CONFLICT DO NOTHING;
 
 INSERT INTO public.lessons (slug, level, title, summary, content, sort_order, quiz) VALUES
 ('c-est-quoi-une-action','Débutant','C''est quoi une action ?','Comprendre ce que vous achetez réellement en bourse.',
@@ -191,7 +207,8 @@ Un PER de 15 sur Attijariwafa Bank signifie que le marché paie 15 fois le bén�
 '[{"q":"PER = ","options":["Cours / BPA","BPA / Cours","Dividende / Cours"],"answer":0},{"q":"Un PEG proche de 1 signifie :","options":["Prix cohérent avec la croissance","Action garantie","Dividende élevé"],"answer":0},{"q":"Le DY mesure :","options":["La croissance","Le rendement du dividende","L''endettement"],"answer":1}]'::jsonb),
 
 ('ammc-et-reglementation','Avancé','Comprendre l''AMMC et la réglementation','Le gendarme du marché marocain.','L''**AMMC** (Autorité Marocaine du Marché des Capitaux) est le régulateur du marché. Elle :
-- vise les notes d''information des introductions en bourse et augmentations de capital ;
+- vise les notes d''information des introductions en bourse et augmentations de capital
+ON CONFLICT (slug) DO NOTHING;
 - veille à l''information financière périodique des émetteurs ;
 - sanctionne les délits d''initié et manipulations de cours.
 
@@ -222,7 +239,7 @@ REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authentic
 
 ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS cash numeric NOT NULL DEFAULT 100000;
 
-CREATE TABLE public.portfolio_holdings (
+CREATE TABLE IF NOT EXISTS public.portfolio_holdings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   portfolio_id uuid NOT NULL REFERENCES public.portfolios(id) ON DELETE CASCADE,
   ticker text NOT NULL,
@@ -234,11 +251,12 @@ CREATE TABLE public.portfolio_holdings (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.portfolio_holdings TO authenticated;
 GRANT ALL ON public.portfolio_holdings TO service_role;
 ALTER TABLE public.portfolio_holdings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own holdings" ON public.portfolio_holdings;
 CREATE POLICY "own holdings" ON public.portfolio_holdings FOR ALL TO authenticated
 USING (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_id AND p.user_id = auth.uid()))
 WITH CHECK (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_id AND p.user_id = auth.uid()));
 
-CREATE TABLE public.portfolio_trades (
+CREATE TABLE IF NOT EXISTS public.portfolio_trades (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   portfolio_id uuid NOT NULL REFERENCES public.portfolios(id) ON DELETE CASCADE,
   ticker text NOT NULL,
@@ -250,11 +268,12 @@ CREATE TABLE public.portfolio_trades (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.portfolio_trades TO authenticated;
 GRANT ALL ON public.portfolio_trades TO service_role;
 ALTER TABLE public.portfolio_trades ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own trades" ON public.portfolio_trades;
 CREATE POLICY "own trades" ON public.portfolio_trades FOR ALL TO authenticated
 USING (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_id AND p.user_id = auth.uid()))
 WITH CHECK (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_id AND p.user_id = auth.uid()));
 
-CREATE TABLE public.portfolio_snapshots (
+CREATE TABLE IF NOT EXISTS public.portfolio_snapshots (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   portfolio_id uuid NOT NULL REFERENCES public.portfolios(id) ON DELETE CASCADE,
   date date NOT NULL DEFAULT (now() AT TIME ZONE 'Africa/Casablanca')::date,
@@ -265,6 +284,7 @@ CREATE TABLE public.portfolio_snapshots (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.portfolio_snapshots TO authenticated;
 GRANT ALL ON public.portfolio_snapshots TO service_role;
 ALTER TABLE public.portfolio_snapshots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own snapshots" ON public.portfolio_snapshots;
 CREATE POLICY "own snapshots" ON public.portfolio_snapshots FOR ALL TO authenticated
 USING (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_id AND p.user_id = auth.uid()))
 WITH CHECK (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_id AND p.user_id = auth.uid()));
@@ -274,7 +294,7 @@ WITH CHECK (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_id 
 -- 20260811112004_3ff22bf3-2d2f-4827-ba49-58310a61ce74.sql
 -- ---------------------------------------------------------------------
 
-CREATE TABLE public.stock_fundamentals (
+CREATE TABLE IF NOT EXISTS public.stock_fundamentals (
   ticker text PRIMARY KEY,
   name text NOT NULL,
   shares_m numeric NOT NULL,
@@ -295,6 +315,7 @@ GRANT ALL ON public.stock_fundamentals TO service_role;
 
 ALTER TABLE public.stock_fundamentals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "fundamentals public read" ON public.stock_fundamentals;
 CREATE POLICY "fundamentals public read" ON public.stock_fundamentals
 FOR SELECT TO anon, authenticated USING (true);
 
@@ -335,14 +356,15 @@ INSERT INTO public.stock_fundamentals (ticker,name,shares_m,bpa_2025,bpa_2026e,d
 ('TGC','TGCC',34.7,27.4,30.2,15.0,18.0,33.0,25.2,1.7,2.4),
 ('TMA','TotalEnergies Marketing Maroc',9.0,94.6,109.4,94.6,109.4,18.4,14.1,5.2,5.8),
 ('VCN','Vicenne',10.3,14.0,18.0,8.4,8.6,32.0,22.0,1.9,2.2),
-('WAA','Wafa Assurance',4.0,269.0,285.0,150.0,160.0,18.0,20.0,3.12,2.76);
+('WAA','Wafa Assurance',4.0,269.0,285.0,150.0,160.0,18.0,20.0,3.12,2.76)
+ON CONFLICT (ticker) DO NOTHING;
 
 
 -- ---------------------------------------------------------------------
 -- 20260812143421_78fb00bc-4290-42e8-9361-23c239f9468c.sql
 -- ---------------------------------------------------------------------
 
-CREATE TABLE public.portfolio_orders (
+CREATE TABLE IF NOT EXISTS public.portfolio_orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   portfolio_id uuid NOT NULL REFERENCES public.portfolios(id) ON DELETE CASCADE,
   ticker text NOT NULL,
@@ -361,18 +383,19 @@ GRANT ALL ON public.portfolio_orders TO service_role;
 
 ALTER TABLE public.portfolio_orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "own orders" ON public.portfolio_orders;
 CREATE POLICY "own orders" ON public.portfolio_orders FOR ALL TO authenticated
 USING (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_orders.portfolio_id AND p.user_id = auth.uid()))
 WITH CHECK (EXISTS (SELECT 1 FROM public.portfolios p WHERE p.id = portfolio_orders.portfolio_id AND p.user_id = auth.uid()));
 
-CREATE INDEX portfolio_orders_portfolio_status_idx ON public.portfolio_orders (portfolio_id, status);
+CREATE INDEX IF NOT EXISTS portfolio_orders_portfolio_status_idx ON public.portfolio_orders (portfolio_id, status);
 
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
 
-CREATE TRIGGER update_portfolio_orders_updated_at
-BEFORE UPDATE ON public.portfolio_orders
+DROP TRIGGER IF EXISTS update_portfolio_orders_updated_at ON public.portfolio_orders;
+CREATE TRIGGER update_portfolio_orders_updated_at BEFORE UPDATE ON public.portfolio_orders
 FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
