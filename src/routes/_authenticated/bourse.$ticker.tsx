@@ -13,21 +13,25 @@ import {
   YAxis,
 } from "recharts";
 import { stockQuery } from "@/lib/market";
-import { compact, mad, num, pct } from "@/lib/format";
+import { useFormat } from "@/lib/format";
 import { Disclaimer } from "@/components/Disclaimer";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { hasCseQuote, tvSymbol } from "@/lib/cse-symbols";
+import { useI18n, type Key } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/bourse/$ticker")({
   head: ({ params }) => ({
     meta: [
-      { title: `${params.ticker} — fiche valeur BVC | Lyamfi` },
+      { title: `${params.ticker} : fiche valeur BVC | Lyamfi` },
       {
         name: "description",
         content: `Cours, PER, BPA, rendement et cours cible de ${params.ticker} à la Bourse de Casablanca.`,
       },
-      { property: "og:title", content: `${params.ticker} — fiche valeur | Lyamfi` },
-      { property: "og:description", content: "Valorisation fondamentale et évolution du cours." },
+      { property: "og:title", content: `${params.ticker} : fiche valeur | Lyamfi` },
+      {
+        property: "og:description",
+        content: "Valorisation fondamentale et évolution du cours.",
+      },
     ],
   }),
   component: StockPage,
@@ -35,6 +39,9 @@ export const Route = createFileRoute("/_authenticated/bourse/$ticker")({
 
 function StockPage() {
   const { ticker } = Route.useParams();
+  const { t, locale } = useI18n();
+  const f = useFormat();
+
   const { data, isLoading } = useQuery(stockQuery(ticker));
   const fetchQuotes = useServerFn(getLiveQuotes);
   const { data: quotes = [] } = useQuery({
@@ -45,52 +52,47 @@ function StockPage() {
   });
   const stock = data?.stock;
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Chargement…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground">{t("common.loading")}</p>;
   if (!stock)
     return (
       <div>
-        <p className="text-sm text-muted-foreground">Valeur introuvable.</p>
+        <p className="text-sm text-muted-foreground">{t("stock.notFound")}</p>
         <Link to="/bourse" className="mt-3 inline-block text-sm text-primary">
-          Retour aux valeurs
+          {t("stock.backToList")}
         </Link>
       </div>
     );
 
-  const live = quotes.find(
-    (q) => q.ticker.toUpperCase() === tvSymbol(stock.ticker).split(":")[1],
-  );
+  const live = quotes.find((q) => q.ticker.toUpperCase() === tvSymbol(stock.ticker).split(":")[1]);
   const price = live?.price ?? Number(stock.price);
   const changePct = live?.changePct ?? Number(stock.change_pct);
   const target = Number(stock.target_price ?? 0);
   const upside = target ? ((target - price) / price) * 100 : 0;
-  const chart = (data?.prices ?? []).map((p) => ({
-    date: p.date,
-    close: Number(p.close),
-  }));
+  const chart = (data?.prices ?? []).map((p) => ({ date: p.date, close: Number(p.close) }));
 
-  const metrics = [
-    { label: "PER", value: num(Number(stock.per), 1), hint: "Cours / bénéfice par action" },
-    { label: "BPA", value: num(Number(stock.bpa), 2), hint: "Bénéfice par action (MAD)" },
+  const metrics: { label: Key; value: string; hint: Key }[] = [
+    { label: "stock.per", value: f.num(Number(stock.per), 1), hint: "stock.perHint" },
+    { label: "stock.eps", value: f.num(Number(stock.bpa), 2), hint: "stock.epsHint" },
     {
-      label: "Rendement (DY)",
-      value: `${num(Number(stock.dividend_yield), 2)} %`,
-      hint: "Dividende / cours",
+      label: "stock.dy",
+      value: `${f.num(Number(stock.dividend_yield), 2)} %`,
+      hint: "stock.dyHint",
     },
-    { label: "PEG", value: num(Number(stock.peg), 2), hint: "PER / croissance" },
-    { label: "Cours cible", value: mad(target), hint: "Hypothèse pédagogique" },
-    { label: "Upside", value: pct(upside), hint: "Écart au cours cible" },
+    { label: "stock.peg", value: f.num(Number(stock.peg), 2), hint: "stock.pegHint" },
+    { label: "stock.target", value: f.mad(target), hint: "stock.targetHint" },
+    { label: "stock.upside", value: f.pct(upside), hint: "stock.upsideHint" },
   ];
 
   return (
     <div className="space-y-8">
       <Link
         to="/bourse"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Valeurs
+        <ArrowLeft className="h-4 w-4" /> {t("stock.back")}
       </Link>
 
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
+      <header className="rise grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">
             {stock.ticker} · {stock.sector}
@@ -98,28 +100,29 @@ function StockPage() {
           <h1 className="mt-1 truncate text-3xl font-bold sm:text-4xl">{stock.name}</h1>
         </div>
         <div className="text-right">
-          <p className="text-3xl font-bold text-gradient-gold sm:text-4xl">
-            {price.toLocaleString("fr-MA")}
+          <p className="text-3xl font-bold tabular-nums text-gradient-gold sm:text-4xl">
+            {f.price(price)}
           </p>
           <p
-            className={`mt-1 text-sm ${
+            className={`mt-1 text-sm tabular-nums ${
               changePct >= 0 ? "text-[var(--success)]" : "text-destructive"
             }`}
           >
-            {pct(changePct)}
+            {f.pct(changePct)}
           </p>
         </div>
       </header>
 
       {stock.description && (
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          {stock.description} Capitalisation : {compact(Number(stock.market_cap))}.
+          {stock.description}{" "}
+          {t("stock.marketCapSentence", { value: f.compact(Number(stock.market_cap)) })}
         </p>
       )}
 
       {hasCseQuote(stock.ticker) && (
-        <section className="surface-card overflow-hidden p-2 sm:p-4">
-          <h2 className="px-2 pb-2 pt-1 text-sm font-semibold">Cours en direct (TradingView)</h2>
+        <section className="surface-raised overflow-hidden p-2 sm:p-4">
+          <h2 className="px-2 pb-2 pt-1 text-sm font-semibold">{t("stock.liveChart")}</h2>
           <TradingViewWidget
             widget="advanced-chart"
             className="h-[420px] w-full"
@@ -129,7 +132,7 @@ function StockPage() {
               timezone: "Africa/Casablanca",
               theme: "dark",
               style: "3",
-              locale: "fr",
+              locale: locale === "en-GB" ? "en" : "fr",
               hide_side_toolbar: true,
               allow_symbol_change: false,
               withdateranges: true,
@@ -139,9 +142,8 @@ function StockPage() {
         </section>
       )}
 
-      <section className="surface-card p-5 sm:p-7">
-        <h2 className="text-sm font-semibold">Historique pédagogique (12 mois)</h2>
-
+      <section className="surface-raised p-5 sm:p-7">
+        <h2 className="text-sm font-semibold">{t("stock.history")}</h2>
         <div className="mt-5 h-64 w-full sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chart} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
@@ -175,7 +177,7 @@ function StockPage() {
                   color: "var(--popover-foreground)",
                   fontSize: 12,
                 }}
-                formatter={(v: number) => [`${v} MAD`, "Cours"]}
+                formatter={(v: number) => [`${f.num(v)} MAD`, t("stock.priceLabel")]}
               />
               <Area
                 type="monotone"
@@ -190,13 +192,13 @@ function StockPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold">Valorisation fondamentale</h2>
+        <h2 className="text-lg font-semibold">{t("stock.valuation")}</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {metrics.map((m) => (
-            <div key={m.label} className="surface-card p-5">
-              <p className="text-xs text-muted-foreground">{m.label}</p>
-              <p className="mt-2 text-2xl font-bold text-gradient-gold">{m.value}</p>
-              <p className="mt-2 text-xs text-muted-foreground">{m.hint}</p>
+            <div key={m.label} className="surface-raised card-hover p-5">
+              <p className="text-xs text-muted-foreground">{t(m.label)}</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-gradient-gold">{m.value}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t(m.hint)}</p>
             </div>
           ))}
         </div>

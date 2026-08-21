@@ -17,21 +17,22 @@ import { toast } from "sonner";
 import { Disclaimer } from "@/components/Disclaimer";
 import { supabase } from "@/integrations/supabase/client";
 import { getLiveQuotes, type LiveQuote } from "@/lib/quotes.functions";
-import { mad, num } from "@/lib/format";
+import { EMPTY, useFormat, type Formatter } from "@/lib/format";
+import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/portefeuille")({
   head: () => ({
     meta: [
-      { title: "Portefeuille virtuel BVC en temps réel — Lyamfi" },
+      { title: "Portefeuille virtuel BVC en temps réel | Lyamfi" },
       {
         name: "description",
         content:
           "Achète et vends des actions de la Bourse de Casablanca aux cours en direct avec 100 000 MAD virtuels, et compare ta performance au MASI.",
       },
-      { property: "og:title", content: "Portefeuille virtuel — Lyamfi" },
+      { property: "og:title", content: "Portefeuille virtuel | Lyamfi" },
       {
         property: "og:description",
-        content: "Trading simulé aux cours en direct, plus/moins-values et comparaison au MASI.",
+        content: "Trading simulé aux cours en direct, plus ou moins-values et comparaison au MASI.",
       },
     ],
   }),
@@ -43,6 +44,10 @@ const START_CAPITAL = 100000;
 type Holding = { id: string; ticker: string; quantity: number; avg_price: number };
 
 function PortfolioPage() {
+  const { t } = useI18n();
+  const f = useFormat();
+  usePageTitle("pf.title");
+
   const qc = useQueryClient();
   const fetchQuotes = useServerFn(getLiveQuotes);
 
@@ -66,7 +71,7 @@ function PortfolioPage() {
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth.user?.id;
-      if (!uid) throw new Error("Session expirée");
+      if (!uid) throw new Error(t("pf.errSession"));
 
       let { data: p } = await supabase
         .from("portfolios")
@@ -139,13 +144,21 @@ function PortfolioPage() {
     },
   });
 
-
   const rows = (pf?.holdings ?? []).map((h) => {
     const q = quoteMap.get(h.ticker.toUpperCase());
     const last = q?.price ?? h.avg_price;
     const cost = h.quantity * h.avg_price;
     const value = h.quantity * last;
-    return { ...h, name: q?.name ?? h.ticker, last, cost, value, pnl: value - cost, pnlPct: cost ? ((value - cost) / cost) * 100 : 0, dayPct: q?.changePct ?? 0 };
+    return {
+      ...h,
+      name: q?.name ?? h.ticker,
+      last,
+      cost,
+      value,
+      pnl: value - cost,
+      pnlPct: cost ? ((value - cost) / cost) * 100 : 0,
+      dayPct: q?.changePct ?? 0,
+    };
   });
 
   const invested = rows.reduce((a, r) => a + r.value, 0);
@@ -192,21 +205,25 @@ function PortfolioPage() {
     quantity: number;
     price: number;
   }) => {
-    if (!pf?.id) throw new Error("Portefeuille introuvable");
-    if (!(quantity > 0)) throw new Error("Quantité invalide");
+    if (!pf?.id) throw new Error(t("pf.errNoPortfolio"));
+    if (!(quantity > 0)) throw new Error(t("pf.errQty"));
     const amount = quantity * price;
     const existing = pf.holdings.find((h) => h.ticker === ticker);
 
     if (side === "buy") {
-      if (amount > pf.cash + 1e-9) throw new Error("Liquidités insuffisantes");
+      if (amount > pf.cash + 1e-9) throw new Error(t("pf.errCash"));
       const newQty = (existing?.quantity ?? 0) + quantity;
       const newAvg = ((existing?.quantity ?? 0) * (existing?.avg_price ?? 0) + amount) / newQty;
-      const { error } = await supabase
-        .from("portfolio_holdings")
-        .upsert(
-          { portfolio_id: pf.id, ticker, quantity: newQty, avg_price: newAvg, updated_at: new Date().toISOString() },
-          { onConflict: "portfolio_id,ticker" },
-        );
+      const { error } = await supabase.from("portfolio_holdings").upsert(
+        {
+          portfolio_id: pf.id,
+          ticker,
+          quantity: newQty,
+          avg_price: newAvg,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "portfolio_id,ticker" },
+      );
       if (error) throw error;
       const { error: cErr } = await supabase
         .from("portfolios")
@@ -214,8 +231,7 @@ function PortfolioPage() {
         .eq("id", pf.id);
       if (cErr) throw cErr;
     } else {
-      if (!existing || quantity > existing.quantity + 1e-9)
-        throw new Error("Quantité détenue insuffisante");
+      if (!existing || quantity > existing.quantity + 1e-9) throw new Error(t("pf.errHeld"));
       const newQty = existing.quantity - quantity;
       const { error } = await supabase
         .from("portfolio_holdings")
@@ -239,7 +255,11 @@ function PortfolioPage() {
     mutationFn: applyTrade,
     onSuccess: (_d, v) => {
       toast.success(
-        `${v.side === "buy" ? "Achat" : "Vente"} de ${v.quantity} ${v.ticker} à ${num(v.price)} MAD`,
+        t(v.side === "buy" ? "pf.okBuy" : "pf.okSell", {
+          qty: f.num(v.quantity, 0),
+          ticker: v.ticker,
+          price: f.num(v.price),
+        }),
       );
       qc.invalidateQueries({ queryKey: ["vportfolio"] });
     },
@@ -253,9 +273,9 @@ function PortfolioPage() {
       quantity: number;
       limitPrice: number;
     }) => {
-      if (!pf?.id) throw new Error("Portefeuille introuvable");
-      if (!(v.quantity > 0)) throw new Error("Quantité invalide");
-      if (!(v.limitPrice > 0)) throw new Error("Cours limite invalide");
+      if (!pf?.id) throw new Error(t("pf.errNoPortfolio"));
+      if (!(v.quantity > 0)) throw new Error(t("pf.errQty"));
+      if (!(v.limitPrice > 0)) throw new Error(t("pf.errLimit"));
       const { error } = await supabase.from("portfolio_orders").insert({
         portfolio_id: pf.id,
         ticker: v.ticker,
@@ -267,9 +287,11 @@ function PortfolioPage() {
     },
     onSuccess: (_d, v) => {
       toast.success(
-        `Ordre limité enregistré : ${v.side === "buy" ? "achat" : "vente"} de ${v.quantity} ${
-          v.ticker
-        } à ${num(v.limitPrice)} MAD`,
+        t(v.side === "buy" ? "pf.okLimitBuy" : "pf.okLimitSell", {
+          qty: f.num(v.quantity, 0),
+          ticker: v.ticker,
+          price: f.num(v.limitPrice),
+        }),
       );
       qc.invalidateQueries({ queryKey: ["vportfolio"] });
     },
@@ -285,7 +307,7 @@ function PortfolioPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Ordre annulé");
+      toast.success(t("pf.okCancelled"));
       qc.invalidateQueries({ queryKey: ["vportfolio"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -316,21 +338,25 @@ function PortfolioPage() {
         });
         await supabase
           .from("portfolio_orders")
-          .update({ status: "filled", filled_price: fillPrice, filled_at: new Date().toISOString() })
+          .update({
+            status: "filled",
+            filled_price: fillPrice,
+            filled_at: new Date().toISOString(),
+          })
           .eq("id", eligible.id);
         toast.success(
-          `Ordre limité exécuté : ${eligible.side === "buy" ? "achat" : "vente"} de ${
-            eligible.quantity
-          } ${eligible.ticker} à ${num(fillPrice)} MAD`,
+          t(eligible.side === "buy" ? "pf.okFilledBuy" : "pf.okFilledSell", {
+            qty: f.num(eligible.quantity, 0),
+            ticker: eligible.ticker,
+            price: f.num(fillPrice),
+          }),
         );
       } catch (e) {
         await supabase
           .from("portfolio_orders")
           .update({ status: "cancelled" })
           .eq("id", eligible.id);
-        toast.error(
-          `Ordre limité annulé (${eligible.ticker}) : ${(e as Error).message}`,
-        );
+        toast.error(t("pf.errFilled", { ticker: eligible.ticker, reason: (e as Error).message }));
       } finally {
         setFilling(false);
         qc.invalidateQueries({ queryKey: ["vportfolio"] });
@@ -338,7 +364,6 @@ function PortfolioPage() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pf?.orders, quoteMap, filling]);
-
 
   const reset = useMutation({
     mutationFn: async () => {
@@ -351,36 +376,37 @@ function PortfolioPage() {
       await supabase.from("portfolios").update({ cash: START_CAPITAL }).eq("id", pf.id);
     },
     onSuccess: () => {
-      toast.success("Portefeuille réinitialisé à 100 000 MAD");
+      toast.success(t("pf.okReset"));
       qc.invalidateQueries({ queryKey: ["vportfolio"] });
     },
   });
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold sm:text-4xl">Portefeuille virtuel</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Tu démarres avec 100 000 MAD fictifs. Les ordres sont exécutés au dernier cours connu de
-          la Bourse de Casablanca (TradingView), rafraîchi chaque minute.
+      <header className="rise">
+        <h1 className="text-3xl font-bold sm:text-4xl">{t("pf.title")}</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          {t("pf.intro")}
         </p>
       </header>
 
       <Disclaimer />
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Valeur totale" value={mad(totalValue, 0)} />
-        <Kpi label="Liquidités" value={mad(cash, 0)} />
-        <Kpi label="Investi (valorisé)" value={mad(invested, 0)} />
+        <Kpi label={t("pf.totalValue")} value={f.mad(totalValue, 0)} />
+        <Kpi label={t("pf.cash")} value={f.mad(cash, 0)} />
+        <Kpi label={t("pf.invested")} value={f.mad(invested, 0)} />
         <Kpi
-          label="Plus/moins-value"
-          value={`${totalPnl >= 0 ? "+" : ""}${num(totalPnl, 0)} MAD`}
-          hint={`${totalPnl >= 0 ? "+" : ""}${num(totalPnlPct, 2)} %`}
+          label={t("pf.pnl")}
+          value={`${totalPnl >= 0 ? "+" : ""}${f.num(totalPnl, 0)} MAD`}
+          hint={f.pct(totalPnlPct)}
           positive={totalPnl >= 0}
         />
       </section>
 
       <TradePanel
+        t={t}
+        f={f}
         quotes={quotes}
         loading={quotesLoading}
         cash={cash}
@@ -391,11 +417,10 @@ function PortfolioPage() {
       />
 
       {(pf?.orders ?? []).length > 0 && (
-        <section className="surface-card p-5 sm:p-7">
-          <h2 className="text-sm font-semibold">Ordres limités en attente</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Un ordre s'exécute automatiquement dès que le cours en direct atteint ton seuil (achat :
-            cours ≤ limite, vente : cours ≥ limite).
+        <section className="surface-raised p-5 sm:p-7">
+          <h2 className="text-sm font-semibold">{t("pf.pendingOrders")}</h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            {t("pf.pendingExplain")}
           </p>
           <ul className="mt-4 space-y-2 text-sm">
             {pf!.orders.map((o) => {
@@ -409,17 +434,21 @@ function PortfolioPage() {
                     <span
                       className={o.side === "buy" ? "text-[var(--success)]" : "text-destructive"}
                     >
-                      {o.side === "buy" ? "Achat" : "Vente"} limité
+                      {t(o.side === "buy" ? "pf.limitBuy" : "pf.limitSell")}
                     </span>{" "}
-                    {num(o.quantity, 0)} × {o.ticker} à {num(o.limit_price)} MAD
+                    {f.num(o.quantity, 0)} × {o.ticker} · {f.num(o.limit_price)} MAD
                   </span>
                   <span className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>Cours : {last === null ? "—" : `${num(last)} MAD`}</span>
+                    <span>
+                      {t("pf.currentPrice", {
+                        price: last === null ? EMPTY : `${f.num(last)} MAD`,
+                      })}
+                    </span>
                     <button
                       onClick={() => cancelOrder.mutate(o.id)}
                       className="underline-offset-4 hover:text-destructive hover:underline"
                     >
-                      Annuler
+                      {t("common.cancel")}
                     </button>
                   </span>
                 </li>
@@ -429,33 +458,30 @@ function PortfolioPage() {
         </section>
       )}
 
-
-      <section className="surface-card overflow-hidden">
+      <section className="surface-raised overflow-hidden">
         <div className="flex items-center justify-between p-5 sm:p-7 sm:pb-4">
-          <h2 className="text-sm font-semibold">Mes positions</h2>
+          <h2 className="text-sm font-semibold">{t("pf.positions")}</h2>
           <button
             onClick={() => reset.mutate()}
             className="text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline"
           >
-            Réinitialiser
+            {t("pf.reset")}
           </button>
         </div>
 
         {rows.length === 0 ? (
-          <p className="px-5 pb-6 text-sm text-muted-foreground sm:px-7">
-            Aucune position. Passe un premier ordre d'achat ci-dessus.
-          </p>
+          <p className="px-5 pb-6 text-sm text-muted-foreground sm:px-7">{t("pf.noPositions")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-y border-border">
-                  <th className="px-5 py-3 text-left font-medium sm:px-7">Valeur</th>
-                  <th className="px-3 py-3 text-right font-medium">Qté</th>
-                  <th className="px-3 py-3 text-right font-medium">Cours d'achat</th>
-                  <th className="px-3 py-3 text-right font-medium">Cours actuel</th>
-                  <th className="px-3 py-3 text-right font-medium">Valorisation</th>
-                  <th className="px-5 py-3 text-right font-medium sm:px-7">+/- value</th>
+                  <th className="px-5 py-3 text-left font-medium sm:px-7">{t("pf.colStock")}</th>
+                  <th className="px-3 py-3 text-right font-medium">{t("pf.colQty")}</th>
+                  <th className="px-3 py-3 text-right font-medium">{t("pf.colBuyPrice")}</th>
+                  <th className="px-3 py-3 text-right font-medium">{t("pf.colLastPrice")}</th>
+                  <th className="px-3 py-3 text-right font-medium">{t("pf.colValue")}</th>
+                  <th className="px-5 py-3 text-right font-medium sm:px-7">{t("pf.colPnl")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -465,22 +491,21 @@ function PortfolioPage() {
                       <p className="font-medium">{r.ticker}</p>
                       <p className="truncate text-xs text-muted-foreground">{r.name}</p>
                     </td>
-                    <td className="px-3 py-4 text-right">{num(r.quantity, 0)}</td>
-                    <td className="px-3 py-4 text-right">{num(r.avg_price)}</td>
-                    <td className="px-3 py-4 text-right">
-                      {num(r.last)}
+                    <td className="px-3 py-4 text-right tabular-nums">{f.num(r.quantity, 0)}</td>
+                    <td className="px-3 py-4 text-right tabular-nums">{f.num(r.avg_price)}</td>
+                    <td className="px-3 py-4 text-right tabular-nums">
+                      {f.num(r.last)}
                       <span
                         className={`ml-2 text-xs ${
                           r.dayPct >= 0 ? "text-[var(--success)]" : "text-destructive"
                         }`}
                       >
-                        {r.dayPct >= 0 ? "+" : ""}
-                        {num(r.dayPct, 2)} %
+                        {f.pct(r.dayPct)}
                       </span>
                     </td>
-                    <td className="px-3 py-4 text-right">{num(r.value, 0)}</td>
+                    <td className="px-3 py-4 text-right tabular-nums">{f.num(r.value, 0)}</td>
                     <td
-                      className={`px-5 py-4 text-right font-semibold sm:px-7 ${
+                      className={`px-5 py-4 text-right font-semibold tabular-nums sm:px-7 ${
                         r.pnl >= 0 ? "text-[var(--success)]" : "text-destructive"
                       }`}
                     >
@@ -490,12 +515,9 @@ function PortfolioPage() {
                         ) : (
                           <ArrowDownRight className="h-3.5 w-3.5" />
                         )}
-                        {num(r.pnl, 0)} MAD
+                        {f.num(r.pnl, 0)} MAD
                       </span>
-                      <p className="text-xs font-normal">
-                        {r.pnl >= 0 ? "+" : ""}
-                        {num(r.pnlPct, 2)} %
-                      </p>
+                      <p className="text-xs font-normal">{f.pct(r.pnlPct)}</p>
                     </td>
                   </tr>
                 ))}
@@ -505,13 +527,10 @@ function PortfolioPage() {
         )}
       </section>
 
-      <section className="surface-card p-5 sm:p-7">
-        <h2 className="text-sm font-semibold">Performance du portefeuille vs MASI (base 100)</h2>
+      <section className="surface-raised p-5 sm:p-7">
+        <h2 className="text-sm font-semibold">{t("pf.perfTitle")}</h2>
         {perfData.length < 2 ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            La courbe se construit jour après jour : un point est enregistré à chaque visite. Reviens
-            demain pour comparer ta performance à celle de l'indice MASI.
-          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t("pf.perfEmpty")}</p>
         ) : (
           <div className="mt-5 h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -541,7 +560,7 @@ function PortfolioPage() {
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Line
-                  name="Portefeuille"
+                  name={t("pf.legendPortfolio")}
                   type="monotone"
                   dataKey="portefeuille"
                   stroke="var(--gold)"
@@ -549,7 +568,7 @@ function PortfolioPage() {
                   dot={false}
                 />
                 <Line
-                  name="MASI"
+                  name={t("pf.legendMasi")}
                   type="monotone"
                   dataKey="masi"
                   stroke="var(--muted-foreground)"
@@ -565,20 +584,24 @@ function PortfolioPage() {
       </section>
 
       {(pf?.trades ?? []).length > 0 && (
-        <section className="surface-card p-5 sm:p-7">
-          <h2 className="text-sm font-semibold">Derniers ordres</h2>
+        <section className="surface-raised p-5 sm:p-7">
+          <h2 className="text-sm font-semibold">{t("pf.lastTrades")}</h2>
           <ul className="mt-4 space-y-2 text-sm">
-            {pf!.trades.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 border-b border-border/50 pb-2 last:border-0">
+            {pf!.trades.map((trade) => (
+              <li
+                key={trade.id}
+                className="flex items-center justify-between gap-3 border-b border-border/50 pb-2 last:border-0"
+              >
                 <span>
-                  <span className={t.side === "buy" ? "text-[var(--success)]" : "text-destructive"}>
-                    {t.side === "buy" ? "Achat" : "Vente"}
+                  <span
+                    className={trade.side === "buy" ? "text-[var(--success)]" : "text-destructive"}
+                  >
+                    {t(trade.side === "buy" ? "pf.buyLabel" : "pf.sellLabel")}
                   </span>{" "}
-                  {num(Number(t.quantity), 0)} × {t.ticker}
+                  {f.num(Number(trade.quantity), 0)} × {trade.ticker}
                 </span>
-                <span className="text-muted-foreground">
-                  {num(Number(t.price))} MAD ·{" "}
-                  {new Date(t.created_at).toLocaleDateString("fr-MA")}
+                <span className="tabular-nums text-muted-foreground">
+                  {f.num(Number(trade.price))} MAD · {f.shortDate(trade.created_at)}
                 </span>
               </li>
             ))}
@@ -590,6 +613,8 @@ function PortfolioPage() {
 }
 
 function TradePanel({
+  t,
+  f,
   quotes,
   loading,
   cash,
@@ -598,6 +623,8 @@ function TradePanel({
   onPlaceOrder,
   pending,
 }: {
+  t: Translate;
+  f: Formatter;
   quotes: LiveQuote[];
   loading: boolean;
   cash: number;
@@ -616,7 +643,6 @@ function TradePanel({
   const [qty, setQty] = useState(10);
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
   const [limitPrice, setLimitPrice] = useState("");
-
 
   const list = useMemo(
     () =>
@@ -637,27 +663,25 @@ function TradePanel({
   const held = holdings.find((h) => h.ticker === ticker)?.quantity ?? 0;
   const limitValue = Number(limitPrice.replace(",", "."));
   const validLimit = Number.isFinite(limitValue) && limitValue > 0;
-  const execPrice =
-    orderType === "limit" && validLimit ? limitValue : (selected?.price ?? 0);
+  const execPrice = orderType === "limit" && validLimit ? limitValue : (selected?.price ?? 0);
   const amount = execPrice * qty;
 
-
   return (
-    <section className="surface-card p-5 sm:p-7">
-      <h2 className="text-sm font-semibold">Passer un ordre</h2>
+    <section className="surface-raised p-5 sm:p-7">
+      <h2 className="text-sm font-semibold">{t("pf.placeOrder")}</h2>
 
       <div className="relative mt-4">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Rechercher une action (nom ou ticker)"
+          placeholder={t("pf.searchStock")}
           className="w-full rounded-xl border border-input bg-background py-3 pl-11 pr-4 text-sm outline-none focus:border-primary"
         />
       </div>
 
       {loading ? (
-        <p className="mt-4 text-sm text-muted-foreground">Chargement des cours en direct…</p>
+        <p className="mt-4 text-sm text-muted-foreground">{t("pf.loadingQuotes")}</p>
       ) : (
         <div className="mt-4 max-h-56 space-y-1 overflow-y-auto pr-1">
           {list.map((s) => (
@@ -675,21 +699,18 @@ function TradePanel({
                 <span className="text-xs text-muted-foreground">{s.ticker}</span>
               </span>
               <span className="text-right">
-                <span className="block text-sm font-semibold">{num(s.price)}</span>
+                <span className="block text-sm font-semibold tabular-nums">{f.num(s.price)}</span>
                 <span
-                  className={`text-xs ${
+                  className={`text-xs tabular-nums ${
                     s.changePct >= 0 ? "text-[var(--success)]" : "text-destructive"
                   }`}
                 >
-                  {s.changePct >= 0 ? "+" : ""}
-                  {num(s.changePct, 2)} %
+                  {f.pct(s.changePct)}
                 </span>
               </span>
             </button>
           ))}
-          {list.length === 0 && (
-            <p className="text-sm text-muted-foreground">Aucune valeur ne correspond.</p>
-          )}
+          {list.length === 0 && <p className="text-sm text-muted-foreground">{t("pf.noMatch")}</p>}
         </div>
       )}
 
@@ -699,12 +720,12 @@ function TradePanel({
             <div>
               <p className="text-sm font-medium">{selected.name}</p>
               <p className="text-xs text-muted-foreground">
-                Cours en direct : {num(selected.price)} MAD · détenu : {num(held, 0)}
+                {t("pf.livePriceHeld", { price: f.num(selected.price), qty: f.num(held, 0) })}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <label className="text-xs text-muted-foreground" htmlFor="qty">
-                Quantité
+                {t("pf.quantity")}
               </label>
               <input
                 id="qty"
@@ -726,7 +747,7 @@ function TradePanel({
                   : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
-              Ordre au marché
+              {t("pf.marketOrder")}
             </button>
             <button
               onClick={() => {
@@ -739,12 +760,12 @@ function TradePanel({
                   : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
-              Ordre à cours limité
+              {t("pf.limitOrder")}
             </button>
             {orderType === "limit" && (
               <span className="flex items-center gap-2">
                 <label className="text-xs text-muted-foreground" htmlFor="limit">
-                  Cours limite
+                  {t("pf.limitPrice")}
                 </label>
                 <input
                   id="limit"
@@ -758,24 +779,16 @@ function TradePanel({
             )}
           </div>
 
-          <p className="mt-3 text-xs text-muted-foreground">
-            Montant de l'ordre : <span className="font-semibold text-foreground">{mad(amount, 2)}</span>{" "}
-            · liquidités disponibles : {mad(cash, 2)}
-            {orderType === "limit" && (
-              <>
-                {" "}
-                · l'ordre s'exécutera automatiquement dès que le cours atteindra ta limite (achat si
-                cours ≤ limite, vente si cours ≥ limite).
-              </>
-            )}
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            {t("pf.orderAmount")}{" "}
+            <span className="font-semibold tabular-nums text-foreground">{f.mad(amount, 2)}</span> ·{" "}
+            {t("pf.availableCash", { cash: f.mad(cash, 2) })}
+            {orderType === "limit" && <> · {t("pf.limitExplain")}</>}
           </p>
 
           <div className="mt-4 flex gap-3">
             <button
-              disabled={
-                pending ||
-                (orderType === "market" ? amount > cash : !validLimit)
-              }
+              disabled={pending || (orderType === "market" ? amount > cash : !validLimit)}
               onClick={() =>
                 orderType === "market"
                   ? onTrade({
@@ -793,7 +806,7 @@ function TradePanel({
               }
               className="flex-1 rounded-full bg-gradient-gold px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
-              {orderType === "market" ? "Acheter" : "Placer un achat limité"}
+              {t(orderType === "market" ? "pf.buy" : "pf.placeLimitBuy")}
             </button>
             <button
               disabled={pending || held < qty || (orderType === "limit" && !validLimit)}
@@ -814,12 +827,11 @@ function TradePanel({
               }
               className="flex-1 rounded-full border border-border px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
             >
-              {orderType === "market" ? "Vendre" : "Placer une vente limitée"}
+              {t(orderType === "market" ? "pf.sell" : "pf.placeLimitSell")}
             </button>
           </div>
         </div>
       )}
-
     </section>
   );
 }
@@ -836,7 +848,7 @@ function Kpi({
   positive?: boolean;
 }) {
   return (
-    <div className="surface-card p-6">
+    <div className="surface-raised p-6">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p
         className={`mt-3 text-2xl font-bold sm:text-3xl ${

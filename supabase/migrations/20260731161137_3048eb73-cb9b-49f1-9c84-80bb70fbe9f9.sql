@@ -192,5 +192,5 @@ Trois règles simples :
 2. Limiter le poids d''une seule ligne (souvent 10 à 20% maximum).
 3. Adapter l''horizon : l''action se pense sur 5 ans et plus.
 
-La volatilité n''est pas le risque ultime — le vrai risque est la perte définitive de capital sur une entreprise fragile.', 6,
+La volatilité n''est pas le risque ultime : le vrai risque est la perte définitive de capital sur une entreprise fragile.', 6,
 '[{"q":"Un portefeuille à 80% bancaire est :","options":["Bien diversifié","Fortement concentré","Sans risque"],"answer":1},{"q":"Horizon recommandé pour les actions :","options":["Quelques jours","5 ans et plus","1 mois"],"answer":1}]'::jsonb);

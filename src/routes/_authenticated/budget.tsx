@@ -11,31 +11,36 @@ import {
   YAxis,
 } from "recharts";
 import { Disclaimer } from "@/components/Disclaimer";
-import { mad } from "@/lib/format";
+import { useFormat } from "@/lib/format";
+import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/budget")({
   head: () => ({
     meta: [
-      { title: "Simulateur d'intérêts composés — Lyamfi" },
+      { title: "Simulateur d'intérêts composés | Lyamfi" },
       {
         name: "description",
         content:
           "Projette ton épargne mensuelle en dirhams et visualise l'effet des intérêts composés selon ton profil de risque.",
       },
-      { property: "og:title", content: "Budget & intérêts composés — Lyamfi" },
-      { property: "og:description", content: "Versements vs intérêts cumulés, sur 1 à 40 ans." },
+      { property: "og:title", content: "Budget et intérêts composés | Lyamfi" },
+      { property: "og:description", content: "Versements et intérêts cumulés, sur 1 à 40 ans." },
     ],
   }),
   component: BudgetPage,
 });
 
 const PROFILES = [
-  { id: "prudent", label: "Prudent", rate: 3.5, text: "≈ 3–4 % par an" },
-  { id: "modere", label: "Modéré", rate: 6.5, text: "≈ 6–7 % par an" },
-  { id: "dynamique", label: "Dynamique", rate: 9.5, text: "≈ 9–10 % par an" },
-] as const;
+  { id: "prudent", label: "budget.prudent", rate: 3.5, text: "budget.prudentRate" },
+  { id: "modere", label: "budget.balanced", rate: 6.5, text: "budget.balancedRate" },
+  { id: "dynamique", label: "budget.dynamic", rate: 9.5, text: "budget.dynamicRate" },
+] as const satisfies readonly { id: string; label: Key; rate: number; text: Key }[];
 
 function BudgetPage() {
+  const { t } = useI18n();
+  const f = useFormat();
+  usePageTitle("budget.title");
+
   const [monthly, setMonthly] = useState(1000);
   const [years, setYears] = useState(20);
   const [profile, setProfile] = useState<(typeof PROFILES)[number]["id"]>("modere");
@@ -51,34 +56,29 @@ function BudgetPage() {
         for (let m = 0; m < 12; m++) capital = capital * (1 + r) + monthly;
       }
       const versed = monthly * 12 * y;
-      out.push({
-        year: y,
-        "Avec intérêts composés": Math.round(capital),
-        "Épargne simple": versed,
-      });
+      out.push({ year: y, compound: Math.round(capital), plain: versed });
     }
     return out;
   }, [monthly, years, rate]);
 
   const last = data[data.length - 1]!;
-  const final = last["Avec intérêts composés"];
-  const versed = last["Épargne simple"];
+  const final = last.compound;
+  const versed = last.plain;
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold sm:text-4xl">Budget & intérêts composés</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Combien peut valoir une épargne régulière au fil du temps ? Les taux proposés sont des
-          hypothèses pédagogiques, pas des promesses de rendement.
+      <header className="rise">
+        <h1 className="text-3xl font-bold sm:text-4xl">{t("budget.title")}</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          {t("budget.intro")}
         </p>
       </header>
 
       <Disclaimer />
 
-      <section className="surface-card grid gap-7 p-6 sm:p-8 lg:grid-cols-3">
+      <section className="surface-raised grid gap-7 p-6 sm:p-8 lg:grid-cols-3">
         <div>
-          <label className="text-xs text-muted-foreground">Montant investi par mois (MAD)</label>
+          <label className="text-xs text-muted-foreground">{t("budget.monthly")}</label>
           <input
             type="number"
             min={100}
@@ -98,7 +98,7 @@ function BudgetPage() {
           />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Durée : {years} ans</label>
+          <label className="text-xs text-muted-foreground">{t("budget.duration", { years })}</label>
           <input
             type="range"
             min={1}
@@ -109,7 +109,7 @@ function BudgetPage() {
           />
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Niveau de risque</p>
+          <p className="text-xs text-muted-foreground">{t("budget.riskLevel")}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {PROFILES.map((p) => (
               <button
@@ -121,16 +121,16 @@ function BudgetPage() {
                     : "border-border text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {p.label}
-                <span className="block text-[10px] opacity-70">{p.text}</span>
+                {t(p.label)}
+                <span className="block text-[10px] opacity-70">{t(p.text)}</span>
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="surface-card p-5 sm:p-7">
-        <h2 className="text-sm font-semibold">Croissance du capital</h2>
+      <section className="surface-raised p-5 sm:p-7">
+        <h2 className="text-sm font-semibold">{t("budget.growth")}</h2>
         <div className="mt-5 h-80">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
@@ -146,14 +146,14 @@ function BudgetPage() {
                 tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v: number) => `${v} a`}
+                tickFormatter={(v: number) => t("budget.yearShort", { n: v })}
               />
               <YAxis
                 tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 width={80}
-                tickFormatter={(v: number) => `${Math.round(v / 1000)} k`}
+                tickFormatter={(v: number) => `${f.num(Math.round(v / 1000), 0)} k`}
               />
               <Tooltip
                 contentStyle={{
@@ -162,20 +162,22 @@ function BudgetPage() {
                   borderRadius: 12,
                   fontSize: 12,
                 }}
-                formatter={(v: number) => `${v.toLocaleString("fr-MA")} MAD`}
-                labelFormatter={(l) => `Année ${l}`}
+                formatter={(v: number) => f.mad(v, 0)}
+                labelFormatter={(l) => t("budget.year", { n: String(l) })}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Area
+                name={t("budget.withCompound")}
                 type="monotone"
-                dataKey="Avec intérêts composés"
+                dataKey="compound"
                 stroke="var(--gold)"
                 strokeWidth={2.5}
                 fill="url(#compFill)"
               />
               <Area
+                name={t("budget.simpleSaving")}
                 type="monotone"
-                dataKey="Épargne simple"
+                dataKey="plain"
                 stroke="var(--muted-foreground)"
                 strokeDasharray="4 4"
                 strokeWidth={1.5}
@@ -187,17 +189,21 @@ function BudgetPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <div className="surface-card p-6">
-          <p className="text-xs text-muted-foreground">Capital final</p>
-          <p className="mt-3 text-3xl font-bold text-gradient-gold">{mad(final, 0)}</p>
+        <div className="surface-raised p-6">
+          <p className="text-xs text-muted-foreground">{t("budget.finalCapital")}</p>
+          <p className="mt-3 text-3xl font-bold tabular-nums text-gradient-gold">
+            {f.mad(final, 0)}
+          </p>
         </div>
-        <div className="surface-card p-6">
-          <p className="text-xs text-muted-foreground">Total versé</p>
-          <p className="mt-3 text-3xl font-bold">{mad(versed, 0)}</p>
+        <div className="surface-raised p-6">
+          <p className="text-xs text-muted-foreground">{t("budget.totalPaid")}</p>
+          <p className="mt-3 text-3xl font-bold tabular-nums">{f.mad(versed, 0)}</p>
         </div>
-        <div className="surface-card p-6">
-          <p className="text-xs text-muted-foreground">Intérêts générés</p>
-          <p className="mt-3 text-3xl font-bold text-gradient-gold">{mad(final - versed, 0)}</p>
+        <div className="surface-raised p-6">
+          <p className="text-xs text-muted-foreground">{t("budget.interestEarned")}</p>
+          <p className="mt-3 text-3xl font-bold tabular-nums text-gradient-gold">
+            {f.mad(final - versed, 0)}
+          </p>
         </div>
       </section>
     </div>

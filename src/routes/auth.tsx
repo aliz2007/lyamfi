@@ -3,20 +3,23 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Logo } from "@/components/Logo";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PasswordField, PasswordRules } from "@/components/PasswordField";
 import { supabase } from "@/integrations/supabase/client";
 import { checkPassword, PASSWORD_MAX } from "@/lib/password";
+import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 
 type Mode = "login" | "signup" | "forgot";
 
-const emailSchema = z.string().trim().email("Adresse e-mail invalide").max(255);
+const emailSchema = z.string().trim().email().max(255);
+const NAME_MAX = 60;
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Connexion — Lyamfi" },
+      { title: "Connexion | Lyamfi" },
       { name: "description", content: "Connecte-toi ou crée ton compte Lyamfi gratuitement." },
-      { property: "og:title", content: "Connexion — Lyamfi" },
+      { property: "og:title", content: "Connexion | Lyamfi" },
       { property: "og:description", content: "Accède à ton parcours d'éducation financière." },
     ],
   }),
@@ -29,28 +32,27 @@ export const Route = createFileRoute("/auth")({
 });
 
 /** Traduit les messages d'erreur Supabase (anglais) en messages actionnables. */
-function translateAuthError(message: string): string {
+function translateAuthError(message: string, t: Translate): string {
   const m = message.toLowerCase();
-  if (m.includes("invalid login credentials"))
-    return "E-mail ou mot de passe incorrect.";
-  if (m.includes("email not confirmed"))
-    return "Ton adresse n'est pas encore confirmée. Vérifie ta boîte mail (et les spams).";
+  if (m.includes("invalid login credentials")) return t("auth.errCredentials");
+  if (m.includes("email not confirmed")) return t("auth.errUnconfirmed");
   if (m.includes("user already registered") || m.includes("already been registered"))
-    return "Un compte existe déjà avec cette adresse. Connecte-toi ou réinitialise ton mot de passe.";
-  if (m.includes("password should be at least"))
-    return "Mot de passe trop court.";
+    return t("auth.errTaken");
+  if (m.includes("password should be at least")) return t("auth.errShort");
   if (m.includes("for security purposes") || m.includes("rate limit") || m.includes("too many"))
-    return "Trop de tentatives. Patiente une minute avant de réessayer.";
-  if (m.includes("unable to validate email"))
-    return "Adresse e-mail invalide.";
+    return t("auth.errRate");
+  if (m.includes("unable to validate email")) return t("auth.errInvalidEmail");
   return message;
 }
 
 function AuthPage() {
   const { mode: initialMode } = Route.useSearch();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [mode, setMode] = useState<Mode>(initialMode ?? "login");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -59,6 +61,13 @@ function AuthPage() {
 
   const isSignup = mode === "signup";
   const isForgot = mode === "forgot";
+
+  const titleKey: Key = isForgot
+    ? "auth.forgotTitle"
+    : isSignup
+      ? "auth.signupTitle"
+      : "auth.loginTitle";
+  usePageTitle(titleKey);
 
   const pw = useMemo(() => checkPassword(password), [password]);
   const mismatch = isSignup && confirm.length > 0 && confirm !== password;
@@ -80,12 +89,12 @@ function AuthPage() {
 
     const parsedEmail = emailSchema.safeParse(email);
     if (!parsedEmail.success) {
-      toast.error(parsedEmail.error.issues[0]?.message ?? "Adresse e-mail invalide");
+      toast.error(t("auth.errEmail"));
       return;
     }
     const cleanEmail = parsedEmail.data;
 
-    // ---------------------------------------------------------- mot de passe oublié
+    // -------------------------------------------------------- mot de passe oublié
     if (isForgot) {
       setLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
@@ -93,41 +102,60 @@ function AuthPage() {
       });
       setLoading(false);
       if (error) {
-        toast.error(translateAuthError(error.message));
+        toast.error(translateAuthError(error.message, t));
         return;
       }
       // Réponse volontairement identique que le compte existe ou non :
       // révéler l'inverse permettrait d'énumérer les comptes.
       setSent("reset");
-      toast.success("Si un compte existe pour cette adresse, un lien vient d'être envoyé.");
+      toast.success(t("auth.resetLinkSent"));
       return;
     }
 
-    // ---------------------------------------------------------------- inscription
+    // ------------------------------------------------------------------ inscription
     if (isSignup) {
+      const first = firstName.trim().slice(0, NAME_MAX);
+      const last = lastName.trim().slice(0, NAME_MAX);
+      if (!first) {
+        toast.error(t("auth.errFirstName"));
+        return;
+      }
+      if (!last) {
+        toast.error(t("auth.errLastName"));
+        return;
+      }
       if (!pw.valid) {
         toast.error(
           pw.tooLong
-            ? `Le mot de passe ne peut pas dépasser ${PASSWORD_MAX} caractères.`
-            : "Ton mot de passe ne remplit pas encore toutes les conditions ci-dessous.",
+            ? t("auth.errPasswordLong", { max: PASSWORD_MAX })
+            : t("auth.errPasswordRules"),
         );
         return;
       }
       if (password !== confirm) {
-        toast.error("Les deux mots de passe ne sont pas identiques.");
+        toast.error(t("auth.errMismatch"));
         return;
       }
 
       setLoading(true);
+      // Le nom part en majuscules dès l'inscription ; le trigger de la base
+      // applique la même règle, donc les deux chemins donnent le même résultat.
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
-        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            first_name: first,
+            last_name: last.toUpperCase(),
+            display_name: `${first} ${last.toUpperCase()}`,
+          },
+        },
       });
       setLoading(false);
 
       if (error) {
-        toast.error(translateAuthError(error.message));
+        toast.error(translateAuthError(error.message, t));
         return;
       }
 
@@ -135,9 +163,7 @@ function AuthPage() {
       // utilisateur factice sans identité plutôt qu'une erreur, pour ne pas
       // divulguer l'existence du compte. On le détecte pour guider l'utilisateur.
       if (data.user && (data.user.identities?.length ?? 0) === 0) {
-        toast.error(
-          "Un compte existe déjà avec cette adresse. Connecte-toi, ou utilise « Mot de passe oublié ».",
-        );
+        toast.error(t("auth.errTaken"));
         return;
       }
 
@@ -149,50 +175,33 @@ function AuthPage() {
       return;
     }
 
-    // ------------------------------------------------------------------ connexion
+    // -------------------------------------------------------------------- connexion
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
     setLoading(false);
     if (error) {
-      toast.error(translateAuthError(error.message));
+      toast.error(translateAuthError(error.message, t));
       return;
     }
     navigate({ to: "/dashboard" });
   };
 
-  // ------------------------------------------------------------------ écran envoyé
+  // ---------------------------------------------------------------- écran envoyé
   if (sent) {
     return (
       <Shell>
         <h1 className="text-2xl font-bold">
-          {sent === "confirm" ? "Vérifie ta boîte mail" : "Lien envoyé"}
+          {t(sent === "confirm" ? "auth.checkInboxTitle" : "auth.linkSentTitle")}
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          {sent === "confirm" ? (
-            <>
-              Un lien de confirmation vient d'être envoyé à{" "}
-              <span className="font-medium text-foreground">{email}</span>. Clique dessus pour
-              activer ton compte.
-            </>
-          ) : (
-            <>
-              Si un compte existe pour{" "}
-              <span className="font-medium text-foreground">{email}</span>, tu recevras un lien
-              de réinitialisation. Il expire au bout d'une heure.
-            </>
-          )}
+          {t(sent === "confirm" ? "auth.checkInboxText" : "auth.resetSentText", { email })}
         </p>
-        <p className="mt-4 text-xs text-muted-foreground">
-          Rien reçu au bout de quelques minutes ? Regarde dans les spams.
-        </p>
+        <p className="mt-4 text-xs text-muted-foreground">{t("auth.spamHint")}</p>
         <button
           onClick={() => switchMode("login")}
           className="mt-7 w-full rounded-xl border border-border py-3 text-sm font-semibold transition-colors hover:border-primary/50"
         >
-          Retour à la connexion
+          {t("auth.backToLogin")}
         </button>
       </Shell>
     );
@@ -200,41 +209,47 @@ function AuthPage() {
 
   return (
     <Shell>
-      <h1 className="text-2xl font-bold">
-        {isForgot
-          ? "Mot de passe oublié"
-          : isSignup
-            ? "Créer un compte gratuit"
-            : "Se connecter"}
-      </h1>
+      <h1 className="text-2xl font-bold">{t(titleKey)}</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        {isForgot
-          ? "Indique ton adresse : on t'envoie un lien pour choisir un nouveau mot de passe."
-          : isSignup
-            ? "Accède aux modules, au simulateur et à ton suivi de progression."
-            : "Retrouve ta progression et tes portefeuilles simulés."}
+        {t(isForgot ? "auth.forgotText" : isSignup ? "auth.signupText" : "auth.loginText")}
       </p>
 
       <form onSubmit={submit} className="mt-7 space-y-4" noValidate>
-        <div>
-          <label className="text-xs text-muted-foreground" htmlFor="email">
-            E-mail
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-            placeholder="prenom@exemple.ma"
-            autoComplete="email"
-          />
-        </div>
+        {isSignup && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              id="first-name"
+              label={t("auth.firstName")}
+              value={firstName}
+              onChange={setFirstName}
+              placeholder={t("auth.firstNamePlaceholder")}
+              autoComplete="given-name"
+            />
+            <Field
+              id="last-name"
+              label={t("auth.lastName")}
+              value={lastName}
+              onChange={setLastName}
+              placeholder={t("auth.lastNamePlaceholder")}
+              autoComplete="family-name"
+            />
+          </div>
+        )}
+
+        <Field
+          id="email"
+          type="email"
+          label={t("auth.email")}
+          value={email}
+          onChange={setEmail}
+          placeholder={t("auth.emailPlaceholder")}
+          autoComplete="email"
+        />
 
         {!isForgot && (
           <PasswordField
             id="password"
-            label="Mot de passe"
+            label={t("auth.password")}
             value={password}
             onChange={setPassword}
             autoComplete={isSignup ? "new-password" : "current-password"}
@@ -245,14 +260,13 @@ function AuthPage() {
           <>
             <PasswordField
               id="confirm"
-              label="Confirme le mot de passe"
+              label={t("auth.confirmPassword")}
               value={confirm}
               onChange={setConfirm}
               autoComplete="new-password"
               invalid={mismatch}
-              hint={mismatch ? "Les deux mots de passe ne sont pas identiques." : undefined}
+              hint={mismatch ? t("auth.errMismatch") : undefined}
             />
-
             <PasswordRules value={password} check={pw} max={PASSWORD_MAX} />
           </>
         )}
@@ -260,15 +274,17 @@ function AuthPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-xl bg-gradient-gold py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+          className="w-full rounded-xl bg-gradient-gold py-3 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-60"
         >
           {loading
-            ? "Un instant…"
-            : isForgot
-              ? "Envoyer le lien"
-              : isSignup
-                ? "Créer mon compte"
-                : "Se connecter"}
+            ? t("common.wait")
+            : t(
+                isForgot
+                  ? "auth.submitForgot"
+                  : isSignup
+                    ? "auth.submitSignup"
+                    : "auth.submitLogin",
+              )}
         </button>
       </form>
 
@@ -276,25 +292,23 @@ function AuthPage() {
         {!isForgot && !isSignup && (
           <button
             onClick={() => switchMode("forgot")}
-            className="block w-full text-xs text-muted-foreground hover:text-foreground"
+            className="block w-full text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            Mot de passe oublié ?
+            {t("auth.forgotLink")}
           </button>
         )}
         <button
           onClick={() => switchMode(isSignup ? "login" : "signup")}
-          className="block w-full text-xs text-muted-foreground hover:text-foreground"
+          className="block w-full text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          {isSignup
-            ? "J'ai déjà un compte — me connecter"
-            : "Pas encore de compte — m'inscrire"}
+          {t(isSignup ? "auth.toLogin" : "auth.toSignup")}
         </button>
         {isForgot && (
           <button
             onClick={() => switchMode("login")}
-            className="block w-full text-xs text-muted-foreground hover:text-foreground"
+            className="block w-full text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            Retour à la connexion
+            {t("auth.backToLogin")}
           </button>
         )}
       </div>
@@ -302,16 +316,54 @@ function AuthPage() {
   );
 }
 
+function Field({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+  type = "text",
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  autoComplete: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-medium text-muted-foreground" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1.5 w-full rounded-xl border border-input bg-background/60 px-4 py-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        maxLength={NAME_MAX}
+      />
+    </div>
+  );
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <div className="px-4 py-5 sm:px-6">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-background">
+      <div className="aurora" aria-hidden="true" />
+      <div className="relative flex items-center justify-between px-4 py-5 sm:px-6">
         <Link to="/">
           <Logo />
         </Link>
+        <LanguageSwitcher />
       </div>
-      <div className="flex flex-1 items-center justify-center px-4 pb-16">
-        <div className="surface-card w-full max-w-md p-8">{children}</div>
+      <div className="relative flex flex-1 items-center justify-center px-4 pb-16">
+        <div className="surface-raised rise w-full max-w-md p-8">{children}</div>
       </div>
     </div>
   );

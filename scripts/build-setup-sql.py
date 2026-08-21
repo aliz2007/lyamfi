@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build supabase/setup.sql — the whole schema in one paste-able, RE-RUNNABLE file.
+Build supabase/setup.sql: the whole schema in one paste-able, RE-RUNNABLE file.
 
 Why this exists
 ---------------
@@ -14,7 +14,7 @@ Why it is not a regex
 ---------------------
 An earlier regex version split statements on the first ";" it found. Lesson
 content is full of prose containing semicolons inside single-quoted strings, so
-it cut mid-statement and rewrote a semicolon that lived *inside* a lesson body —
+it cut mid-statement and rewrote a semicolon that lived *inside* a lesson body,
 corrupting the text and leaving the real INSERT unguarded. SQL needs a scanner
 that understands quoting; that is what split_statements does.
 """
@@ -57,7 +57,7 @@ def split_statements(sql: str) -> list[str]:
             i = j
             continue
 
-        # 'single quoted' — '' is a literal quote, not a terminator
+        # 'single quoted': '' is a literal quote, not a terminator
         if c == "'":
             j = i + 1
             while j < n:
@@ -98,6 +98,62 @@ def split_statements(sql: str) -> list[str]:
     return out
 
 
+def code_of(stmt: str) -> str:
+    """The statement without its leading comment lines or trailing semicolon."""
+    lines = [
+        ln for ln in stmt.splitlines() if ln.strip() and not ln.lstrip().startswith("--")
+    ]
+    return " ".join(ln.strip() for ln in lines).rstrip(";").strip()
+
+
+def signature_types(sql: str, open_paren: int) -> str:
+    """Argument types of a function signature, for a DROP FUNCTION clause.
+
+    Reads the balanced parenthesis group starting at `open_paren`, then keeps
+    the type of each argument. Parentheses nest inside DEFAULT expressions
+    (`uid uuid DEFAULT auth.uid()`), so the group cannot be matched with a
+    plain regex.
+    """
+    depth = 0
+    end = open_paren
+    for i in range(open_paren, len(sql)):
+        if sql[i] == "(":
+            depth += 1
+        elif sql[i] == ")":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    inner = sql[open_paren + 1 : end].strip()
+    if not inner:
+        return ""
+
+    # Split on commas that are not inside a nested expression.
+    parts, buf, depth = [], [], 0
+    for ch in inner:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        if ch == "," and depth == 0:
+            parts.append("".join(buf))
+            buf = []
+        else:
+            buf.append(ch)
+    if buf:
+        parts.append("".join(buf))
+
+    types = []
+    for part in parts:
+        # "name type [DEFAULT expr]" -> "type"
+        words = re.split(r"\s+DEFAULT\s+", part.strip(), flags=re.I)[0].split()
+        if len(words) >= 2:
+            types.append(words[1])
+        elif words:
+            types.append(words[0])
+    return ", ".join(types)
+
+
 # Seed tables whose INSERTs must become no-ops on a re-run.
 CONFLICT_TARGET = {
     "public.stocks": "(ticker)",
@@ -107,8 +163,24 @@ CONFLICT_TARGET = {
 }
 
 
-def guard(stmt: str) -> str:
-    """Make a single statement safe to execute twice."""
+def guard(stmt: str, prev: str = "") -> str:
+    """Make a single statement safe to execute twice.
+
+    `prev` is the preceding statement, used only to avoid emitting a guard the
+    migration already wrote by hand.
+    """
+    lead = stmt[: len(stmt) - len(stmt.lstrip())]
+    body = stmt.lstrip()
+
+    def prefixed(guard_stmt: str) -> str:
+        # A migration applied on its own needs its guard written inline, so the
+        # same DROP can legitimately appear in the source. Emitting it twice is
+        # harmless but noisy; skip it when it is already there. A statement
+        # chunk carries the comments that precede it, so compare code only.
+        if code_of(prev) == guard_stmt.rstrip(";").strip():
+            return stmt
+        return f"{lead}{guard_stmt}\n{body}"
+
     # Only look at the code outside quoted bodies when deciding what this is.
     probe = re.sub(r"'(?:''|[^'])*'|\$([A-Za-z_][A-Za-z_0-9]*)?\$.*?\$\1?\$", "''", stmt, flags=re.S)
 
@@ -120,18 +192,34 @@ def guard(stmt: str) -> str:
 
     m = re.search(r'CREATE POLICY\s+("(?:[^"]+)"|\w+)\s+ON\s+([\w.]+)', probe)
     if m:
-        return f"DROP POLICY IF EXISTS {m.group(1)} ON {m.group(2)};\n{stmt.lstrip()}"
+        return prefixed(f"DROP POLICY IF EXISTS {m.group(1)} ON {m.group(2)};")
 
     m = re.search(r"CREATE TRIGGER\s+(\w+)\b.*?\bON\s+([\w.]+)", probe, re.S)
     if m:
-        return f"DROP TRIGGER IF EXISTS {m.group(1)} ON {m.group(2)};\n{stmt.lstrip()}"
+        return prefixed(f"DROP TRIGGER IF EXISTS {m.group(1)} ON {m.group(2)};")
+
+    # A set-returning function whose column list changes between migrations
+    # cannot be CREATE OR REPLACE'd: PostgreSQL refuses to change a return
+    # type in place. Replaying setup.sql against a database that already has
+    # the newer shape would abort on the older definition, so each one is
+    # dropped first. Scalar functions are left alone, because triggers depend
+    # on some of them and DROP would fail.
+    m = re.search(
+        r"CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([\w.]+)\s*\(",
+        probe,
+        re.I,
+    )
+    if m and re.search(r"\bRETURNS\s+(?:TABLE|SETOF)\b", probe, re.I):
+        name = m.group(1)
+        args = signature_types(probe, m.end() - 1)
+        return prefixed(f"DROP FUNCTION IF EXISTS {name}({args});")
 
     m = re.search(r"INSERT INTO\s+([\w.]+)", probe)
     if m and "ON CONFLICT" not in probe:
         target = CONFLICT_TARGET.get(m.group(1))
         if target is not None:
             clause = f"ON CONFLICT {target} DO NOTHING".replace("ON CONFLICT  DO", "ON CONFLICT DO")
-            # Append before the statement's own terminating semicolon — which,
+            # Append before the statement's own terminating semicolon, which,
             # because of split_statements, is genuinely the last character.
             assert stmt.rstrip().endswith(";"), "statement should end with ;"
             head = stmt.rstrip()[:-1].rstrip()
@@ -141,7 +229,7 @@ def guard(stmt: str) -> str:
 
 
 HEADER = """-- =====================================================================
--- Lyamfi — complete database setup, in one file.
+-- Lyamfi: complete database setup, in one file.
 --
 -- Paste into the Supabase SQL Editor and press Run.
 --
@@ -152,7 +240,7 @@ HEADER = """-- =================================================================
 -- ON CONFLICT on every seed insert.
 --
 -- GENERATED by scripts/build-setup-sql.py from supabase/migrations/*.sql.
--- Do not edit by hand — regenerate instead.
+-- Do not edit by hand; regenerate instead.
 -- ====================================================================="""
 
 
@@ -168,7 +256,13 @@ def main() -> int:
         stmts = split_statements(body)
         assert "".join(stmts) == body, f"round-trip failed for {os.path.basename(f)}"
         total_stmts += len([s for s in stmts if s.strip()])
-        guarded = "".join(guard(s) for s in stmts)
+        out_stmts = []
+        previous = ""
+        for stmt in stmts:
+            out_stmts.append(guard(stmt, previous))
+            if stmt.strip():
+                previous = stmt
+        guarded = "".join(out_stmts)
         chunks.append(
             "\n\n-- ---------------------------------------------------------------------\n"
             f"-- {os.path.basename(f)}\n"

@@ -5,12 +5,14 @@ import { Logo } from "@/components/Logo";
 import { PasswordField, PasswordRules } from "@/components/PasswordField";
 import { supabase } from "@/integrations/supabase/client";
 import { checkPassword, PASSWORD_MAX } from "@/lib/password";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Nouveau mot de passe — Lyamfi" },
+      { title: "Nouveau mot de passe | Lyamfi" },
       { name: "description", content: "Choisis un nouveau mot de passe pour ton compte Lyamfi." },
       { name: "robots", content: "noindex" },
     ],
@@ -21,7 +23,7 @@ export const Route = createFileRoute("/reset-password")({
 type Status = "checking" | "ready" | "invalid" | "saving";
 
 /** Lit une erreur renvoyée par Supabase dans le fragment de l'URL (#error=…). */
-function errorFromUrl(): string | null {
+function errorFromUrl(): Key | null {
   if (typeof window === "undefined") return null;
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const query = new URLSearchParams(window.location.search);
@@ -29,14 +31,15 @@ function errorFromUrl(): string | null {
   const description = hash.get("error_description") ?? query.get("error_description");
   if (!code && !description) return null;
   if ((code ?? "").includes("expired") || (description ?? "").toLowerCase().includes("expired"))
-    return "Ce lien a expiré. Demande-en un nouveau depuis la page de connexion.";
-  return "Ce lien n'est plus valide. Demande-en un nouveau depuis la page de connexion.";
+    return "reset.expired";
+  return "reset.invalid";
 }
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [status, setStatus] = useState<Status>("checking");
-  const [reason, setReason] = useState<string | null>(null);
+  const [reason, setReason] = useState<Key | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
@@ -72,9 +75,7 @@ function ResetPasswordPage() {
         setStatus("ready");
         return;
       }
-      setReason(
-        "Ce lien n'est plus valide ou a déjà été utilisé. Demande-en un nouveau depuis la page de connexion.",
-      );
+      setReason("reset.used");
       setStatus((s) => (s === "checking" ? "invalid" : s));
     });
 
@@ -88,14 +89,12 @@ function ResetPasswordPage() {
     e.preventDefault();
     if (!pw.valid) {
       toast.error(
-        pw.tooLong
-          ? `Le mot de passe ne peut pas dépasser ${PASSWORD_MAX} caractères.`
-          : "Ton mot de passe ne remplit pas encore toutes les conditions ci-dessous.",
+        pw.tooLong ? t("auth.errPasswordLong", { max: PASSWORD_MAX }) : t("auth.errPasswordRules"),
       );
       return;
     }
     if (password !== confirm) {
-      toast.error("Les deux mots de passe ne sont pas identiques.");
+      toast.error(t("auth.errMismatch"));
       return;
     }
 
@@ -106,68 +105,72 @@ function ResetPasswordPage() {
       const m = error.message.toLowerCase();
       toast.error(
         m.includes("should be different")
-          ? "Choisis un mot de passe différent de l'ancien."
+          ? t("reset.sameAsOld")
           : m.includes("session")
-            ? "Ta session de réinitialisation a expiré. Demande un nouveau lien."
+            ? t("reset.sessionExpired")
             : error.message,
       );
       return;
     }
 
-    toast.success("Mot de passe mis à jour.");
+    toast.success(t("reset.done"));
     navigate({ to: "/dashboard" });
   };
 
+  usePageTitle("reset.title");
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <div className="px-4 py-5 sm:px-6">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-background">
+      <div className="aurora" aria-hidden="true" />
+      <div className="relative flex items-center justify-between px-4 py-5 sm:px-6">
         <Link to="/">
           <Logo />
         </Link>
+        <LanguageSwitcher />
       </div>
-      <div className="flex flex-1 items-center justify-center px-4 pb-16">
-        <div className="surface-card w-full max-w-md p-8">
+      <div className="relative flex flex-1 items-center justify-center px-4 pb-16">
+        <div className="surface-raised rise w-full max-w-md p-8">
           {status === "checking" && (
-            <p className="text-sm text-muted-foreground">Vérification du lien…</p>
+            <p className="text-sm text-muted-foreground">{t("reset.checking")}</p>
           )}
 
           {status === "invalid" && (
             <>
-              <h1 className="text-2xl font-bold">Lien invalide</h1>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{reason}</p>
+              <h1 className="text-2xl font-bold">{t("reset.invalidTitle")}</h1>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {reason ? t(reason) : t("reset.invalid")}
+              </p>
               <Link
                 to="/auth"
                 search={{ mode: "forgot" }}
                 className="mt-7 block w-full rounded-xl bg-gradient-gold py-3 text-center text-sm font-semibold text-primary-foreground"
               >
-                Demander un nouveau lien
+                {t("reset.askNew")}
               </Link>
             </>
           )}
 
           {(status === "ready" || status === "saving") && (
             <>
-              <h1 className="text-2xl font-bold">Nouveau mot de passe</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Choisis un mot de passe que tu n'utilises nulle part ailleurs.
-              </p>
+              <h1 className="text-2xl font-bold">{t("reset.title")}</h1>
+              <p className="mt-2 text-sm text-muted-foreground">{t("reset.text")}</p>
 
               <form onSubmit={submit} className="mt-7 space-y-4" noValidate>
                 <PasswordField
                   id="new-password"
-                  label="Nouveau mot de passe"
+                  label={t("reset.newPassword")}
                   value={password}
                   onChange={setPassword}
                   autoComplete="new-password"
                 />
                 <PasswordField
                   id="confirm-password"
-                  label="Confirme le mot de passe"
+                  label={t("auth.confirmPassword")}
                   value={confirm}
                   onChange={setConfirm}
                   autoComplete="new-password"
                   invalid={mismatch}
-                  hint={mismatch ? "Les deux mots de passe ne sont pas identiques." : undefined}
+                  hint={mismatch ? t("auth.errMismatch") : undefined}
                 />
 
                 <PasswordRules value={password} check={pw} max={PASSWORD_MAX} />
@@ -177,7 +180,7 @@ function ResetPasswordPage() {
                   disabled={status === "saving"}
                   className="w-full rounded-xl bg-gradient-gold py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                 >
-                  {status === "saving" ? "Enregistrement…" : "Enregistrer le mot de passe"}
+                  {status === "saving" ? t("common.saving") : t("reset.submit")}
                 </button>
               </form>
             </>

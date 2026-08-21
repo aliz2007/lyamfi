@@ -6,7 +6,7 @@
 export const CSE_OPEN_MINUTES = 9 * 60 + 30;
 export const CSE_CLOSE_MINUTES = 15 * 60 + 30;
 
-/** Jours fériés (dates fixes ou déjà calculées) — format AAAA-MM-JJ. */
+/** Jours fériés (dates fixes ou déjà calculées), au format AAAA-MM-JJ. */
 export const CSE_HOLIDAYS: Record<string, string> = {
   // 2026
   "2026-01-01": "Nouvel an",
@@ -40,13 +40,31 @@ export const CSE_HOLIDAYS: Record<string, string> = {
 
 export type SessionStatus = {
   open: boolean;
-  /** Libellé court : « Séance ouverte », « Séance fermée »… */
-  label: string;
-  /** Détail : horaire de la séance ou motif de fermeture. */
-  detail: string;
-  /** Heure locale de Casablanca, ex. « 14:37 ». */
+  /** Clé de traduction du libellé court (« Séance ouverte », « Séance fermée »…). */
+  labelKey: SessionKey;
+  /** Clé de traduction du détail : horaire de la séance ou motif de fermeture. */
+  detailKey: SessionKey;
+  /** Nom du jour férié, quand c'est le motif de la fermeture. */
+  holiday?: string;
+  /** Heure locale de Casablanca, par exemple « 14:37 ». */
   localTime: string;
 };
+
+/**
+ * Les libellés sont des clés plutôt que du texte : le composant qui les
+ * affiche les traduit dans la langue choisie. Les noms de jours fériés
+ * marocains restent tels quels, ils n'ont pas d'équivalent anglais usuel.
+ */
+export type SessionKey =
+  | "session.open"
+  | "session.closed"
+  | "session.preOpen"
+  | "session.afterClose"
+  | "session.weekend"
+  | "session.holiday"
+  | "session.opensAt"
+  | "session.closedAt"
+  | "session.continuous";
 
 function casablancaParts(date: Date) {
   const fmt = new Intl.DateTimeFormat("fr-FR", {
@@ -60,11 +78,11 @@ function casablancaParts(date: Date) {
     hour12: false,
   });
   const p = Object.fromEntries(fmt.formatToParts(date).map((x) => [x.type, x.value]));
-  const hour = Number(p['hour'] === "24" ? "0" : p['hour']);
-  const minute = Number(p['minute']);
+  const hour = Number(p["hour"] === "24" ? "0" : p["hour"]);
+  const minute = Number(p["minute"]);
   return {
-    iso: `${p['year']}-${p['month']}-${p['day']}`,
-    weekday: p['weekday'] ?? "",
+    iso: `${p["year"]}-${p["month"]}-${p["day"]}`,
+    weekday: p["weekday"] ?? "",
     minutes: hour * 60 + minute,
     time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
   };
@@ -78,39 +96,40 @@ export function getSessionStatus(now: Date = new Date()): SessionStatus {
   if (isWeekend) {
     return {
       open: false,
-      label: "Séance fermée",
-      detail: "Week-end — réouverture lundi à 09h30",
+      labelKey: "session.closed",
+      detailKey: "session.weekend",
       localTime: time,
     };
   }
   if (holiday) {
     return {
       open: false,
-      label: "Séance fermée",
-      detail: `Jour férié : ${holiday}`,
+      labelKey: "session.closed",
+      detailKey: "session.holiday",
+      holiday,
       localTime: time,
     };
   }
   if (minutes < CSE_OPEN_MINUTES) {
     return {
       open: false,
-      label: "Pré-ouverture",
-      detail: "Ouverture à 09h30 (heure de Casablanca)",
+      labelKey: "session.preOpen",
+      detailKey: "session.opensAt",
       localTime: time,
     };
   }
   if (minutes >= CSE_CLOSE_MINUTES) {
     return {
       open: false,
-      label: "Séance clôturée",
-      detail: "Clôture à 15h30 — cours de clôture affichés",
+      labelKey: "session.afterClose",
+      detailKey: "session.closedAt",
       localTime: time,
     };
   }
   return {
     open: true,
-    label: "Séance ouverte",
-    detail: "Cotation en continu jusqu'à 15h30",
+    labelKey: "session.open",
+    detailKey: "session.continuous",
     localTime: time,
   };
 }

@@ -3,7 +3,7 @@ import { Fragment, useMemo } from "react";
 /**
  * Rendu du contenu des leçons.
  *
- * Les leçons sont stockées en markdown allégé — le seul sous-ensemble que
+ * Les leçons sont stockées en markdown allégé, le seul sous-ensemble que
  * les auteurs utilisent : titres `## `, listes `- `, **gras**. L'ancien
  * rendu se contentait de découper sur les doubles sauts de ligne et de
  * SUPPRIMER les `**`, ce qui aplatissait des cours de 700 mots en un mur
@@ -76,10 +76,7 @@ export function LessonContent({ content }: { content: string }) {
       {blocks.map((block, i) => {
         if (block.kind === "heading") {
           return (
-            <h2
-              key={i}
-              className="pt-3 text-base font-semibold text-foreground first:pt-0"
-            >
+            <h2 key={i} className="pt-3 text-base font-semibold text-foreground first:pt-0">
               {block.text}
             </h2>
           );
@@ -89,7 +86,10 @@ export function LessonContent({ content }: { content: string }) {
             <ul key={i} className="space-y-2 pl-1">
               {block.items.map((item, j) => (
                 <li key={j} className="flex gap-2.5 text-sm leading-relaxed text-muted-foreground">
-                  <span aria-hidden="true" className="mt-2 h-1 w-1 shrink-0 rounded-full bg-primary" />
+                  <span
+                    aria-hidden="true"
+                    className="mt-2 h-1 w-1 shrink-0 rounded-full bg-primary"
+                  />
                   <span>
                     <RichText text={item} />
                   </span>

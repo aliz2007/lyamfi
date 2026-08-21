@@ -482,7 +482,7 @@ Le DPS n'est donc jamais une obligation : soit tu l'utilises pour maintenir ta p
 
 ## Souscription irréductible et souscription réductible
 
-Au moment d'acheter les nouvelles actions — ce qu'on appelle la **souscription** — on distingue deux étapes.
+Au moment d'acheter les nouvelles actions, ce qu'on appelle la **souscription**, on distingue deux étapes.
 
 - **La souscription à titre irréductible** : si tu utilises tes propres DPS pour acheter les actions auxquelles tu as droit, tu es assuré à 100 % de les obtenir. C'est garanti, car l'offre de nouveaux titres correspond exactement au nombre de DPS créés.
 
@@ -525,7 +525,7 @@ Le plus grand piège en bourse est d'essayer de deviner le « bon moment » pour
 
 La solution s'appelle le **DCA** (Dollar-Cost Averaging), ou investissement programmé.
 
-- Le principe : tu investis une somme fixe, à intervalle régulier — par exemple 1 000 DH tous les 5 du mois — peu importe si la bourse est en hausse ou en baisse.
+- Le principe : tu investis une somme fixe, à intervalle régulier (par exemple 1 000 DH tous les 5 du mois), peu importe si la bourse est en hausse ou en baisse.
 
 - La magie mathématique : quand l'action est chère, tes 1 000 DH achètent peu d'actions. Quand l'action s'effondre et que tout le monde panique, tes mêmes 1 000 DH achètent beaucoup plus d'actions.
 
@@ -618,7 +618,7 @@ Avant même que les transactions ne commencent le matin, l'algorithme de la bour
 
 - Si le CTO calculé dépasse le seuil haut (+ 10 %) ou le seuil bas (− 10 %), le cours de marché sera fixé au seuil correspondant, afin de limiter les fluctuations.
 
-- S'il n'y a aucune compatibilité entre les acheteurs et les vendeurs — par exemple si les acheteurs proposent 100 DH alors que les vendeurs exigent 120 DH — alors il n'y a pas de transaction, et le CTO n'existe tout simplement pas pour cette séance.
+- S'il n'y a aucune compatibilité entre les acheteurs et les vendeurs (par exemple si les acheteurs proposent 100 DH alors que les vendeurs exigent 120 DH), alors il n'y a pas de transaction, et le CTO n'existe tout simplement pas pour cette séance.
 
 ## Ce qu'il faut retenir
 
@@ -828,7 +828,7 @@ C'est un algorithme plus « social ».
 
 ## Les méthodes plus rares : OPM et cotation directe
 
-- L'**Offre à Prix Minimum (OPM)** : l'entreprise fixe uniquement un prix plancher, le minimum absolu en dessous duquel elle refuse de vendre. Au Maroc, pour éviter que le prix ne s'envole trop haut — ce qui tuerait la liquidité de l'action après l'introduction — la Bourse impose souvent un plafond, généralement fixé à **+ 20 %** du prix minimum.
+- L'**Offre à Prix Minimum (OPM)** : l'entreprise fixe uniquement un prix plancher, le minimum absolu en dessous duquel elle refuse de vendre. Au Maroc, pour éviter que le prix ne s'envole trop haut, ce qui tuerait la liquidité de l'action après l'introduction, la Bourse impose souvent un plafond, généralement fixé à **+ 20 %** du prix minimum.
 - La **cotation directe** : si une entreprise est déjà cotée dans une bourse étrangère, ses titres sont déjà diffusés dans le public. Elle peut donc entrer à la Bourse de Casablanca directement sur le **marché secondaire**, sans passer par la case « émission de nouveaux titres ».
 
 ## Un réflexe pratique

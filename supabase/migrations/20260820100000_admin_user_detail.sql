@@ -1,7 +1,7 @@
 -- Richer per-account detail for the admin console.
 --
 -- The first version only returned lessons the user had already started, so an
--- admin could not see what someone had NOT done — which is most of what
+-- admin could not see what someone had NOT done, which is most of what
 -- "progression" means. This returns every lesson with its status, per-level
 -- roll-ups, the valued portfolio, pending orders and the performance history.
 

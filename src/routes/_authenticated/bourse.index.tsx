@@ -1,42 +1,67 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { fundamentalsQuery, stocksQuery } from "@/lib/market";
 import { getLiveQuotes } from "@/lib/quotes.functions";
-import { compact, num, pct } from "@/lib/format";
+import { EMPTY, useFormat } from "@/lib/format";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { LazyTradingView } from "@/components/LazyTradingView";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
+import { MarketSessionBadge } from "@/components/MarketSessionBadge";
+import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/bourse/")({
   head: () => ({
     meta: [
-      { title: "Valeurs de la Bourse de Casablanca — Lyamfi" },
+      { title: "Valeurs de la Bourse de Casablanca | Lyamfi" },
       {
         name: "description",
         content:
           "Cours en direct, graphiques et données fondamentales (BPA, DPA, PER, rendement) des valeurs cotées à la Bourse de Casablanca.",
       },
-      { property: "og:title", content: "Valeurs cotées à la BVC — Lyamfi" },
-      { property: "og:description", content: "Explore les valeurs de la Bourse de Casablanca." },
+      { property: "og:title", content: "Valeurs cotées à la BVC | Lyamfi" },
+      {
+        property: "og:description",
+        content: "Explore les valeurs de la Bourse de Casablanca.",
+      },
     ],
   }),
   component: BoursePage,
 });
 
-const CAPS = [
-  { id: "all", label: "Toutes capitalisations" },
-  { id: "large", label: "> 20 Md MAD" },
-  { id: "mid", label: "5 – 20 Md MAD" },
-  { id: "small", label: "< 5 Md MAD" },
-] as const;
+const CAPS: { id: string; label: Key }[] = [
+  { id: "all", label: "bourse.capAll" },
+  { id: "large", label: "bourse.capLarge" },
+  { id: "mid", label: "bourse.capMid" },
+  { id: "small", label: "bourse.capSmall" },
+];
+
+/**
+ * Tris disponibles. « changeDesc » et « changeAsc » répondent au besoin le
+ * plus concret de la page : voir d'un coup les plus fortes hausses ou les
+ * plus fortes baisses de la séance.
+ */
+const SORTS = ["default", "changeDesc", "changeAsc", "capDesc", "nameAsc"] as const;
+type Sort = (typeof SORTS)[number];
+
+const SORT_LABEL: Record<Sort, Key> = {
+  default: "bourse.sortDefault",
+  changeDesc: "bourse.sortChangeDesc",
+  changeAsc: "bourse.sortChangeAsc",
+  capDesc: "bourse.sortCapDesc",
+  nameAsc: "bourse.sortNameAsc",
+};
 
 const PAGE = 24;
 const NR = "NR";
 
 function BoursePage() {
+  const { t, locale } = useI18n();
+  const f = useFormat();
+  usePageTitle("bourse.title");
+
   const { data: stocks = [] } = useQuery(stocksQuery);
   const { data: fundamentals = [] } = useQuery(fundamentalsQuery);
   const fetchQuotes = useServerFn(getLiveQuotes);
@@ -48,18 +73,16 @@ function BoursePage() {
   });
 
   const [sector, setSector] = useState("all");
-  const [cap, setCap] = useState<string>("all");
+  const [cap, setCap] = useState("all");
+  const [sort, setSort] = useState<Sort>("default");
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [tableQ, setTableQ] = useState("");
 
-  const sectors = useMemo(
-    () => Array.from(new Set(stocks.map((s) => s.sector))).sort(),
-    [stocks],
-  );
+  const sectors = useMemo(() => Array.from(new Set(stocks.map((s) => s.sector))).sort(), [stocks]);
 
   const fundByCode = useMemo(
-    () => new Map(fundamentals.map((f) => [f.ticker.toUpperCase(), f])),
+    () => new Map(fundamentals.map((x) => [x.ticker.toUpperCase(), x])),
     [fundamentals],
   );
   const quoteByCode = useMemo(
@@ -76,7 +99,7 @@ function BoursePage() {
     const rows = CSE_SYMBOLS.filter(([symbol]) => symbol !== "CSEMA:MASI").map(
       ([symbol, title]) => {
         const code = symbol.split(":")[1]!.toUpperCase();
-        const f = fundByCode.get(code) ?? null;
+        const fund = fundByCode.get(code) ?? null;
         const live = quoteByCode.get(code) ?? null;
         const stock = stockByCode.get(code) ?? null;
         const price = live?.price ?? null;
@@ -88,21 +111,21 @@ function BoursePage() {
         return {
           symbol,
           code,
-          title: stock?.name ?? f?.name ?? title,
+          title: stock?.name ?? fund?.name ?? title,
           sector: stock?.sector ?? null,
           stockTicker: stock?.ticker ?? null,
-          covered: !!f,
+          covered: !!fund,
           price,
           changePct: live?.changePct ?? null,
-          marketCap: f && price ? price * Number(f.shares_m) * 1e6 : null,
-          bpa25: n(f?.bpa_2025),
-          bpa26: n(f?.bpa_2026e),
-          dpa25: n(f?.dpa_2025),
-          dpa26: n(f?.dpa_2026e),
-          per25: per(n(f?.bpa_2025)),
-          per26: per(n(f?.bpa_2026e)),
-          dy25: dy(n(f?.dpa_2025)),
-          dy26: dy(n(f?.dpa_2026e)),
+          marketCap: fund && price ? price * Number(fund.shares_m) * 1e6 : null,
+          bpa25: n(fund?.bpa_2025),
+          bpa26: n(fund?.bpa_2026e),
+          dpa25: n(fund?.dpa_2025),
+          dpa26: n(fund?.dpa_2026e),
+          per25: per(n(fund?.bpa_2025)),
+          per26: per(n(fund?.bpa_2026e)),
+          dy25: dy(n(fund?.dpa_2025)),
+          dy26: dy(n(fund?.dpa_2026e)),
         };
       },
     );
@@ -135,9 +158,36 @@ function BoursePage() {
     [listings, cap, sector, q],
   );
 
-  useEffect(() => setLimit(PAGE), [q, sector, cap]);
+  /**
+   * Tri appliqué après filtrage. Une valeur sans cours du jour n'a pas de
+   * variation : elle est renvoyée en fin de liste dans les deux sens, sinon
+   * elle occuperait le haut du classement des baisses avec un zéro trompeur.
+   */
+  const sorted = useMemo(() => {
+    if (sort === "default") return filtered;
+    const rows = [...filtered];
+    if (sort === "nameAsc") {
+      return rows.sort((a, b) => a.title.localeCompare(b.title, locale));
+    }
+    if (sort === "capDesc") {
+      return rows.sort((a, b) => (b.marketCap ?? -1) - (a.marketCap ?? -1));
+    }
+    const dir = sort === "changeDesc" ? -1 : 1;
+    return rows.sort((a, b) => {
+      const av = a.changePct;
+      const bv = b.changePct;
+      if (av === null && bv === null) return 0;
+      if (av === null) return 1;
+      if (bv === null) return -1;
+      return (av - bv) * dir;
+    });
+  }, [filtered, sort, locale]);
+
+  useEffect(() => setLimit(PAGE), [q, sector, cap, sort]);
 
   const coveredCount = listings.filter((l) => l.covered).length;
+  const up = filtered.filter((l) => (l.changePct ?? 0) > 0).length;
+  const down = filtered.filter((l) => (l.changePct ?? 0) < 0).length;
 
   const tableSymbols = CSE_SYMBOLS.filter(
     ([proName, title]) =>
@@ -148,14 +198,20 @@ function BoursePage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold sm:text-4xl">Bourse de Casablanca</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Toutes les valeurs cotées ({CSE_SYMBOLS.length - 1}) avec leur cours en direct et leur
-          graphique (TradingView). Les {coveredCount} valeurs les plus liquides — celles couvertes
-          par le consensus d'analystes — apparaissent en premier avec leurs données fondamentales
-          2025 / 2026e. Pour les autres, les fondamentaux sont indiqués « NR » (non renseigné).
+      <header className="rise">
+        <h1 className="text-3xl font-bold sm:text-4xl">{t("bourse.title")}</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          {t("bourse.intro", { total: CSE_SYMBOLS.length - 1, covered: coveredCount })}
         </p>
+        <MarketSessionBadge className="mt-5" />
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--success)]/40 px-3 py-1 text-[var(--success)]">
+            <ArrowUp className="h-3 w-3" /> {t("bourse.gainersToday", { n: up })}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 px-3 py-1 text-destructive">
+            <ArrowDown className="h-3 w-3" /> {t("bourse.losersToday", { n: down })}
+          </span>
+        </div>
       </header>
 
       <div className="space-y-3">
@@ -164,13 +220,14 @@ function BoursePage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Rechercher une valeur ou un ticker"
-            className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-sm outline-none focus:border-primary"
+            placeholder={t("bourse.searchPlaceholder")}
+            className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-primary"
           />
         </div>
+
         <div className="flex flex-wrap gap-2">
           <Chip active={sector === "all"} onClick={() => setSector("all")}>
-            Tous secteurs
+            {t("bourse.allSectors")}
           </Chip>
           {sectors.map((s) => (
             <Chip key={s} active={sector === s} onClick={() => setSector(s)}>
@@ -178,18 +235,32 @@ function BoursePage() {
             </Chip>
           ))}
         </div>
+
         <div className="flex flex-wrap gap-2">
           {CAPS.map((c) => (
             <Chip key={c.id} active={cap === c.id} onClick={() => setCap(c.id)}>
-              {c.label}
+              {t(c.label)}
+            </Chip>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+          <span className="text-xs text-muted-foreground">{t("bourse.sortBy")}</span>
+          {SORTS.map((s) => (
+            <Chip key={s} active={sort === s} onClick={() => setSort(s)}>
+              <span className="inline-flex items-center gap-1.5">
+                {s === "changeDesc" && <ArrowUp className="h-3 w-3" />}
+                {s === "changeAsc" && <ArrowDown className="h-3 w-3" />}
+                {t(SORT_LABEL[s])}
+              </span>
             </Chip>
           ))}
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.slice(0, limit).map((l) => (
-          <article key={l.symbol} className="surface-card p-5">
+        {sorted.slice(0, limit).map((l) => (
+          <article key={l.symbol} className="surface-raised card-hover p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 {l.stockTicker ? (
@@ -208,22 +279,26 @@ function BoursePage() {
                 </p>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-sm font-semibold">
-                  {l.price === null ? "—" : `${l.price.toLocaleString("fr-MA")} MAD`}
+                <p className="text-sm font-semibold tabular-nums">
+                  {l.price === null ? EMPTY : `${f.price(l.price)} MAD`}
                 </p>
                 <p
-                  className={`text-xs ${
-                    (l.changePct ?? 0) >= 0 ? "text-[var(--success)]" : "text-destructive"
+                  className={`text-xs tabular-nums ${
+                    l.changePct === null
+                      ? "text-muted-foreground"
+                      : l.changePct >= 0
+                        ? "text-[var(--success)]"
+                        : "text-destructive"
                   }`}
                 >
-                  {l.changePct === null ? "—" : pct(l.changePct)}
+                  {l.changePct === null ? EMPTY : f.pct(l.changePct)}
                 </p>
               </div>
             </div>
 
             {l.covered && (
               <span className="mt-3 inline-block rounded-full border border-primary/40 bg-accent px-2.5 py-0.5 text-[10px] font-medium text-accent-foreground">
-                Valeur liquide · fondamentaux suivis
+                {t("bourse.liquidBadge")}
               </span>
             )}
 
@@ -235,7 +310,7 @@ function BoursePage() {
                   symbol: l.symbol,
                   width: "100%",
                   height: "100%",
-                  locale: "fr",
+                  locale: locale === "en-GB" ? "en" : "fr",
                   dateRange: "12M",
                   colorTheme: "dark",
                   isTransparent: true,
@@ -247,61 +322,62 @@ function BoursePage() {
             </LazyTradingView>
 
             <dl className="mt-4 space-y-2 text-xs">
-              <Row label="Capitalisation" value={l.marketCap ? compact(l.marketCap) : NR} />
               <Row
-                label="BPA 25 / 26e"
-                value={
-                  l.covered ? `${num(l.bpa25, 1)} / ${num(l.bpa26, 1)}` : NR
-                }
+                label={t("bourse.marketCap")}
+                value={l.marketCap ? f.compact(l.marketCap) : NR}
               />
               <Row
-                label="DPA 25 / 26e"
-                value={l.covered ? `${num(l.dpa25, 1)} / ${num(l.dpa26, 1)}` : NR}
+                label={t("bourse.eps")}
+                value={l.covered ? `${f.num(l.bpa25, 1)} / ${f.num(l.bpa26, 1)}` : NR}
               />
               <Row
-                label="PER 25 / 26e"
-                value={l.covered ? `${num(l.per25, 1)}x / ${num(l.per26, 1)}x` : NR}
+                label={t("bourse.dps")}
+                value={l.covered ? `${f.num(l.dpa25, 1)} / ${f.num(l.dpa26, 1)}` : NR}
+              />
+              <Row
+                label={t("bourse.per")}
+                value={l.covered ? `${f.num(l.per25, 1)}x / ${f.num(l.per26, 1)}x` : NR}
                 strong
               />
               <Row
-                label="Rendement 25 / 26e"
-                value={l.covered ? `${num(l.dy25, 1)} % / ${num(l.dy26, 1)} %` : NR}
+                label={t("bourse.dy")}
+                value={l.covered ? `${f.num(l.dy25, 1)} % / ${f.num(l.dy26, 1)} %` : NR}
                 strong
               />
             </dl>
           </article>
         ))}
-        {filtered.length === 0 && (
-          <p className="text-sm text-muted-foreground">Aucune valeur ne correspond aux filtres.</p>
+        {sorted.length === 0 && (
+          <p className="text-sm text-muted-foreground">{t("bourse.noMatch")}</p>
         )}
       </div>
 
-      {limit < filtered.length && (
+      {limit < sorted.length && (
         <div className="flex justify-center">
           <button
             onClick={() => setLimit((l) => l + PAGE)}
-            className="rounded-full border border-border px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-full border border-border px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
           >
-            Afficher plus ({filtered.length - limit} restantes)
+            {t("bourse.showMore", { rest: sorted.length - limit })}
           </button>
         </div>
       )}
 
-      <section className="surface-card overflow-hidden p-2 sm:p-4">
+      <section className="surface-raised overflow-hidden p-2 sm:p-4">
         <h2 className="px-2 pb-2 pt-1 text-sm font-semibold">
-          Toutes les valeurs cotées ({CSE_SYMBOLS.length})
+          {t("bourse.allListed", { total: CSE_SYMBOLS.length })}
         </h2>
         <div className="relative px-2 pb-3">
           <Search className="absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={tableQ}
             onChange={(e) => setTableQ(e.target.value)}
-            placeholder="Rechercher dans la cote (nom ou ticker)"
+            placeholder={t("bourse.tableSearch")}
             className="w-full rounded-xl border border-input bg-card py-2.5 pl-11 pr-4 text-sm outline-none focus:border-primary"
           />
         </div>
         <TradingViewWidget
-          key={tableSymbols.length}
+          key={`${tableSymbols.length}-${locale}`}
           widget="market-quotes"
           className="h-[620px] w-full"
           config={{
@@ -319,19 +395,13 @@ function BoursePage() {
             showSymbolLogo: true,
             isTransparent: true,
             colorTheme: "dark",
-            locale: "fr",
+            locale: locale === "en-GB" ? "en" : "fr",
           }}
         />
-        <p className="px-2 pb-1 text-xs text-muted-foreground">
-          Données de marché fournies par TradingView, différées ou temps réel selon la source.
-        </p>
+        <p className="px-2 pb-1 text-xs text-muted-foreground">{t("bourse.tvNote")}</p>
       </section>
 
-      <p className="text-xs text-muted-foreground">
-        Prévisions BPA / DPA issues d'un consensus d'analystes ; PER, rendement et capitalisation
-        recalculés au cours du jour. « NR » signifie non renseigné pour l'instant. Outil pédagogique,
-        ne constitue pas un conseil en investissement.
-      </p>
+      <p className="text-xs leading-relaxed text-muted-foreground">{t("bourse.footnote")}</p>
     </div>
   );
 }
@@ -340,7 +410,7 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={strong ? "font-semibold" : "font-medium"}>{value}</dd>
+      <dd className={`tabular-nums ${strong ? "font-semibold" : "font-medium"}`}>{value}</dd>
     </div>
   );
 }
@@ -357,10 +427,11 @@ function Chip({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={`rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
         active
           ? "border-primary/60 bg-accent text-accent-foreground"
-          : "border-border text-muted-foreground hover:text-foreground"
+          : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
       }`}
     >
       {children}

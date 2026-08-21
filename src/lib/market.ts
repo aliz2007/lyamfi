@@ -21,7 +21,7 @@ export type QuizQuestion = {
   options: string[];
   /** Index de la bonne réponse dans `options`. */
   answer: number;
-  /** Pourquoi cette réponse est la bonne — affiché après validation. */
+  /** Pourquoi cette réponse est la bonne, affiché après validation. */
   explanation?: string;
 };
 

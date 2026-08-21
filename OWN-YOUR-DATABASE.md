@@ -1,10 +1,10 @@
-# Moving to your own database — 15 minutes
+# Moving to your own database: 15 minutes
 
 The Supabase project the app currently uses (`pwbrjfdxkcpndowwtjea`) was created by
 Lovable and does not appear in your account. This is the last thing Lovable still
 controls. Below is how to replace it with one you own.
 
-**Nothing about the app changes.** The code stays identical — only which database it
+**Nothing about the app changes.** The code stays identical: only which database it
 points at. Every table, security rule and seed row is already in this repo, so the
 new project is one paste away.
 
@@ -21,12 +21,12 @@ you switch and we'll export first.
 
 ## 1. Create the project
 
-1. **supabase.com** → sign in with **your own** account (create one if needed — free)
+1. **supabase.com** → sign in with **your own** account (create one if needed: free)
 2. **New project**
    - Name: `lyamfi`
    - Database password: generate one and **save it in a password manager**; you cannot
      recover it later
-   - Region: **Frankfurt (eu-central-1)** — closest to Morocco of the EU options
+   - Region: **Frankfurt (eu-central-1)**: closest to Morocco of the EU options
 3. Wait ~2 minutes for it to provision
 
 ## 2. Create the schema
@@ -40,13 +40,13 @@ the 20 seeded stocks, 37 fundamentals, 6 lessons, the admin role system and the
 account-deletion function.
 
 Expect "Success. No rows returned." Any `already exists` error means it had already
-been run — harmless.
+been run: harmless.
 
 ## 3. Point the app at it
 
 1. Supabase → **Project Settings** → **API**, and copy:
    - **Project URL** (looks like `https://xxxxxxxx.supabase.co`)
-   - **Publishable / anon key** (the public one — *not* `service_role`)
+   - **Publishable / anon key** (the public one: *not* `service_role`)
 2. Cloudflare → your Worker → **Settings** → **Variables and Secrets**, set:
 
    | Name | Value |
@@ -56,7 +56,7 @@ been run — harmless.
    | `SUPABASE_URL` | same as above |
    | `SUPABASE_PUBLISHABLE_KEY` | same as above |
 
-3. Update the committed `.env` in the repo to match, and push — Vite reads those
+3. Update the committed `.env` in the repo to match, and push: Vite reads those
    values at **build** time, so a redeploy alone won't pick up dashboard changes if
    `.env` still holds the old ones.
 
@@ -93,7 +93,7 @@ order by u.created_at;
 
 ## 6. Your own e-mail sender
 
-Supabase's built-in sender is rate-limited to a handful of messages per hour — fine
+Supabase's built-in sender is rate-limited to a handful of messages per hour: fine
 for the two of you, not for real signups. See `AUTH-SETUP.md` for wiring up Resend
 (free tier: 3 000/month).
 

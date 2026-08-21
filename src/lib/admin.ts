@@ -10,13 +10,32 @@ import { callRpc } from "@/lib/rpc";
  *
  * ⚠️ Le contrôle d'accès réel est côté base : chaque RPC est SECURITY DEFINER
  * et rejette l'appel si `is_admin()` est faux. Les gardes côté client ne font
- * que masquer l'interface — elles ne protègent rien à elles seules.
+ * que masquer l'interface : elles ne protègent rien à elles seules.
+ *
+ * Deux niveaux d'administration :
+ *   - administrateur principal (lyamcorpo@gmail.com) : tout, y compris
+ *     accorder ou retirer le rôle, redéfinir un mot de passe et supprimer un
+ *     compte. La base le reconnaît par `is_principal_admin()`.
+ *   - administrateur secondaire : consultation des comptes et de leur
+ *     activité, rien d'autre.
  */
+
+/** Adresse de l'administrateur principal, dupliquée côté base dans `principal_admin_email()`. */
+export const PRINCIPAL_ADMIN_EMAIL = "lyamcorpo@gmail.com";
+
+/**
+ * Vrai si l'adresse est celle de l'administrateur principal.
+ * Sert uniquement à afficher ou masquer les commandes : la base revérifie.
+ */
+export const isPrincipalAdminEmail = (email: string | null | undefined) =>
+  (email ?? "").trim().toLowerCase() === PRINCIPAL_ADMIN_EMAIL;
 
 export type AdminUserRow = {
   user_id: string;
   email: string;
   display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   role: "admin" | "user";
   created_at: string;
   last_sign_in_at: string | null;
@@ -32,6 +51,8 @@ export type AdminActivity = {
     user_id: string;
     email: string;
     display_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     role: "admin" | "user";
     created_at: string;
     last_sign_in_at: string | null;
@@ -116,7 +137,10 @@ export const myRoleQuery = {
 
     const table = supabase.from("user_roles" as never) as unknown as {
       select: (cols: string) => {
-        eq: (col: string, val: string) => {
+        eq: (
+          col: string,
+          val: string,
+        ) => {
           maybeSingle: () => Promise<{ data: { role?: string } | null }>;
         };
       };
@@ -130,7 +154,8 @@ export const myRoleQuery = {
 
 export const adminUsersQuery = {
   queryKey: ["admin-users"],
-  queryFn: async (): Promise<AdminUserRow[]> => callRpc<AdminUserRow[] | null>("admin_list_users").then((r) => r ?? []),
+  queryFn: async (): Promise<AdminUserRow[]> =>
+    callRpc<AdminUserRow[] | null>("admin_list_users").then((r) => r ?? []),
 };
 
 export const adminActivityQuery = (userId: string) => ({
@@ -155,4 +180,33 @@ export const adminActivityQuery = (userId: string) => ({
 
 export async function setUserRole(targetUser: string, newRole: "admin" | "user") {
   await callRpc<void>("admin_set_role", { target_user: targetUser, new_role: newRole });
+}
+
+/** Prénom et nom d'un compte. Le nom est mis en majuscules par la base. */
+export async function setUserName(targetUser: string, firstName: string, lastName: string) {
+  await callRpc<void>("admin_set_user_name", {
+    target_user: targetUser,
+    new_first_name: firstName,
+    new_last_name: lastName,
+  });
+}
+
+/**
+ * Redéfinit le mot de passe d'un compte (administrateur principal uniquement).
+ *
+ * Il n'existe aucune fonction symétrique pour LIRE un mot de passe : ils sont
+ * stockés hachés par bcrypt, opération à sens unique. Redéfinir puis
+ * transmettre est la seule réponse possible à « je ne peux plus me connecter ».
+ * La base ferme au passage les sessions ouvertes du compte visé.
+ */
+export async function setUserPassword(targetUser: string, newPassword: string) {
+  await callRpc<void>("admin_set_user_password", {
+    target_user: targetUser,
+    new_password: newPassword,
+  });
+}
+
+/** Supprime définitivement un compte (administrateur principal uniquement). */
+export async function deleteUser(targetUser: string) {
+  await callRpc<void>("admin_delete_user", { target_user: targetUser });
 }

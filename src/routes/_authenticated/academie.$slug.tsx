@@ -12,17 +12,19 @@ import {
 } from "@/lib/market";
 import { LessonContent } from "@/components/LessonContent";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/lib/i18n";
+import { levelKey } from "@/lib/levels";
 
 export const Route = createFileRoute("/_authenticated/academie/$slug")({
   head: ({ params }) => ({
     meta: [
-      { title: `Module ${params.slug} — Lyamfi` },
+      { title: `Module ${params.slug} | Lyamfi` },
       {
         name: "description",
         content:
           "Leçon courte suivie d'un quiz de 10 questions pour valider ta compréhension et débloquer ton badge.",
       },
-      { property: "og:title", content: "Module pédagogique — Lyamfi" },
+      { property: "og:title", content: "Module pédagogique | Lyamfi" },
       {
         property: "og:description",
         content: "Apprends puis valide tes acquis avec un quiz de 10 questions.",
@@ -34,6 +36,7 @@ export const Route = createFileRoute("/_authenticated/academie/$slug")({
 
 function LessonPage() {
   const { slug } = Route.useParams();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const { data: lessons = [] } = useQuery(lessonsQuery);
   const { data: progress = [] } = useQuery(progressQuery);
@@ -43,7 +46,7 @@ function LessonPage() {
     null,
   );
 
-  if (!lesson) return <p className="text-sm text-muted-foreground">Chargement du module…</p>;
+  if (!lesson) return <p className="text-sm text-muted-foreground">{t("lesson.loading")}</p>;
 
   const { levels } = buildLevelProgress(lessons, progress);
   const levelState = levels.find((l) => l.level === lesson.level);
@@ -52,12 +55,12 @@ function LessonPage() {
     return (
       <div className="mx-auto max-w-xl space-y-4 text-center">
         <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
-        <h1 className="text-2xl font-bold">Module verrouillé</h1>
+        <h1 className="text-2xl font-bold">{t("lesson.lockedTitle")}</h1>
         <p className="text-sm text-muted-foreground">
-          Termine tous les modules du niveau précédent pour accéder au niveau {lesson.level}.
+          {t("lesson.lockedText", { level: t(levelKey(lesson.level)) })}
         </p>
         <Link to="/academie" className="inline-block text-sm text-primary">
-          Retour aux modules
+          {t("lesson.backToModules")}
         </Link>
       </div>
     );
@@ -90,8 +93,8 @@ function LessonPage() {
     qc.invalidateQueries({ queryKey: ["lesson_progress"] });
     toast[passed ? "success" : "message"](
       passed
-        ? `Badge débloqué — ${percent}% de bonnes réponses !`
-        : `${percent}% — il faut ${PASS_SCORE}% pour valider, réessaie`,
+        ? t("lesson.toastOk", { percent })
+        : t("lesson.toastKo", { percent, pass: PASS_SCORE }),
     );
   };
 
@@ -101,29 +104,29 @@ function LessonPage() {
         to="/academie"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Modules pédagogiques
+        <ArrowLeft className="h-4 w-4" /> {t("lesson.breadcrumb")}
       </Link>
 
-      <header>
-        <p className="text-xs uppercase tracking-wider text-primary">{lesson.level}</p>
+      <header className="rise">
+        <p className="eyebrow">{t(levelKey(lesson.level))}</p>
         <h1 className="mt-2 text-3xl font-bold sm:text-4xl">{lesson.title}</h1>
         <p className="mt-3 text-sm text-muted-foreground">{lesson.summary}</p>
         {existing?.completed && (
           <span className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-accent px-3 py-1.5 text-xs text-accent-foreground">
-            <Award className="h-3.5 w-3.5" /> Module validé — meilleur score {existing.score}%
+            <Award className="h-3.5 w-3.5" /> {t("lesson.passed", { score: existing.score })}
           </span>
         )}
       </header>
 
-      <article className="surface-card p-6 sm:p-8">
+      <article className="surface-raised p-6 sm:p-8">
         <LessonContent content={lesson.content} />
       </article>
 
       {quiz.length > 0 && (
-        <section className="surface-card p-6 sm:p-8">
-          <h2 className="text-lg font-semibold">Quiz de validation</h2>
+        <section className="surface-raised p-6 sm:p-8">
+          <h2 className="text-lg font-semibold">{t("lesson.quizTitle")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {quiz.length} questions — {PASS_SCORE}% de bonnes réponses pour débloquer le badge.
+            {t("lesson.quizIntro", { n: quiz.length, pass: PASS_SCORE })}
           </p>
           <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
@@ -170,7 +173,10 @@ function LessonPage() {
                   </div>
                   {result && q.explanation && (
                     <p className="mt-2.5 flex gap-2 text-xs leading-relaxed text-muted-foreground">
-                      <span aria-hidden="true" className={correct ? "text-[var(--success)]" : "text-destructive"}>
+                      <span
+                        aria-hidden="true"
+                        className={correct ? "text-[var(--success)]" : "text-destructive"}
+                      >
                         {correct ? "✓" : "✗"}
                       </span>
                       <span>{q.explanation}</span>
@@ -185,13 +191,24 @@ function LessonPage() {
             disabled={Object.keys(answers).length < quiz.length}
             className="mt-7 rounded-full bg-gradient-gold px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
-            Valider le quiz
+            {t("lesson.submit")}
           </button>
           {result && (
             <p className="mt-4 text-sm">
-              Résultat : <span className="font-semibold">{result.score}</span> / {result.total} (
-              {result.percent}%) —{" "}
-              {result.percent >= PASS_SCORE ? "module validé" : `${PASS_SCORE}% requis`}
+              {t("lesson.result", {
+                score: result.score,
+                total: result.total,
+                percent: result.percent,
+              })}{" "}
+              <span
+                className={
+                  result.percent >= PASS_SCORE ? "text-[var(--success)]" : "text-muted-foreground"
+                }
+              >
+                {result.percent >= PASS_SCORE
+                  ? t("lesson.resultOk")
+                  : t("lesson.resultKo", { pass: PASS_SCORE })}
+              </span>
             </p>
           )}
         </section>

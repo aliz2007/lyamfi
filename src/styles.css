@@ -135,3 +135,151 @@
     transform: translateY(0);
   }
 }
+
+/* ---------------------------------------------------------------- surfaces */
+
+@utility surface-raised {
+  background-image: linear-gradient(
+    160deg,
+    oklch(0.24 0.008 90 / 0.9) 0%,
+    var(--card) 55%,
+    oklch(0.185 0.004 90) 100%
+  );
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Bordure dégradée simulée : le fond de la carte masque le centre du dégradé. */
+@utility surface-outlined {
+  position: relative;
+  background-color: var(--card);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Le survol est porté par l'utilitaire lui-même : pas besoin d'accorder une
+   variante `hover:` à chaque appel, et l'effet reste identique partout. */
+@utility card-hover {
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: oklch(0.82 0.15 88 / 0.45);
+    box-shadow:
+      var(--shadow-soft),
+      0 0 0 1px oklch(0.82 0.15 88 / 0.12),
+      0 18px 44px -28px oklch(0.82 0.15 88 / 0.55);
+  }
+}
+
+/* -------------------------------------------------------------- décorations */
+
+/* Halo doré diffus, posé derrière les en-têtes pour casser le fond plat. */
+@utility aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(42rem 26rem at 12% -10%, oklch(0.82 0.15 88 / 0.16) 0%, transparent 65%),
+    radial-gradient(34rem 22rem at 88% 8%, oklch(0.92 0.14 100 / 0.09) 0%, transparent 62%);
+}
+
+/* Trame fine : donne une texture au fond sans attirer l'œil. */
+@utility grid-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 0.028) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.028) 1px, transparent 1px);
+  background-size: 68px 68px;
+  mask-image: radial-gradient(60rem 34rem at 50% 0%, black 0%, transparent 78%);
+}
+
+@utility hairline {
+  background-image: linear-gradient(to right, transparent, oklch(0.82 0.15 88 / 0.35), transparent);
+}
+
+@utility eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-foreground);
+}
+
+/* ------------------------------------------------------------------ motion */
+
+@utility rise {
+  animation: rise-in 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility sheen {
+  background-size: 200% 100%;
+  animation: sheen-slide 7s ease-in-out infinite;
+}
+
+@keyframes sheen-slide {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Les animations décoratives disparaissent si l'utilisateur les refuse. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .rise,
+  .sheen {
+    animation: none;
+  }
+
+  .card-hover {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------------- typographie */
+
+@layer base {
+  h1,
+  h2 {
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background-color: oklch(0.82 0.15 88 / 0.28);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Barre de défilement discrète, cohérente avec le fond sombre. */
+  * {
+    scrollbar-color: var(--border) transparent;
+    scrollbar-width: thin;
+  }
+}

@@ -1,6 +1,6 @@
 # Lyamfi: Your Moroccan Investment Guide
 
-Crée une application web nommée "Lyamfi" — une plateforme d'éducation financière dédiée au marché marocain (Bourse de Casablanca / BVC).
+Crée une application web nommée "Lyamfi": une plateforme d'éducation financière dédiée au marché marocain (Bourse de Casablanca / BVC).
 
 ## Identité visuelle
 
@@ -16,7 +16,7 @@ Crée une application web nommée "Lyamfi" — une plateforme d'éducation finan
 
 ### 1. Landing page
 
-Hero avec proposition de valeur claire ("Apprends, simule, investis — la bourse marocaine expliquée simplement"), aperçu des 4 modules, social proof placeholder, CTA "Créer un compte gratuit".
+Hero avec proposition de valeur claire ("Apprends, simule, investis: la bourse marocaine expliquée simplement"), aperçu des 4 modules, social proof placeholder, CTA "Créer un compte gratuit".
 
 ### 2. Dashboard utilisateur
 
@@ -76,7 +76,7 @@ Continue developing this project in the [Lovable editor](https://lovable.dev/pro
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Prefer working locally? You need Node.js and npm: [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
 git clone <this-repository-url>

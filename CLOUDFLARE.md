@@ -30,15 +30,15 @@ The generated Worker config:
 }
 ```
 
-Because `.wrangler/deploy/config.json` redirects wrangler to that file, **`npx wrangler deploy` from the repo root just works.** No hand-written `wrangler.toml` needed — don't add one, it will fight the generated config.
+Because `.wrangler/deploy/config.json` redirects wrangler to that file, **`npx wrangler deploy` from the repo root just works.** No hand-written `wrangler.toml` needed: don't add one, it will fight the generated config.
 
 ---
 
-## 🚨 The landmine — read before you configure anything
+## 🚨 The landmine: read before you configure anything
 
 **Cloudflare's default build will fail on this repo.**
 
-Cloudflare auto-detects the package manager. It sees `bun.lock`, uses `bun install`, and that fails — because `bun.lock` hardcodes tarball URLs on Lovable's private registry:
+Cloudflare auto-detects the package manager. It sees `bun.lock`, uses `bun install`, and that fails: because `bun.lock` hardcodes tarball URLs on Lovable's private registry:
 
 ```
 europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/...
@@ -58,7 +58,7 @@ Go with **A**. It survives Lovable regenerating the lockfile.
 
 ---
 
-## Setup — Cloudflare dashboard (no repo changes needed)
+## Setup: Cloudflare dashboard (no repo changes needed)
 
 This route needs **no commits**, which matters while pushing to the repo is blocked.
 
@@ -70,10 +70,10 @@ This route needs **no commits**, which matters while pushing to the repo is bloc
    |---|---|
    | Build command | `npm install && npm run build` |
    | Deploy command | `npx wrangler deploy` |
-   | Build output directory | *leave empty* — wrangler reads the generated config |
+   | Build output directory | *leave empty*: wrangler reads the generated config |
    | Root directory | `/` |
 
-4. **Environment variables** — add these under both **Production** and **Preview**:
+4. **Environment variables**: add these under both **Production** and **Preview**:
 
    ```
    VITE_SUPABASE_URL
@@ -84,7 +84,7 @@ This route needs **no commits**, which matters while pushing to the repo is bloc
    SUPABASE_PROJECT_ID
    ```
 
-   Copy the values from the repo's `.env`. The `VITE_*` ones are **build-time** — Vite inlines them into the bundle, so they must be present when the build runs, not just at runtime.
+   Copy the values from the repo's `.env`. The `VITE_*` ones are **build-time**: Vite inlines them into the bundle, so they must be present when the build runs, not just at runtime.
 
 5. **Save and Deploy.**
 
@@ -108,11 +108,11 @@ That's fine as a staged migration, but decide the end state:
 - **Cloudflare is the real site** → point the custom domain at the Worker and treat the Lovable URL as a preview
 - **Keep both** → make sure everyone knows which URL is authoritative
 
-Note that the sync is bidirectional — editing in Lovable commits to the repo, which then triggers the Cloudflare build too. That's usually what you want, but it means a Lovable edit ships to production.
+Note that the sync is bidirectional: editing in Lovable commits to the repo, which then triggers the Cloudflare build too. That's usually what you want, but it means a Lovable edit ships to production.
 
 ### 2. `.env` is committed to the repo
 
-Vite reads `.env` at build time, so the build works even with no dashboard variables set — which is exactly why this is easy to miss. Set them in Cloudflare anyway and add `.env` to `.gitignore`. Right now the file only holds the Supabase URL and publishable key, which are public by design, so nothing is currently leaking. The problem is the next person who adds a service-role key to it.
+Vite reads `.env` at build time, so the build works even with no dashboard variables set, which is exactly why this is easy to miss. Set them in Cloudflare anyway and add `.env` to `.gitignore`. Right now the file only holds the Supabase URL and publishable key, which are public by design, so nothing is currently leaking. The problem is the next person who adds a service-role key to it.
 
 ---
 
@@ -120,13 +120,13 @@ Vite reads `.env` at build time, so the build works even with no dashboard varia
 
 After the first build:
 
-1. Load the `*.workers.dev` URL — the landing page should render with the ticker tape
+1. Load the `*.workers.dev` URL: the landing page should render with the ticker tape
 2. **Check the logo.** It will very likely be broken, and that is a known bug, not a Cloudflare problem: `src/assets/lyamfi-logo.png.asset.json` is a metadata stub pointing at `/__l5e/assets-v1/…`, a path served only by Lovable. Off Lovable it 404s. Fix by committing the real PNG to `public/` and importing it normally.
-3. Sign in — confirms the Supabase vars reached the client bundle
-4. Open `/bourse` — confirms the TradingView server function runs on the Worker
-5. Open `/portefeuille` and place a trade — confirms Supabase writes work through RLS
+3. Sign in: confirms the Supabase vars reached the client bundle
+4. Open `/bourse`: confirms the TradingView server function runs on the Worker
+5. Open `/portefeuille` and place a trade: confirms Supabase writes work through RLS
 
-If step 3 fails with *"Missing Supabase environment variable(s)"*, the `VITE_*` vars weren't set at **build** time. Re-check them and rebuild — a redeploy alone won't fix it.
+If step 3 fails with *"Missing Supabase environment variable(s)"*, the `VITE_*` vars weren't set at **build** time. Re-check them and rebuild: a redeploy alone won't fix it.
 
 ---
 
@@ -148,7 +148,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install          # NOT bun — see the landmine section
+      - run: npm install          # NOT bun: see the landmine section
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -159,14 +159,14 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 ```
 
-Needs `CLOUDFLARE_API_TOKEN` (with the *Edit Cloudflare Workers* template) and `CLOUDFLARE_ACCOUNT_ID` in repo secrets. The dashboard route is simpler and needs no commit — prefer it unless you need custom build steps.
+Needs `CLOUDFLARE_API_TOKEN` (with the *Edit Cloudflare Workers* template) and `CLOUDFLARE_ACCOUNT_ID` in repo secrets. The dashboard route is simpler and needs no commit: prefer it unless you need custom build steps.
 
 ---
 
 ## Quick reference
 
 ```bash
-npm install          # NOT bun install — it will 403
+npm install          # NOT bun install, it will 403
 npm run build        # → .output/
 npx wrangler deploy  # deploys using the generated config
 npm run preview      # serve the build locally first

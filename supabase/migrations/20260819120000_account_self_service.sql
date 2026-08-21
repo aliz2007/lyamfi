@@ -33,7 +33,7 @@ BEGIN
 
     IF remaining_admins = 0 THEN
       RAISE EXCEPTION
-        'you are the only administrator — grant admin access to someone else before deleting your account'
+        'you are the only administrator, grant admin access to someone else before deleting your account'
         USING ERRCODE = '22023';
     END IF;
   END IF;
