@@ -321,26 +321,22 @@ The market cards used to embed a TradingView `mini-symbol-overview` widget. That
 What replaced them:
 
 - **Every one of the 81 listed stocks now has an internal page.** `/bourse/$ticker` is keyed on the CSE code (post-alias, e.g. `DIS` resolves to `DWY`), not on `stocks.ticker`, so coverage is no longer limited to the 20 rows in the `stocks` table.
-- **The chart is drawn in-page** by `components/PriceChart.tsx`, using TradingView **Lightweight Charts** (v5, `chart.addSeries(AreaSeries, …)`). It is a rendering library, not a widget: it loads nothing external and navigates nowhere. Gold line `#FCD116`, area fill, magnet crosshair, a legend overlay that follows the cursor, and a `ResizeObserver` so it tracks its container rather than the window.
+- **The chart is the TradingView `advanced-chart` widget**, embedded in the detail page. It was briefly a Lightweight Charts canvas fed by a series reconstructed from the screener's performance windows; seven points across a year is a real chart but a thin one, and the widget gives full history plus TradingView's own tooling. The original complaint was about the **list**, where clicking a stock left the site instead of opening a page, and that stays fixed: cards link here.
 - **Cards carry a local SVG sparkline** (`components/Sparkline.tsx`) fed by one bulk query, not 81.
 
 ### Where the chart data comes from
 
-**TradingView**, in one request for all 81 stocks.
+The detail page chart is TradingView's own widget, so it brings its own data.
 
-TradingView publishes no plain-HTTP endpoint for daily bars, but its screener does expose each stock's performance over fixed windows. From the latest close the past price follows directly:
+The **sparklines on the list** are local SVG, fed by `lib/history.functions.ts`. TradingView publishes no plain-HTTP endpoint for daily bars, but its screener exposes each stock's performance over fixed windows, so the past price follows from the latest close:
 
 ```
 price(t) = close / (1 + perf(t) / 100)
 ```
 
-`lib/history.functions.ts` requests `Perf.Y`, `Perf.6M`, `Perf.3M`, `Perf.YTD`, `Perf.1M` and `Perf.W` alongside `close`, and reconstructs seven dated points spanning a year. These are real TradingView prices, not a model. It is the same endpoint and the same request shape as the live-quotes call that already works in production, so the reachability risk is nil.
+One request covers all 81 stocks. `buildHistory()` is exported apart from the fetch so the reconstruction is unit-testable without network.
 
-`buildHistory()` is exported separately from the fetch so the reconstruction can be unit-tested without network: ordering, duplicate dates (YTD can collide with another window in early January), missing windows, non-positive closes and a `-100%` performance are all covered.
-
-`stock_quotes_daily` still records the real close of every stock once per session, but it is now only a **fallback** for when TradingView is unreachable. The two series are deliberately **not** merged: Lightweight Charts spaces points by index rather than by date, so appending a fortnight of daily closes to seven annual points hands the last two weeks two thirds of the width and squashes the year.
-
-`stock_prices`, the legacy table, remains synthetic (a sine wave over `md5(ticker)`) and is charted nowhere.
+`stock_quotes_daily` records the real close of every stock once per session and backs the sparklines when TradingView cannot be reached. `stock_prices`, the legacy table, is synthetic (a sine wave over `md5(ticker)`) and is charted nowhere.
 
 ### Fundamentals grid
 

@@ -547,7 +547,8 @@ export const en: Record<keyof typeof fr, string> = {
     "This stock is not covered by analyst consensus: no EPS, no DPS, so no P/E or yield to compute. The price and the chart are still available.",
   "stock.historyUnavailable": "History temporarily unavailable",
   "stock.historyRetry": "Prices could not be fetched for this stock. Refresh the page in a moment.",
-  "stock.historySource": "Prices and history from TradingView, over the last twelve months.",
+  "stock.historySource":
+    "Chart and prices provided by TradingView. Educational tool, this is not investment advice.",
 
   /* ------------------------------------------------------------ leaderboard */
   "nav.leaderboard": "Leaderboard",

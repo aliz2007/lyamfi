@@ -2,14 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
-import { ArrowLeft, LineChart } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { getLiveQuotes } from "@/lib/quotes.functions";
 import { fundamentalsQuery, stocksQuery } from "@/lib/market";
-import { chartSeries, quoteHistoryQuery } from "@/lib/quotes.history";
-import { getPriceHistory } from "@/lib/history.functions";
 import { EMPTY, useFormat } from "@/lib/format";
 import { Disclaimer } from "@/components/Disclaimer";
-import { PriceChart } from "@/components/PriceChart";
+import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
 import { useI18n, type Key, type Translate } from "@/lib/i18n";
 
@@ -37,7 +35,7 @@ const NAME_BY_CODE = new Map(
 
 function StockPage() {
   const { ticker } = Route.useParams();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const f = useFormat();
 
   // La route est indexée sur le code de la cote, pas sur le ticker de la table
@@ -47,18 +45,6 @@ function StockPage() {
 
   const { data: stocks = [] } = useQuery(stocksQuery);
   const { data: fundamentals = [] } = useQuery(fundamentalsQuery);
-  const { data: recorded = [], isLoading: recordedLoading } = useQuery(quoteHistoryQuery(code));
-
-  // Historique repris de TradingView : disponible dès le premier affichage,
-  // sans attendre que nos propres relevés s'accumulent.
-  const fetchHistory = useServerFn(getPriceHistory);
-  const { data: tvHistory, isLoading: tvLoading } = useQuery({
-    queryKey: ["tv-history"],
-    queryFn: () => fetchHistory(),
-    staleTime: 30 * 60_000,
-    retry: 1,
-  });
-
   const fetchQuotes = useServerFn(getLiveQuotes);
   const { data: quotes = [] } = useQuery({
     queryKey: ["cse-quotes"],
@@ -103,10 +89,6 @@ function StockPage() {
     price && price > 0 && dpa !== null ? (dpa / price) * 100 : null;
   const marketCap = fund && price ? price * Number(fund.shares_m) * 1e6 : null;
 
-  const chartData = chartSeries(tvHistory?.[code] ?? [], recorded);
-  const enoughHistory = chartData.length >= 2;
-  const historyLoading = tvLoading || recordedLoading;
-
   return (
     <div className="space-y-8">
       <Back t={t} />
@@ -134,12 +116,38 @@ function StockPage() {
       </header>
 
       {/* ------------------------------------------------------- graphique */}
-      <section className="glass glass-gold overflow-hidden p-4 sm:p-5">
-        {enoughHistory ? (
-          <PriceChart data={chartData} label={name} />
-        ) : (
-          <EmptyChart loading={historyLoading} t={t} />
-        )}
+      {/*
+        Graphique TradingView, chargé dans la page. Il apporte l'historique
+        complet et les outils d'analyse, ce qu'une série reconstruite depuis
+        les fenêtres de performance ne pouvait pas égaler.
+
+        Le reproche d'origine portait sur la LISTE : cliquer une valeur y
+        renvoyait vers tradingview.com au lieu d'ouvrir une fiche. Ce point
+        reste réglé, les vignettes mènent bien ici.
+      */}
+      <section className="glass glass-gold overflow-hidden p-2 sm:p-3">
+        <TradingViewWidget
+          key={`${code}-${locale}`}
+          widget="advanced-chart"
+          className="h-[460px] w-full sm:h-[520px]"
+          config={{
+            symbol: `CSEMA:${code}`,
+            interval: "D",
+            range: "12M",
+            timezone: "Africa/Casablanca",
+            theme: "dark",
+            style: "3",
+            locale: locale === "en-GB" ? "en" : "fr",
+            backgroundColor: "rgba(0, 0, 0, 0)",
+            gridColor: "rgba(255, 255, 255, 0.05)",
+            hide_side_toolbar: true,
+            hide_top_toolbar: false,
+            allow_symbol_change: false,
+            withdateranges: true,
+            save_image: false,
+            autosize: true,
+          }}
+        />
       </section>
 
       <p className="-mt-4 text-xs text-muted-foreground">{t("stock.historySource")}</p>
@@ -205,27 +213,6 @@ function Metric({ label, value, live }: { label: string; value: string; live?: b
 
 const fmtX = (v: string) => (v === EMPTY ? v : `${v}x`);
 const fmtPct = (v: string) => (v === EMPTY ? v : `${v} %`);
-
-/**
- * Affiché seulement si TradingView est injoignable ET qu'aucune clôture n'a
- * encore été archivée localement. Mieux vaut le dire que tracer une ligne
- * inventée : `stock_prices`, la table héritée, est synthétique.
- */
-function EmptyChart({ loading, t }: { loading: boolean; t: Translate }) {
-  return (
-    <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-      <LineChart className="h-7 w-7 text-muted-foreground" />
-      <p className="text-sm font-medium">
-        {loading ? t("common.loading") : t("stock.historyUnavailable")}
-      </p>
-      {!loading && (
-        <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
-          {t("stock.historyRetry")}
-        </p>
-      )}
-    </div>
-  );
-}
 
 function Back({ t }: { t: Translate }) {
   return (
