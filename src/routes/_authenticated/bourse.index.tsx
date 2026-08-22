@@ -9,7 +9,8 @@ import { EMPTY, useFormat } from "@/lib/format";
 import { Sparkline } from "@/components/Sparkline";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
 import { MarketSessionBadge } from "@/components/MarketSessionBadge";
-import { recentHistoryQuery, useRecordDailyQuotes } from "@/lib/quotes.history";
+import { chartSeries, recentHistoryQuery, useRecordDailyQuotes } from "@/lib/quotes.history";
+import { getPriceHistory } from "@/lib/history.functions";
 import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/bourse/")({
@@ -76,7 +77,33 @@ function BoursePage() {
   // alimentera les graphiques, à la place du widget TradingView retiré.
   useRecordDailyQuotes(quotes);
 
-  const { data: sparkByCode } = useQuery(recentHistoryQuery());
+  // Même source que la fiche valeur : l'historique TradingView, complété par
+  // les clôtures relevées. Une requête pour les 81 vignettes, pas 81.
+  const fetchHistory = useServerFn(getPriceHistory);
+  const { data: tvHistory } = useQuery({
+    queryKey: ["tv-history"],
+    queryFn: () => fetchHistory(),
+    staleTime: 30 * 60_000,
+    retry: 1,
+  });
+  const { data: recordedByCode } = useQuery(recentHistoryQuery());
+
+  const sparkByCode = useMemo(() => {
+    const out = new Map<string, number[]>();
+    const codes = new Set([
+      ...Object.keys(tvHistory ?? {}),
+      ...(recordedByCode ? [...recordedByCode.keys()] : []),
+    ]);
+    for (const code of codes) {
+      const merged = chartSeries(tvHistory?.[code] ?? [], recordedByCode?.get(code) ?? []);
+      if (merged.length >= 2)
+        out.set(
+          code,
+          merged.map((p) => p.close),
+        );
+    }
+    return out;
+  }, [tvHistory, recordedByCode]);
 
   const [sector, setSector] = useState("all");
   const [cap, setCap] = useState("all");

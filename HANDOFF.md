@@ -321,20 +321,21 @@ What replaced them:
 
 ### Where the chart data comes from
 
-`stock_prices`, the table the old detail page charted, is **synthetic**. The initial migration fills it with a sine wave over `md5(ticker)`:
+**TradingView**, in one request for all 81 stocks.
 
-```sql
-ROUND((s.price * (1 - (g::numeric/1400) + (sin(g::numeric/6 + <md5 hash>) * 0.035)))::numeric, 2)
-FROM public.stocks s, generate_series(0, 364) g
+TradingView publishes no plain-HTTP endpoint for daily bars, but its screener does expose each stock's performance over fixed windows. From the latest close the past price follows directly:
+
+```
+price(t) = close / (1 + perf(t) / 100)
 ```
 
-Fine as a demo fixture, not something to draw in a premium-looking price chart and call a cours. So the new page does not use it.
+`lib/history.functions.ts` requests `Perf.Y`, `Perf.6M`, `Perf.3M`, `Perf.YTD`, `Perf.1M` and `Perf.W` alongside `close`, and reconstructs seven dated points spanning a year. These are real TradingView prices, not a model. It is the same endpoint and the same request shape as the live-quotes call that already works in production, so the reachability risk is nil.
 
-Instead, `stock_quotes_daily` records the **real** closing price of every stock, once per session, from the live quotes the app already fetches. `useRecordDailyQuotes()` fires on the dashboard and on `/bourse`; the RPC ignores a (ticker, day) it already holds, so it is idempotent and safe to call from several pages.
+`buildHistory()` is exported separately from the fetch so the reconstruction can be unit-tested without network: ordering, duplicate dates (YTD can collide with another window in early January), missing windows, non-positive closes and a `-100%` performance are all covered.
 
-The consequence, stated plainly: **history starts empty and grows one trading day at a time.** Until a stock has two recorded points, its page shows an explicit "history is building" panel rather than a fabricated line. After a month you have a month.
+`stock_quotes_daily` still records the real close of every stock once per session, but it is now only a **fallback** for when TradingView is unreachable. The two series are deliberately **not** merged: Lightweight Charts spaces points by index rather than by date, so appending a fortnight of daily closes to seven annual points hands the last two weeks two thirds of the width and squashes the year.
 
-If real BVC history is ever imported, load it into `stock_quotes_daily` and every chart fills in retroactively with no code change.
+`stock_prices`, the legacy table, remains synthetic (a sine wave over `md5(ticker)`) and is charted nowhere.
 
 ### Fundamentals grid
 

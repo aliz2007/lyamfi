@@ -5,7 +5,8 @@ import { useMemo } from "react";
 import { ArrowLeft, LineChart } from "lucide-react";
 import { getLiveQuotes } from "@/lib/quotes.functions";
 import { fundamentalsQuery, stocksQuery } from "@/lib/market";
-import { quoteHistoryQuery } from "@/lib/quotes.history";
+import { chartSeries, quoteHistoryQuery } from "@/lib/quotes.history";
+import { getPriceHistory } from "@/lib/history.functions";
 import { EMPTY, useFormat } from "@/lib/format";
 import { Disclaimer } from "@/components/Disclaimer";
 import { PriceChart } from "@/components/PriceChart";
@@ -46,7 +47,17 @@ function StockPage() {
 
   const { data: stocks = [] } = useQuery(stocksQuery);
   const { data: fundamentals = [] } = useQuery(fundamentalsQuery);
-  const { data: history = [], isLoading: historyLoading } = useQuery(quoteHistoryQuery(code));
+  const { data: recorded = [], isLoading: recordedLoading } = useQuery(quoteHistoryQuery(code));
+
+  // Historique repris de TradingView : disponible dès le premier affichage,
+  // sans attendre que nos propres relevés s'accumulent.
+  const fetchHistory = useServerFn(getPriceHistory);
+  const { data: tvHistory, isLoading: tvLoading } = useQuery({
+    queryKey: ["tv-history"],
+    queryFn: () => fetchHistory(),
+    staleTime: 30 * 60_000,
+    retry: 1,
+  });
 
   const fetchQuotes = useServerFn(getLiveQuotes);
   const { data: quotes = [] } = useQuery({
@@ -92,8 +103,9 @@ function StockPage() {
     price && price > 0 && dpa !== null ? (dpa / price) * 100 : null;
   const marketCap = fund && price ? price * Number(fund.shares_m) * 1e6 : null;
 
-  const chartData = history.map((h) => ({ date: h.date, close: h.close }));
+  const chartData = chartSeries(tvHistory?.[code] ?? [], recorded);
   const enoughHistory = chartData.length >= 2;
+  const historyLoading = tvLoading || recordedLoading;
 
   return (
     <div className="space-y-8">
@@ -126,9 +138,11 @@ function StockPage() {
         {enoughHistory ? (
           <PriceChart data={chartData} label={name} />
         ) : (
-          <EmptyChart loading={historyLoading} points={chartData.length} t={t} />
+          <EmptyChart loading={historyLoading} t={t} />
         )}
       </section>
+
+      <p className="-mt-4 text-xs text-muted-foreground">{t("stock.historySource")}</p>
 
       {/* --------------------------------------------- données fondamentales */}
       <section>
@@ -193,20 +207,20 @@ const fmtX = (v: string) => (v === EMPTY ? v : `${v}x`);
 const fmtPct = (v: string) => (v === EMPTY ? v : `${v} %`);
 
 /**
- * L'historique se constitue une séance à la fois. Tant qu'il n'y a pas deux
- * points, mieux vaut le dire que tracer une ligne inventée : la table héritée
- * `stock_prices` est synthétique et n'a rien à faire dans un graphique de cours.
+ * Affiché seulement si TradingView est injoignable ET qu'aucune clôture n'a
+ * encore été archivée localement. Mieux vaut le dire que tracer une ligne
+ * inventée : `stock_prices`, la table héritée, est synthétique.
  */
-function EmptyChart({ loading, points, t }: { loading: boolean; points: number; t: Translate }) {
+function EmptyChart({ loading, t }: { loading: boolean; t: Translate }) {
   return (
     <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 px-6 py-12 text-center">
       <LineChart className="h-7 w-7 text-muted-foreground" />
       <p className="text-sm font-medium">
-        {loading ? t("common.loading") : t("stock.historyBuilding")}
+        {loading ? t("common.loading") : t("stock.historyUnavailable")}
       </p>
       {!loading && (
         <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
-          {t("stock.historyExplain", { points })}
+          {t("stock.historyRetry")}
         </p>
       )}
     </div>

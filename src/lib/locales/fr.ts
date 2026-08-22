@@ -551,9 +551,10 @@ export const fr = {
   "stock.dy26": "D/Y 26e",
   "stock.noFundamentals":
     "Cette valeur n'est pas couverte par le consensus d'analystes : ni BPA, ni DPA, donc ni PER ni rendement à calculer. Le cours et le graphique restent disponibles.",
-  "stock.historyBuilding": "L'historique se construit séance après séance",
-  "stock.historyExplain":
-    "Lyamfi enregistre le cours de clôture de chaque valeur une fois par séance, dans sa propre base. Le graphique apparaît dès qu'il y a deux points. Actuellement enregistré : {points}.",
+  "stock.historyUnavailable": "Historique momentanément indisponible",
+  "stock.historyRetry":
+    "Les cours n'ont pas pu être récupérés pour cette valeur. Actualise la page dans un instant.",
+  "stock.historySource": "Cours et historique repris de TradingView, sur les douze derniers mois.",
 
   /* ----------------------------------------------------------- classement */
   "nav.leaderboard": "Classement",

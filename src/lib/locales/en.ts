@@ -545,9 +545,9 @@ export const en: Record<keyof typeof fr, string> = {
   "stock.dy26": "D/Y 26e",
   "stock.noFundamentals":
     "This stock is not covered by analyst consensus: no EPS, no DPS, so no P/E or yield to compute. The price and the chart are still available.",
-  "stock.historyBuilding": "History is building one session at a time",
-  "stock.historyExplain":
-    "Lyamfi records each stock's closing price once per session, in its own database. The chart appears as soon as there are two points. Recorded so far: {points}.",
+  "stock.historyUnavailable": "History temporarily unavailable",
+  "stock.historyRetry": "Prices could not be fetched for this stock. Refresh the page in a moment.",
+  "stock.historySource": "Prices and history from TradingView, over the last twelve months.",
 
   /* ------------------------------------------------------------ leaderboard */
   "nav.leaderboard": "Leaderboard",

@@ -73,7 +73,7 @@ export async function recordDailyQuotes(quotes: LiveQuote[]): Promise<number> {
  */
 export const recentHistoryQuery = (days = 60) => ({
   queryKey: ["quote-history-all", days],
-  queryFn: async (): Promise<Map<string, number[]>> => {
+  queryFn: async (): Promise<Map<string, DailyQuote[]>> => {
     const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
     const q = supabase.from("stock_quotes_daily" as never) as unknown as {
       select: (cols: string) => {
@@ -94,12 +94,13 @@ export const recentHistoryQuery = (days = 60) => ({
       .order("date", { ascending: true });
     if (error) throw new Error(error.message);
 
-    const byTicker = new Map<string, number[]>();
+    const byTicker = new Map<string, DailyQuote[]>();
     for (const row of data ?? []) {
       const key = row.ticker.toUpperCase();
+      const point = { ticker: key, date: row.date, close: Number(row.close) };
       const series = byTicker.get(key);
-      if (series) series.push(Number(row.close));
-      else byTicker.set(key, [Number(row.close)]);
+      if (series) series.push(point);
+      else byTicker.set(key, [point]);
     }
     return byTicker;
   },
@@ -122,4 +123,24 @@ export function useRecordDailyQuotes(quotes: LiveQuote[]): void {
       /* archivage best-effort */
     });
   }, [quotes]);
+}
+
+/**
+ * Série à tracer pour une valeur.
+ *
+ * TradingView est la source : ses fenêtres de performance donnent une année de
+ * cours réels, dès le premier affichage. Les clôtures que nous archivons ne
+ * servent que de secours, quand TradingView est injoignable.
+ *
+ * Les deux ne sont volontairement PAS fusionnées : Lightweight Charts espace
+ * les points par rang et non par date, donc coller quinze relevés quotidiens
+ * derrière sept points annuels donnerait à la dernière quinzaine les deux tiers
+ * de la largeur, et écraserait l'année.
+ */
+export function chartSeries(
+  tradingView: { date: string; close: number }[],
+  recorded: DailyQuote[],
+): { date: string; close: number }[] {
+  if (tradingView.length >= 2) return tradingView;
+  return recorded.map((r) => ({ date: r.date, close: r.close }));
 }
