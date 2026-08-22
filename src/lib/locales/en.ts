@@ -553,19 +553,19 @@ export const en: Record<keyof typeof fr, string> = {
   "nav.leaderboard": "Leaderboard",
   "lb.title": "Leaderboard",
   "lb.subtitle":
-    "Virtual portfolio performance, best return first. The principal administrator is not listed.",
+    "Virtual portfolio value, highest first. Everyone is listed, except the principal administrator.",
   "lb.loading": "Loading the leaderboard…",
   "lb.error": "Could not load the leaderboard: {reason}",
   "lb.empty": "Nobody is ranked yet.",
-  "lb.emptyHint": "Place your first order to appear on the leaderboard.",
+  "lb.emptyHint": "The leaderboard appears as soon as an account exists.",
   "lb.colRank": "Rank",
   "lb.colName": "Name",
-  "lb.colTrades": "Orders",
+  "lb.colValue": "Value",
   "lb.colPerf": "Return",
   "lb.you": "you",
   "lb.goat": "Top of the leaderboard",
   "lb.note":
-    "Return compares the portfolio value with the MAD 100,000 starting capital. It uses the latest recorded snapshot, refreshed each time the Portfolio page is opened.",
+    "Return compares the portfolio value with the MAD 100,000 starting capital. It uses the latest recorded snapshot, refreshed each time the Portfolio page is opened. An account that has not bought anything yet shows at its starting capital.",
   "lb.yourRank": "Your rank",
   "lb.participants": "Ranked",
 };

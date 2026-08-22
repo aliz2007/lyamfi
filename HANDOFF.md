@@ -353,12 +353,12 @@ Stocks with no analyst coverage say so instead of showing empty cells.
 
 `/classement`, sitting between Portefeuille and Académie in the nav.
 
-Ranked by portfolio return against the 100 000 MAD starting capital, best first. Gold for the top three, and `components/GoldenGoat.tsx` puts the golden goat next to number one.
+Ranked by portfolio value, highest first, with the return against the 100 000 MAD starting capital beside it. Gold for the top three, and `components/GoldenGoat.tsx` puts the golden goat next to number one.
 
-The whole thing is one `SECURITY DEFINER` RPC, `leaderboard()`, because RLS correctly forbids reading someone else's portfolio. It returns only what a leaderboard needs: name, return, order count, and a server-computed `is_self` flag. **No e-mail, no user id, no portfolio composition.** Two rules are enforced in SQL, not in the interface:
+The whole thing is one `SECURITY DEFINER` RPC, `leaderboard()`, because RLS correctly forbids reading someone else's portfolio. It returns only what a leaderboard needs: name, value, return, and a server-computed `is_self` flag. **No e-mail, no user id, no portfolio composition, no order count.** Two rules are enforced in SQL, not in the interface:
 
 - the principal admin is excluded (they run the platform, they don't compete)
-- you need at least one trade to be ranked, otherwise the top of the board fills with untouched accounts sitting at 0,00 %
+- everyone else is listed, including accounts that have never bought anything: they show at the starting capital. The query therefore starts from `auth.users` and left-joins the portfolio, because a member who has never opened the Portfolio page has no `portfolios` row at all.
 
 Value comes from the most recent `portfolio_snapshots` row, which already carries the valued total. With no snapshot it falls back to cash plus cost basis, i.e. a return that ignores unrealised P/L. Snapshots are written client-side on visit (see 🟠 below), so a player who never returns has a stale ranking.
 

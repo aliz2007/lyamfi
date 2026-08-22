@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Trophy } from "lucide-react";
 import { leaderboardQuery, type LeaderboardRow } from "@/lib/leaderboard";
 import { GoldenGoat } from "@/components/GoldenGoat";
-import { EMPTY, useFormat } from "@/lib/format";
+import { EMPTY, useFormat, type Formatter } from "@/lib/format";
 import { useI18n, usePageTitle } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/classement")({
@@ -53,7 +53,7 @@ function LeaderboardPage() {
           <Kpi
             label={t("lb.yourRank")}
             value={you ? `#${you.rank}` : EMPTY}
-            hint={you ? f.pct(you.performance) : t("lb.emptyHint")}
+            hint={you ? `${f.mad(you.value, 0)} · ${f.pct(you.performance)}` : undefined}
           />
         </section>
       )}
@@ -75,7 +75,7 @@ function LeaderboardPage() {
                     {t("lb.colRank")}
                   </th>
                   <th className="px-3 py-3 text-left font-medium">{t("lb.colName")}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t("lb.colTrades")}</th>
+                  <th className="px-3 py-3 text-right font-medium">{t("lb.colValue")}</th>
                   <th className="px-5 py-3 text-right font-medium sm:px-6">{t("lb.colPerf")}</th>
                 </tr>
               </thead>
@@ -86,7 +86,7 @@ function LeaderboardPage() {
                     row={row}
                     youLabel={t("lb.you")}
                     goatLabel={t("lb.goat")}
-                    pct={f.pct}
+                    f={f}
                   />
                 ))}
               </tbody>
@@ -104,12 +104,12 @@ function Row({
   row,
   youLabel,
   goatLabel,
-  pct,
+  f,
 }: {
   row: LeaderboardRow;
   youLabel: string;
   goatLabel: string;
-  pct: (v: number, digits?: number) => string;
+  f: Formatter;
 }) {
   // Les trois premiers portent l'or de la marque, le premier un peu plus fort.
   const podium = row.rank <= 3;
@@ -144,19 +144,19 @@ function Row({
           </span>
         )}
       </td>
-      <td className="px-3 py-4 text-right tabular-nums text-muted-foreground">{row.trades}</td>
+      <td className="px-3 py-4 text-right font-medium tabular-nums">{f.mad(row.value, 0)}</td>
       <td
         className={`px-5 py-4 text-right font-semibold tabular-nums sm:px-6 ${
           row.performance >= 0 ? "text-[var(--success)]" : "text-destructive"
         }`}
       >
-        {pct(row.performance)}
+        {f.pct(row.performance)}
       </td>
     </tr>
   );
 }
 
-function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Kpi({ label, value, hint }: { label: string; value: string; hint?: string | undefined }) {
   return (
     <div className="glass p-6">
       <p className="text-xs text-muted-foreground">{label}</p>

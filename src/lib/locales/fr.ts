@@ -560,19 +560,19 @@ export const fr = {
   "nav.leaderboard": "Classement",
   "lb.title": "Classement",
   "lb.subtitle":
-    "Performance des portefeuilles virtuels, du meilleur rendement au moins bon. L'administrateur principal n'y figure pas.",
+    "Valeur des portefeuilles virtuels, du plus élevé au plus bas. Tout le monde y figure, sauf l'administrateur principal.",
   "lb.loading": "Chargement du classement…",
   "lb.error": "Impossible de charger le classement : {reason}",
   "lb.empty": "Personne n'est encore classé.",
-  "lb.emptyHint": "Passe ton premier ordre pour apparaître au classement.",
+  "lb.emptyHint": "Le classement apparaîtra dès qu'un compte existera.",
   "lb.colRank": "Rang",
   "lb.colName": "Nom",
-  "lb.colTrades": "Ordres",
+  "lb.colValue": "Valeur",
   "lb.colPerf": "Performance",
   "lb.you": "toi",
   "lb.goat": "Premier du classement",
   "lb.note":
-    "La performance compare la valeur du portefeuille aux 100 000 MAD de départ. Elle est calculée sur le dernier relevé enregistré, mis à jour à chaque passage sur la page Portefeuille.",
+    "La performance compare la valeur du portefeuille aux 100 000 MAD de départ. Elle se base sur le dernier relevé enregistré, mis à jour à chaque passage sur la page Portefeuille. Un compte qui n'a encore rien acheté apparaît à son capital de départ.",
   "lb.yourRank": "Ton rang",
   "lb.participants": "Classés",
 } as const;

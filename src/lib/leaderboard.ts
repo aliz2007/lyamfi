@@ -5,16 +5,21 @@ import { callRpc } from "@/lib/rpc";
  *
  * Tout est calculé côté base : RLS interdit de lire le portefeuille d'un autre
  * utilisateur, et c'est très bien ainsi. La RPC ne renvoie que ce qu'un
- * classement doit montrer, sans e-mail, sans identifiant, sans composition de
- * portefeuille. Elle écarte aussi l'administrateur principal, qui administre la
- * plateforme et ne concourt pas.
+ * classement doit montrer : un nom, une valeur, une performance. Ni e-mail, ni
+ * identifiant, ni composition de portefeuille, ni nombre d'ordres passés.
+ *
+ * Tout le monde y figure, y compris qui n'a encore rien acheté : ces comptes
+ * apparaissent à leur capital de départ. Seul l'administrateur principal est
+ * écarté, il administre la plateforme et ne concourt pas.
  */
 
 export type LeaderboardRow = {
   rank: number;
   name: string;
+  /** Valeur du portefeuille en dirhams. */
+  value: number;
+  /** Écart au capital de départ, en pourcentage. */
   performance: number;
-  trades: number;
   is_self: boolean;
 };
 
@@ -25,8 +30,8 @@ export const leaderboardQuery = {
     return (rows ?? []).map((r) => ({
       ...r,
       rank: Number(r.rank),
+      value: Number(r.value),
       performance: Number(r.performance),
-      trades: Number(r.trades),
     }));
   },
   staleTime: 60_000,

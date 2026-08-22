@@ -181,8 +181,17 @@ def guard(stmt: str, prev: str = "") -> str:
             return stmt
         return f"{lead}{guard_stmt}\n{body}"
 
-    # Only look at the code outside quoted bodies when deciding what this is.
-    probe = re.sub(r"'(?:''|[^'])*'|\$([A-Za-z_][A-Za-z_0-9]*)?\$.*?\$\1?\$", "''", stmt, flags=re.S)
+    # Only look at the code outside comments and quoted bodies when deciding
+    # what this statement is.
+    #
+    # Comments have to go FIRST. A French comment ("le portefeuille d'autrui")
+    # contains an apostrophe, and the quote-stripping pass has no idea it is
+    # inside a comment: it treats that apostrophe as the start of a string and
+    # swallows everything up to the next one, which can eat the RETURNS TABLE
+    # a few lines below. That silently skipped the DROP guard and produced a
+    # setup.sql that ran once and failed on the second run.
+    code = re.sub(r"--[^\n]*", "", stmt)
+    probe = re.sub(r"'(?:''|[^'])*'|\$([A-Za-z_][A-Za-z_0-9]*)?\$.*?\$\1?\$", "''", code, flags=re.S)
 
     if re.search(r"\bCREATE TABLE\b(?!\s+IF NOT EXISTS)", probe):
         return re.sub(r"\bCREATE TABLE\b(?!\s+IF NOT EXISTS)", "CREATE TABLE IF NOT EXISTS", stmt, count=1)
