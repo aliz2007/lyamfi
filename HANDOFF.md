@@ -259,7 +259,12 @@ The palette has never changed. What was added on top of it, to stop pages readin
 
 Every animation is disabled under `prefers-reduced-motion`.
 
-Formatting helpers live in `lib/format.ts`. They are **locale-aware**: components call `useFormat()`, which binds the current language (`fr-MA` gives `1 234,50 MAD`, `en-GB` gives `MAD 1,234.50`). The bare functions are still exported for the rare call outside a component and default to French. Absent values render as `N/A`, not a dash.
+Formatting helpers live in `lib/format.ts`. They are **locale-aware**: components call `useFormat()`, which binds the current language (`1 234,50 MAD` in French, `MAD 1,234.50` in English). The bare functions are still exported for the rare call outside a component and default to French.
+
+Two decisions worth knowing:
+
+- **Numbers use a different locale from dates.** ICU groups thousands with a full stop in `fr-MA`, so 123 457 renders `123.457`. That is the Moroccan convention, but in a column of amounts with no decimals it reads as "123 point 457", off by a factor of a thousand. `NUMBER_LOCALE` maps French numbers to `fr-FR`, which groups with a narrow no-break space and keeps the decimal comma. Dates still use `fr-MA`.
+- **Nothing non-finite reaches the screen.** `Intl.NumberFormat.format(NaN)` returns the string `"NaN"`, so a field that is missing (a schema newer than the deployed client, a null from a join) would print `NaN MAD` in a table of amounts. Every helper returns `EMPTY` (`N/A`) instead for `null`, `undefined`, `NaN` and `Infinity`.
 
 ---
 

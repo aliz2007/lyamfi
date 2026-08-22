@@ -13,6 +13,9 @@ import { callRpc } from "@/lib/rpc";
  * écarté, il administre la plateforme et ne concourt pas.
  */
 
+/** Capital de départ de chaque portefeuille virtuel, en dirhams. */
+export const START_CAPITAL = 100000;
+
 export type LeaderboardRow = {
   rank: number;
   name: string;
@@ -26,13 +29,24 @@ export type LeaderboardRow = {
 export const leaderboardQuery = {
   queryKey: ["leaderboard"],
   queryFn: async (): Promise<LeaderboardRow[]> => {
-    const rows = await callRpc<LeaderboardRow[] | null>("leaderboard");
-    return (rows ?? []).map((r) => ({
-      ...r,
-      rank: Number(r.rank),
-      value: Number(r.value),
-      performance: Number(r.performance),
-    }));
+    const rows = await callRpc<Partial<LeaderboardRow>[] | null>("leaderboard");
+    return (rows ?? []).map((r) => {
+      const performance = Number(r.performance ?? 0);
+      // La base peut être en avance ou en retard d'une version sur le client
+      // déployé, le temps qu'un build passe. Si la valeur manque, on la
+      // reconstruit depuis la performance plutôt que de laisser passer un NaN
+      // jusqu'au tableau.
+      const value = Number.isFinite(Number(r.value))
+        ? Number(r.value)
+        : START_CAPITAL * (1 + performance / 100);
+      return {
+        rank: Number(r.rank ?? 0),
+        name: r.name ?? "",
+        value,
+        performance,
+        is_self: Boolean(r.is_self),
+      };
+    });
   },
   staleTime: 60_000,
 };
