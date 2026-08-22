@@ -116,6 +116,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Plateforme marocaine d'éducation financière : fiches valeurs BVC, simulateur de portefeuille, modules pédagogiques et calculateur d'intérêts composés.",
       },
+      // Commit réellement servi : permet de distinguer « le code est faux » de
+      // « le déploiement n'est pas passé » sans ouvrir les outils de dev.
+      { name: "lyamfi:build", content: `${__BUILD_SHA__} ${__BUILD_TIME__}` },
     ],
     links: [
       {

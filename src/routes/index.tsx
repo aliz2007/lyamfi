@@ -244,8 +244,15 @@ function Landing() {
             </a>
           </div>
           <p className="max-w-2xl leading-relaxed">{t("landing.footerNote")}</p>
-          <p>
-            © {new Date().getFullYear()} Lyamfi. {t("landing.rights")}
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>
+              © {new Date().getFullYear()} Lyamfi. {t("landing.rights")}
+            </span>
+            {/* Version réellement servie : dit en un coup d'œil si le
+                déploiement a suivi le dernier commit. */}
+            <span className="font-mono text-[10px] opacity-45" title={__BUILD_TIME__}>
+              build {__BUILD_SHA__}
+            </span>
           </p>
         </div>
       </footer>
