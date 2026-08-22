@@ -354,9 +354,11 @@ Stocks with no analyst coverage say so instead of showing empty cells.
 
 `/classement`, sitting between Portefeuille and Académie in the nav.
 
-Ranked by portfolio value, highest first, with the return against the 100 000 MAD starting capital beside it. Gold for the top three, and `components/GoldenGoat.tsx` puts the golden goat next to number one.
+Ranked by portfolio value, highest first, broken down into cash and invested, with the return against the 100 000 MAD starting capital beside it. Cash plus invested always equals the value, so the row adds up on screen. Gold for the top three, and `components/GoldenGoat.tsx` puts the golden goat next to number one.
 
-The whole thing is one `SECURITY DEFINER` RPC, `leaderboard()`, because RLS correctly forbids reading someone else's portfolio. It returns only what a leaderboard needs: name, value, return, and a server-computed `is_self` flag. **No e-mail, no user id, no portfolio composition, no order count.** Two rules are enforced in SQL, not in the interface:
+The whole thing is one `SECURITY DEFINER` RPC, `leaderboard()`, because RLS correctly forbids reading someone else's portfolio. It returns only what a leaderboard needs: name, cash, invested, value, return, and a server-computed `is_self` flag. **No e-mail, no user id, no individual holdings, no order count.**
+
+The database cannot value positions (it has no live prices, those come from TradingView in the browser), so the only valued figure it holds is `portfolio_snapshots.value`, which is already cash plus positions at snapshot time. Invested is therefore derived as `value - cash`. That holds while the two are from the same moment, which the Portfolio page keeps true by rewriting the day's snapshot whenever the total moves, so immediately after a trade. If the snapshot is nonetheless stale enough to sit below current cash, invested falls back to cost basis rather than to zero, which would erase the holdings of anyone in that window. Two rules are enforced in SQL, not in the interface:
 
 - the principal admin is excluded (they run the platform, they don't compete)
 - everyone else is listed, including accounts that have never bought anything: they show at the starting capital. The query therefore starts from `auth.users` and left-joins the portfolio, because a member who has never opened the Portfolio page has no `portfolios` row at all.

@@ -561,12 +561,14 @@ export const en: Record<keyof typeof fr, string> = {
   "lb.emptyHint": "The leaderboard appears as soon as an account exists.",
   "lb.colRank": "Rank",
   "lb.colName": "Name",
+  "lb.colCash": "Cash",
+  "lb.colInvested": "Invested",
   "lb.colValue": "Value",
   "lb.colPerf": "Return",
   "lb.you": "you",
   "lb.goat": "Top of the leaderboard",
   "lb.note":
-    "Return compares the portfolio value with the MAD 100,000 starting capital. It uses the latest recorded snapshot, refreshed each time the Portfolio page is opened. An account that has not bought anything yet shows at its starting capital.",
+    "Cash plus invested makes the total value, compared with the MAD 100,000 starting capital for the return. Positions are valued from the account's latest snapshot, refreshed each time the Portfolio page is opened. An account that has not bought anything yet shows at its starting capital.",
   "lb.yourRank": "Your rank",
   "lb.participants": "Ranked",
 };

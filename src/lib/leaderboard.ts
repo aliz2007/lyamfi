@@ -19,7 +19,11 @@ export const START_CAPITAL = 100000;
 export type LeaderboardRow = {
   rank: number;
   name: string;
-  /** Valeur du portefeuille en dirhams. */
+  /** Liquidités non investies, en dirhams. */
+  cash: number;
+  /** Positions valorisées, en dirhams. `cash + invested` fait toujours `value`. */
+  invested: number;
+  /** Valeur totale du portefeuille en dirhams. */
   value: number;
   /** Écart au capital de départ, en pourcentage. */
   performance: number;
@@ -33,15 +37,20 @@ export const leaderboardQuery = {
     return (rows ?? []).map((r) => {
       const performance = Number(r.performance ?? 0);
       // La base peut être en avance ou en retard d'une version sur le client
-      // déployé, le temps qu'un build passe. Si la valeur manque, on la
-      // reconstruit depuis la performance plutôt que de laisser passer un NaN
-      // jusqu'au tableau.
+      // déployé, le temps qu'un build passe. Les champs manquants sont
+      // reconstruits plutôt que laissés passer en NaN jusqu'au tableau.
       const value = Number.isFinite(Number(r.value))
         ? Number(r.value)
         : START_CAPITAL * (1 + performance / 100);
+      const cash = Number.isFinite(Number(r.cash)) ? Number(r.cash) : value;
+      const invested = Number.isFinite(Number(r.invested))
+        ? Number(r.invested)
+        : Math.max(value - cash, 0);
       return {
         rank: Number(r.rank ?? 0),
         name: r.name ?? "",
+        cash,
+        invested,
         value,
         performance,
         is_self: Boolean(r.is_self),

@@ -68,13 +68,15 @@ function LeaderboardPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b border-white/10">
                   <th className="w-16 px-5 py-3 text-left font-medium sm:px-6">
                     {t("lb.colRank")}
                   </th>
                   <th className="px-3 py-3 text-left font-medium">{t("lb.colName")}</th>
+                  <th className="px-3 py-3 text-right font-medium">{t("lb.colCash")}</th>
+                  <th className="px-3 py-3 text-right font-medium">{t("lb.colInvested")}</th>
                   <th className="px-3 py-3 text-right font-medium">{t("lb.colValue")}</th>
                   <th className="px-5 py-3 text-right font-medium sm:px-6">{t("lb.colPerf")}</th>
                 </tr>
@@ -143,6 +145,12 @@ function Row({
             {youLabel}
           </span>
         )}
+      </td>
+      <td className="px-3 py-4 text-right tabular-nums text-muted-foreground">
+        {f.mad(row.cash, 0)}
+      </td>
+      <td className="px-3 py-4 text-right tabular-nums text-muted-foreground">
+        {f.mad(row.invested, 0)}
       </td>
       <td className="px-3 py-4 text-right font-medium tabular-nums">{f.mad(row.value, 0)}</td>
       <td

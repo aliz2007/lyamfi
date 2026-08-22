@@ -568,12 +568,14 @@ export const fr = {
   "lb.emptyHint": "Le classement apparaîtra dès qu'un compte existera.",
   "lb.colRank": "Rang",
   "lb.colName": "Nom",
+  "lb.colCash": "Liquidités",
+  "lb.colInvested": "Investi",
   "lb.colValue": "Valeur",
   "lb.colPerf": "Performance",
   "lb.you": "toi",
   "lb.goat": "Premier du classement",
   "lb.note":
-    "La performance compare la valeur du portefeuille aux 100 000 MAD de départ. Elle se base sur le dernier relevé enregistré, mis à jour à chaque passage sur la page Portefeuille. Un compte qui n'a encore rien acheté apparaît à son capital de départ.",
+    "Liquidités plus investi font la valeur totale, comparée aux 100 000 MAD de départ pour la performance. Les positions sont valorisées d'après le dernier relevé du compte, mis à jour à chaque passage sur la page Portefeuille. Un compte qui n'a encore rien acheté apparaît à son capital de départ.",
   "lb.yourRank": "Ton rang",
   "lb.participants": "Classés",
 } as const;
