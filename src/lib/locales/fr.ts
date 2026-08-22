@@ -537,4 +537,41 @@ export const fr = {
   "session.closedAt": "Clôture à 15h30, cours de clôture affichés",
   "session.continuous": "Cotation en continu jusqu'à 15h30",
   "session.casablanca": "Casablanca {time}",
+
+  /* ------------------------------------------ fiche valeur : fondamentaux */
+  "stock.liveNote": "Le point jaune signale une donnée recalculée au cours du jour.",
+  "stock.marketCap": "Capitalisation",
+  "stock.eps25": "BPA 25",
+  "stock.eps26": "BPA 26e",
+  "stock.dps25": "DPA 25",
+  "stock.dps26": "DPA 26e",
+  "stock.per25": "PER 25",
+  "stock.per26": "PER 26e",
+  "stock.dy25": "D/Y 25",
+  "stock.dy26": "D/Y 26e",
+  "stock.noFundamentals":
+    "Cette valeur n'est pas couverte par le consensus d'analystes : ni BPA, ni DPA, donc ni PER ni rendement à calculer. Le cours et le graphique restent disponibles.",
+  "stock.historyBuilding": "L'historique se construit séance après séance",
+  "stock.historyExplain":
+    "Lyamfi enregistre le cours de clôture de chaque valeur une fois par séance, dans sa propre base. Le graphique apparaît dès qu'il y a deux points. Actuellement enregistré : {points}.",
+
+  /* ----------------------------------------------------------- classement */
+  "nav.leaderboard": "Classement",
+  "lb.title": "Classement",
+  "lb.subtitle":
+    "Performance des portefeuilles virtuels, du meilleur rendement au moins bon. L'administrateur principal n'y figure pas.",
+  "lb.loading": "Chargement du classement…",
+  "lb.error": "Impossible de charger le classement : {reason}",
+  "lb.empty": "Personne n'est encore classé.",
+  "lb.emptyHint": "Passe ton premier ordre pour apparaître au classement.",
+  "lb.colRank": "Rang",
+  "lb.colName": "Nom",
+  "lb.colTrades": "Ordres",
+  "lb.colPerf": "Performance",
+  "lb.you": "toi",
+  "lb.goat": "Premier du classement",
+  "lb.note":
+    "La performance compare la valeur du portefeuille aux 100 000 MAD de départ. Elle est calculée sur le dernier relevé enregistré, mis à jour à chaque passage sur la page Portefeuille.",
+  "lb.yourRank": "Ton rang",
+  "lb.participants": "Classés",
 } as const;

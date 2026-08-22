@@ -29,6 +29,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-gold: var(--gold);
+  --color-brand-yellow: var(--brand-yellow);
   --color-gold-light: var(--gold-light);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -62,6 +63,8 @@
   --destructive-foreground: oklch(0.98 0 0);
   --success: oklch(0.72 0.16 155);
   --gold: oklch(0.79 0.14 78);
+  /* Jaune du logo (#FCD116). Sert d'accent sur la fiche valeur et le classement. */
+  --brand-yellow: oklch(0.872 0.176 93.5);
   --gold-light: oklch(0.92 0.14 100);
   --border: oklch(0.28 0.005 90);
   --input: oklch(0.28 0.005 90);
@@ -282,4 +285,31 @@
     scrollbar-color: var(--border) transparent;
     scrollbar-width: thin;
   }
+}
+
+/* ---------------------------------------------------------------- verre dépoli */
+
+/* Conteneur translucide posé sur le fond sombre : bordure claire très diluée,
+   flou d'arrière-plan, et un liseré haut qui simule la tranche du verre. */
+@utility glass {
+  position: relative;
+  background-color: oklch(1 0 0 / 0.035);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid oklch(1 0 0 / 0.09);
+  border-radius: var(--radius-2xl);
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 0.07),
+    0 24px 60px -34px oklch(0 0 0 / 0.9);
+}
+
+@utility glass-gold {
+  border-color: oklch(0.872 0.176 93.5 / 0.28);
+  box-shadow:
+    inset 0 1px 0 0 oklch(0.872 0.176 93.5 / 0.12),
+    0 24px 60px -34px oklch(0 0 0 / 0.9);
+}
+
+@utility text-brand-yellow {
+  color: var(--brand-yellow);
 }

@@ -6,10 +6,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { fundamentalsQuery, stocksQuery } from "@/lib/market";
 import { getLiveQuotes } from "@/lib/quotes.functions";
 import { EMPTY, useFormat } from "@/lib/format";
-import { TradingViewWidget } from "@/components/TradingViewWidget";
-import { LazyTradingView } from "@/components/LazyTradingView";
+import { Sparkline } from "@/components/Sparkline";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
 import { MarketSessionBadge } from "@/components/MarketSessionBadge";
+import { recentHistoryQuery, useRecordDailyQuotes } from "@/lib/quotes.history";
 import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/bourse/")({
@@ -72,12 +72,17 @@ function BoursePage() {
     staleTime: 30_000,
   });
 
+  // Archive la clôture du jour dans notre propre base : c'est elle qui
+  // alimentera les graphiques, à la place du widget TradingView retiré.
+  useRecordDailyQuotes(quotes);
+
+  const { data: sparkByCode } = useQuery(recentHistoryQuery());
+
   const [sector, setSector] = useState("all");
   const [cap, setCap] = useState("all");
   const [sort, setSort] = useState<Sort>("default");
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(PAGE);
-  const [tableQ, setTableQ] = useState("");
 
   const sectors = useMemo(() => Array.from(new Set(stocks.map((s) => s.sector))).sort(), [stocks]);
 
@@ -189,13 +194,6 @@ function BoursePage() {
   const up = filtered.filter((l) => (l.changePct ?? 0) > 0).length;
   const down = filtered.filter((l) => (l.changePct ?? 0) < 0).length;
 
-  const tableSymbols = CSE_SYMBOLS.filter(
-    ([proName, title]) =>
-      !tableQ ||
-      title.toLowerCase().includes(tableQ.toLowerCase()) ||
-      proName.toLowerCase().includes(tableQ.toLowerCase()),
-  );
-
   return (
     <div className="space-y-8">
       <header className="rise">
@@ -260,20 +258,18 @@ function BoursePage() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sorted.slice(0, limit).map((l) => (
-          <article key={l.symbol} className="surface-raised card-hover p-5">
+          // La vignette entière mène à la fiche interne. Auparavant seules les
+          // 20 valeurs présentes dans `stocks` étaient cliquables, et le
+          // graphique incrusté renvoyait vers tradingview.com.
+          <Link
+            key={l.symbol}
+            to="/bourse/$ticker"
+            params={{ ticker: l.code }}
+            className="surface-raised card-hover block p-5"
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                {l.stockTicker ? (
-                  <Link
-                    to="/bourse/$ticker"
-                    params={{ ticker: l.stockTicker }}
-                    className="block transition-colors hover:text-primary"
-                  >
-                    <p className="truncate font-semibold">{l.title}</p>
-                  </Link>
-                ) : (
-                  <p className="truncate font-semibold">{l.title}</p>
-                )}
+                <p className="truncate font-semibold">{l.title}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {l.code} · {l.sector ?? "BVC"}
                 </p>
@@ -302,24 +298,9 @@ function BoursePage() {
               </span>
             )}
 
-            <LazyTradingView className="-mx-2 mt-3 h-[180px]">
-              <TradingViewWidget
-                widget="mini-symbol-overview"
-                className="h-full w-full"
-                config={{
-                  symbol: l.symbol,
-                  width: "100%",
-                  height: "100%",
-                  locale: locale === "en-GB" ? "en" : "fr",
-                  dateRange: "12M",
-                  colorTheme: "dark",
-                  isTransparent: true,
-                  autosize: true,
-                  chartOnly: false,
-                  noTimeScale: false,
-                }}
-              />
-            </LazyTradingView>
+            <div className="-mx-1 mt-3">
+              <Sparkline values={sparkByCode?.get(l.code) ?? []} />
+            </div>
 
             <dl className="mt-4 space-y-2 text-xs">
               <Row
@@ -345,7 +326,7 @@ function BoursePage() {
                 strong
               />
             </dl>
-          </article>
+          </Link>
         ))}
         {sorted.length === 0 && (
           <p className="text-sm text-muted-foreground">{t("bourse.noMatch")}</p>
@@ -362,44 +343,6 @@ function BoursePage() {
           </button>
         </div>
       )}
-
-      <section className="surface-raised overflow-hidden p-2 sm:p-4">
-        <h2 className="px-2 pb-2 pt-1 text-sm font-semibold">
-          {t("bourse.allListed", { total: CSE_SYMBOLS.length })}
-        </h2>
-        <div className="relative px-2 pb-3">
-          <Search className="absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={tableQ}
-            onChange={(e) => setTableQ(e.target.value)}
-            placeholder={t("bourse.tableSearch")}
-            className="w-full rounded-xl border border-input bg-card py-2.5 pl-11 pr-4 text-sm outline-none focus:border-primary"
-          />
-        </div>
-        <TradingViewWidget
-          key={`${tableSymbols.length}-${locale}`}
-          widget="market-quotes"
-          className="h-[620px] w-full"
-          config={{
-            width: "100%",
-            height: 580,
-            symbolsGroups: [
-              {
-                name: "Bourse de Casablanca",
-                symbols: tableSymbols.map(([proName, title]) => ({
-                  name: proName,
-                  displayName: title,
-                })),
-              },
-            ],
-            showSymbolLogo: true,
-            isTransparent: true,
-            colorTheme: "dark",
-            locale: locale === "en-GB" ? "en" : "fr",
-          }}
-        />
-        <p className="px-2 pb-1 text-xs text-muted-foreground">{t("bourse.tvNote")}</p>
-      </section>
 
       <p className="text-xs leading-relaxed text-muted-foreground">{t("bourse.footnote")}</p>
     </div>

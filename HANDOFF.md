@@ -309,6 +309,62 @@ What ships instead is the operation that actually solves "I can't log in": `admi
 
 ---
 
+## 9d. Stock detail pages and price history
+
+The market cards used to embed a TradingView `mini-symbol-overview` widget. That widget is an iframe, so any click on it left the site for tradingview.com. It is gone, along with the `market-quotes` table that sat at the bottom of `/bourse` for the same reason. The only TradingView embed left anywhere is the ticker tape in `__root.tsx`; remove it the same way if the outbound click bothers you there too.
+
+What replaced them:
+
+- **Every one of the 81 listed stocks now has an internal page.** `/bourse/$ticker` is keyed on the CSE code (post-alias, e.g. `DIS` resolves to `DWY`), not on `stocks.ticker`, so coverage is no longer limited to the 20 rows in the `stocks` table.
+- **The chart is drawn in-page** by `components/PriceChart.tsx`, using TradingView **Lightweight Charts** (v5, `chart.addSeries(AreaSeries, …)`). It is a rendering library, not a widget: it loads nothing external and navigates nowhere. Gold line `#FCD116`, area fill, magnet crosshair, a legend overlay that follows the cursor, and a `ResizeObserver` so it tracks its container rather than the window.
+- **Cards carry a local SVG sparkline** (`components/Sparkline.tsx`) fed by one bulk query, not 81.
+
+### Where the chart data comes from
+
+`stock_prices`, the table the old detail page charted, is **synthetic**. The initial migration fills it with a sine wave over `md5(ticker)`:
+
+```sql
+ROUND((s.price * (1 - (g::numeric/1400) + (sin(g::numeric/6 + <md5 hash>) * 0.035)))::numeric, 2)
+FROM public.stocks s, generate_series(0, 364) g
+```
+
+Fine as a demo fixture, not something to draw in a premium-looking price chart and call a cours. So the new page does not use it.
+
+Instead, `stock_quotes_daily` records the **real** closing price of every stock, once per session, from the live quotes the app already fetches. `useRecordDailyQuotes()` fires on the dashboard and on `/bourse`; the RPC ignores a (ticker, day) it already holds, so it is idempotent and safe to call from several pages.
+
+The consequence, stated plainly: **history starts empty and grows one trading day at a time.** Until a stock has two recorded points, its page shows an explicit "history is building" panel rather than a fabricated line. After a month you have a month.
+
+If real BVC history is ever imported, load it into `stock_quotes_daily` and every chart fills in retroactively with no code change.
+
+### Fundamentals grid
+
+Nine indicators, in a glassmorphism card grid. A yellow dot marks the ones recomputed from the live price on every render:
+
+| Static (from `stock_fundamentals`) | Recomputed at today's price |
+|---|---|
+| BPA 25, BPA 26e, DPA 25, DPA 26e | Capitalisation = price × shares, PER = price ÷ BPA, D/Y = DPA ÷ price |
+
+Stocks with no analyst coverage say so instead of showing empty cells.
+
+---
+
+## 9e. Leaderboard
+
+`/classement`, sitting between Portefeuille and Académie in the nav.
+
+Ranked by portfolio return against the 100 000 MAD starting capital, best first. Gold for the top three, and `components/GoldenGoat.tsx` puts the golden goat next to number one.
+
+The whole thing is one `SECURITY DEFINER` RPC, `leaderboard()`, because RLS correctly forbids reading someone else's portfolio. It returns only what a leaderboard needs: name, return, order count, and a server-computed `is_self` flag. **No e-mail, no user id, no portfolio composition.** Two rules are enforced in SQL, not in the interface:
+
+- the principal admin is excluded (they run the platform, they don't compete)
+- you need at least one trade to be ranked, otherwise the top of the board fills with untouched accounts sitting at 0,00 %
+
+Value comes from the most recent `portfolio_snapshots` row, which already carries the valued total. With no snapshot it falls back to cash plus cost basis, i.e. a return that ignores unrealised P/L. Snapshots are written client-side on visit (see 🟠 below), so a player who never returns has a stale ranking.
+
+**`public/golden-goat.png` is not in the repo.** The image was pasted into a chat rather than uploaded as a file, so it has to be committed by hand. `GoldenGoat.tsx` hides itself on a load error, so the leaderboard is correct without it, just goatless.
+
+---
+
 ## 10. Known issues, ranked
 
 ### 🔴 Trading integrity is entirely client-side
@@ -327,7 +383,14 @@ Snapshots are written client-side on page view, so the vs-MASI chart has gaps fo
 
 Minor related bug: the snapshot date uses `new Date().toISOString().slice(0,10)` (**UTC**), while the column default is Casablanca time. Between 23:00 and midnight local, a snapshot lands on the wrong day.
 
+### 🟠 `record_daily_quotes` trusts the client
+The daily close is posted by the browser, like every trade. The RPC never overwrites a (ticker, day) it already holds, so the exposure is bounded to whoever loads a page first each morning, but that person could still write a fake close. Same threat model as the two 🔴 items above, and the same fix: move the write server-side once trading moves server-side.
+
+### 🟡 `stock_prices` is synthetic and now unused by the UI
+A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts it any more (see §9d). Left in place because dropping a table is not worth the migration churn, but do not mistake it for market data.
+
 ### 🟡 Dead code
+- `components/LazyTradingView.tsx`: no longer imported since the market cards dropped their embed.
 - `integrations/supabase/auth-middleware.ts`: generated, never imported.
 - `integrations/supabase/client.server.ts`: the service-role admin client; no server-side admin code exists, so it's unused (and its env var is absent).
 - `cseName` and `CSE_TICKERS` exports in `cse-symbols.ts`.

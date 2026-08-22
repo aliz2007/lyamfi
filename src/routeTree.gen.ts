@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedBudgetRouteImport } from './routes/_authenticated/budget'
+import { Route as AuthenticatedClassementRouteImport } from './routes/_authenticated/classement'
 import { Route as AuthenticatedCompteRouteImport } from './routes/_authenticated/compte'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPortefeuilleRouteImport } from './routes/_authenticated/portefeuille'
@@ -46,6 +47,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const AuthenticatedBudgetRoute = AuthenticatedBudgetRouteImport.update({
   id: '/budget',
   path: '/budget',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedClassementRoute = AuthenticatedClassementRouteImport.update({
+  id: '/classement',
+  path: '/classement',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCompteRoute = AuthenticatedCompteRouteImport.update({
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/budget': typeof AuthenticatedBudgetRoute
+  '/classement': typeof AuthenticatedClassementRoute
   '/compte': typeof AuthenticatedCompteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/portefeuille': typeof AuthenticatedPortefeuilleRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/budget': typeof AuthenticatedBudgetRoute
+  '/classement': typeof AuthenticatedClassementRoute
   '/compte': typeof AuthenticatedCompteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/portefeuille': typeof AuthenticatedPortefeuilleRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/budget': typeof AuthenticatedBudgetRoute
+  '/_authenticated/classement': typeof AuthenticatedClassementRoute
   '/_authenticated/compte': typeof AuthenticatedCompteRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/portefeuille': typeof AuthenticatedPortefeuilleRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/budget'
+    | '/classement'
     | '/compte'
     | '/dashboard'
     | '/portefeuille'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/budget'
+    | '/classement'
     | '/compte'
     | '/dashboard'
     | '/portefeuille'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/budget'
+    | '/_authenticated/classement'
     | '/_authenticated/compte'
     | '/_authenticated/dashboard'
     | '/_authenticated/portefeuille'
@@ -238,6 +250,13 @@ declare module '@tanstack/react-router' {
       path: '/budget'
       fullPath: '/budget'
       preLoaderRoute: typeof AuthenticatedBudgetRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/classement': {
+      id: '/_authenticated/classement'
+      path: '/classement'
+      fullPath: '/classement'
+      preLoaderRoute: typeof AuthenticatedClassementRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/compte': {
@@ -308,6 +327,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBudgetRoute: typeof AuthenticatedBudgetRoute
+  AuthenticatedClassementRoute: typeof AuthenticatedClassementRoute
   AuthenticatedCompteRoute: typeof AuthenticatedCompteRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedPortefeuilleRoute: typeof AuthenticatedPortefeuilleRoute
@@ -321,6 +341,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBudgetRoute: AuthenticatedBudgetRoute,
+  AuthenticatedClassementRoute: AuthenticatedClassementRoute,
   AuthenticatedCompteRoute: AuthenticatedCompteRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedPortefeuilleRoute: AuthenticatedPortefeuilleRoute,

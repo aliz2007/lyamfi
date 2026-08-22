@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getLiveQuotes, type LiveQuote } from "@/lib/quotes.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { greetingName, myProfileQuery } from "@/lib/profile";
+import { useRecordDailyQuotes } from "@/lib/quotes.history";
 import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
 import { levelKey } from "@/lib/levels";
 
@@ -96,6 +97,10 @@ function Dashboard() {
     },
     refetchOnMount: "always",
   });
+
+  // Le tableau de bord est la première page après connexion : c'est le point
+  // le plus fiable pour archiver la clôture du jour.
+  useRecordDailyQuotes(quotes);
 
   const quoteMap = useMemo(() => {
     const m = new Map<string, LiveQuote>();

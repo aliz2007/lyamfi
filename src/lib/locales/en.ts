@@ -531,4 +531,41 @@ export const en: Record<keyof typeof fr, string> = {
   "session.closedAt": "Closed at 15:30, closing prices shown",
   "session.continuous": "Continuous trading until 15:30",
   "session.casablanca": "Casablanca {time}",
+
+  /* ------------------------------------------ stock sheet: fundamentals */
+  "stock.liveNote": "The yellow dot marks a figure recomputed at today's price.",
+  "stock.marketCap": "Market cap",
+  "stock.eps25": "EPS 25",
+  "stock.eps26": "EPS 26e",
+  "stock.dps25": "DPS 25",
+  "stock.dps26": "DPS 26e",
+  "stock.per25": "P/E 25",
+  "stock.per26": "P/E 26e",
+  "stock.dy25": "D/Y 25",
+  "stock.dy26": "D/Y 26e",
+  "stock.noFundamentals":
+    "This stock is not covered by analyst consensus: no EPS, no DPS, so no P/E or yield to compute. The price and the chart are still available.",
+  "stock.historyBuilding": "History is building one session at a time",
+  "stock.historyExplain":
+    "Lyamfi records each stock's closing price once per session, in its own database. The chart appears as soon as there are two points. Recorded so far: {points}.",
+
+  /* ------------------------------------------------------------ leaderboard */
+  "nav.leaderboard": "Leaderboard",
+  "lb.title": "Leaderboard",
+  "lb.subtitle":
+    "Virtual portfolio performance, best return first. The principal administrator is not listed.",
+  "lb.loading": "Loading the leaderboard…",
+  "lb.error": "Could not load the leaderboard: {reason}",
+  "lb.empty": "Nobody is ranked yet.",
+  "lb.emptyHint": "Place your first order to appear on the leaderboard.",
+  "lb.colRank": "Rank",
+  "lb.colName": "Name",
+  "lb.colTrades": "Orders",
+  "lb.colPerf": "Return",
+  "lb.you": "you",
+  "lb.goat": "Top of the leaderboard",
+  "lb.note":
+    "Return compares the portfolio value with the MAD 100,000 starting capital. It uses the latest recorded snapshot, refreshed each time the Portfolio page is opened.",
+  "lb.yourRank": "Your rank",
+  "lb.participants": "Ranked",
 };
