@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { fundamentalsQuery, stocksQuery } from "@/lib/market";
+import { stocksQuery } from "@/lib/market";
+import { hasFundamentals, metricsQuery, summaryMetrics, LIVE_METRICS } from "@/lib/metrics";
+import { formatMetric } from "@/components/MetricValue";
 import { getLiveQuotes } from "@/lib/quotes.functions";
 import { EMPTY, useFormat } from "@/lib/format";
 import { Sparkline } from "@/components/Sparkline";
@@ -56,7 +58,6 @@ const SORT_LABEL: Record<Sort, Key> = {
 };
 
 const PAGE = 24;
-const NR = "NR";
 
 function BoursePage() {
   const { t, locale } = useI18n();
@@ -64,7 +65,7 @@ function BoursePage() {
   usePageTitle("bourse.title");
 
   const { data: stocks = [] } = useQuery(stocksQuery);
-  const { data: fundamentals = [] } = useQuery(fundamentalsQuery);
+  const { data: metricsByCode } = useQuery(metricsQuery);
   const fetchQuotes = useServerFn(getLiveQuotes);
   const { data: quotes = [] } = useQuery({
     queryKey: ["cse-quotes"],
@@ -113,10 +114,6 @@ function BoursePage() {
 
   const sectors = useMemo(() => Array.from(new Set(stocks.map((s) => s.sector))).sort(), [stocks]);
 
-  const fundByCode = useMemo(
-    () => new Map(fundamentals.map((x) => [x.ticker.toUpperCase(), x])),
-    [fundamentals],
-  );
   const quoteByCode = useMemo(
     () => new Map(quotes.map((x) => [x.ticker.toUpperCase(), x])),
     [quotes],
@@ -126,38 +123,29 @@ function BoursePage() {
     [stocks],
   );
 
-  /** Toutes les valeurs cotées : fondamentaux renseignés (valeurs liquides) d'abord. */
+  /** Toutes les valeurs cotées : celles dont les fondamentaux sont publiés d'abord. */
   const listings = useMemo(() => {
     const rows = CSE_SYMBOLS.filter(([symbol]) => symbol !== "CSEMA:MASI").map(
       ([symbol, title]) => {
         const code = symbol.split(":")[1]!.toUpperCase();
-        const fund = fundByCode.get(code) ?? null;
+        const metrics = metricsByCode?.get(code);
         const live = quoteByCode.get(code) ?? null;
         const stock = stockByCode.get(code) ?? null;
         const price = live?.price ?? null;
-        const per = (bpa: number | null) => (price && bpa && bpa > 0 ? price / bpa : null);
-        const dy = (dpa: number | null) =>
-          price && price > 0 && dpa !== null ? (dpa / price) * 100 : null;
-        const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
         return {
           symbol,
           code,
-          title: stock?.name ?? fund?.name ?? title,
+          // Le libellé de la cote fait foi : la table `stocks` porte encore des
+          // raisons sociales périmées (Saham Assurance pour Sanlam Maroc), et
+          // le classeur est en capitales.
+          title,
           sector: stock?.sector ?? null,
-          stockTicker: stock?.ticker ?? null,
-          covered: !!fund,
           price,
           changePct: live?.changePct ?? null,
-          marketCap: fund && price ? price * Number(fund.shares_m) * 1e6 : null,
-          bpa25: n(fund?.bpa_2025),
-          bpa26: n(fund?.bpa_2026e),
-          dpa25: n(fund?.dpa_2025),
-          dpa26: n(fund?.dpa_2026e),
-          per25: per(n(fund?.bpa_2025)),
-          per26: per(n(fund?.bpa_2026e)),
-          dy25: dy(n(fund?.dpa_2025)),
-          dy26: dy(n(fund?.dpa_2026e)),
+          marketCap: metrics?.shares != null && price != null ? metrics.shares * price : null,
+          covered: hasFundamentals(metrics),
+          metrics: summaryMetrics(metrics, price),
         };
       },
     );
@@ -167,7 +155,7 @@ function BoursePage() {
       if (a.covered && b.covered) return (b.marketCap ?? 0) - (a.marketCap ?? 0);
       return a.title.localeCompare(b.title, "fr");
     });
-  }, [fundByCode, quoteByCode, stockByCode]);
+  }, [metricsByCode, quoteByCode, stockByCode]);
 
   const filtered = useMemo(
     () =>
@@ -329,30 +317,21 @@ function BoursePage() {
               <Sparkline values={sparkByCode?.get(l.code) ?? []} />
             </div>
 
-            <dl className="mt-4 space-y-2 text-xs">
-              <Row
-                label={t("bourse.marketCap")}
-                value={l.marketCap ? f.compact(l.marketCap) : NR}
-              />
-              <Row
-                label={t("bourse.eps")}
-                value={l.covered ? `${f.num(l.bpa25, 1)} / ${f.num(l.bpa26, 1)}` : NR}
-              />
-              <Row
-                label={t("bourse.dps")}
-                value={l.covered ? `${f.num(l.dpa25, 1)} / ${f.num(l.dpa26, 1)}` : NR}
-              />
-              <Row
-                label={t("bourse.per")}
-                value={l.covered ? `${f.num(l.per25, 1)}x / ${f.num(l.per26, 1)}x` : NR}
-                strong
-              />
-              <Row
-                label={t("bourse.dy")}
-                value={l.covered ? `${f.num(l.dy25, 1)} % / ${f.num(l.dy26, 1)} %` : NR}
-                strong
-              />
-            </dl>
+            {l.metrics.length > 0 && (
+              <dl className="mt-4 space-y-2 text-xs">
+                {/* Seuls les indicateurs calculables sont construits : rien à
+                    masquer ici, la liste est déjà filtrée. */}
+                {l.metrics.map((m) => (
+                  <Row
+                    key={m.label}
+                    label={t(m.label)}
+                    value={formatMetric(m, f)}
+                    live={LIVE_METRICS.has(m.label)}
+                    strong={m.label === "metric.per26" || m.label === "metric.dy26"}
+                  />
+                ))}
+              </dl>
+            )}
           </Link>
         ))}
         {sorted.length === 0 && (
@@ -376,10 +355,28 @@ function BoursePage() {
   );
 }
 
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Row({
+  label,
+  value,
+  strong,
+  live,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  live?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
-      <dt className="text-muted-foreground">{label}</dt>
+      <dt className="flex items-center gap-1.5 text-muted-foreground">
+        {label}
+        {live && (
+          <span
+            aria-hidden="true"
+            className="h-1 w-1 shrink-0 rounded-full bg-[var(--brand-yellow)]"
+          />
+        )}
+      </dt>
       <dd className={`tabular-nums ${strong ? "font-semibold" : "font-medium"}`}>{value}</dd>
     </div>
   );

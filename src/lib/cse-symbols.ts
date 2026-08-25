@@ -29,7 +29,7 @@ export const CSE_SYMBOLS: ReadonlyArray<readonly [string, string]> = [
   ["CSEMA:DRI", "DARI Couspate S.A."],
   ["CSEMA:DLM", "Delattre Levivier Maroc"],
   ["CSEMA:DHO", "Delta Holding"],
-  ["CSEMA:DIS", "DIAC Salaf"],
+  ["CSEMA:DIA", "Diac Salaf"],
   ["CSEMA:DYT", "Disty Technologies"],
   ["CSEMA:DWY", "Disway"],
   ["CSEMA:ADH", "Douja Promotion Groupe Addoha"],
@@ -50,7 +50,6 @@ export const CSE_SYMBOLS: ReadonlyArray<readonly [string, string]> = [
   ["CSEMA:MNG", "Managem"],
   ["CSEMA:MLE", "Maroc Leasing"],
   ["CSEMA:IAM", "Maroc Telecom"],
-  ["CSEMA:SAM", "Marocaine de l'Industrie du Raffinage"],
   ["CSEMA:MSA", "Marsa Maroc"],
   ["CSEMA:MDP", "Med Paper"],
   ["CSEMA:MIC", "Microdata"],
@@ -80,10 +79,16 @@ export const CSE_SYMBOLS: ReadonlyArray<readonly [string, string]> = [
   ["CSEMA:UMR", "Unimer"],
   ["CSEMA:VCN", "Vicenne"],
   ["CSEMA:WAA", "Wafa Assurance"],
-  ["CSEMA:ZDJ", "Zellidja"],
+  ["CSEMA:ZEL", "Zellidja"],
 ];
 
 /** Alias entre les tickers utilisés en base et les symboles TradingView. */
+/**
+ * Tickers hérités de la table `stocks` qui ne correspondent pas au code de la
+ * cote. `DIS` y désigne Disway, alors que la Bourse de Casablanca cote Disway
+ * sous DWY et Diac Salaf sous DIA : sans cet alias, les deux valeurs se
+ * confondaient.
+ */
 const TV_ALIASES: Record<string, string> = {
   DIS: "DWY",
   LFA: "LHM",

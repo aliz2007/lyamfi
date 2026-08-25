@@ -206,7 +206,7 @@ export const fr = {
   /* --------------------------------------------------------------- bourse */
   "bourse.title": "Bourse de Casablanca",
   "bourse.intro":
-    "Toutes les valeurs cotées ({total}) avec leur cours en direct et leur graphique (TradingView). Les {covered} valeurs les plus liquides, celles couvertes par le consensus d'analystes, apparaissent en premier avec leurs données fondamentales 2025 et 2026e. Pour les autres, les fondamentaux sont indiqués « NR » (non renseigné).",
+    "Les {total} valeurs cotées, avec leur cours en direct. Les {covered} dont les fondamentaux sont publiés apparaissent en premier. Un indicateur non publié n'est pas affiché plutôt que d'être rempli par une valeur factice.",
   "bourse.searchPlaceholder": "Rechercher une valeur ou un ticker",
   "bourse.allSectors": "Tous secteurs",
   "bourse.capAll": "Toutes capitalisations",
@@ -219,12 +219,7 @@ export const fr = {
   "bourse.sortChangeAsc": "Variation : plus fortes baisses",
   "bourse.sortNameAsc": "Nom (A à Z)",
   "bourse.sortCapDesc": "Capitalisation décroissante",
-  "bourse.liquidBadge": "Valeur liquide, fondamentaux suivis",
-  "bourse.marketCap": "Capitalisation",
-  "bourse.eps": "BPA 25 / 26e",
-  "bourse.dps": "DPA 25 / 26e",
-  "bourse.per": "PER 25 / 26e",
-  "bourse.dy": "Rendement 25 / 26e",
+  "bourse.liquidBadge": "Fondamentaux suivis",
   "bourse.noMatch": "Aucune valeur ne correspond aux filtres.",
   "bourse.showMore": "Afficher plus ({rest} restantes)",
   "bourse.allListed": "Toutes les valeurs cotées ({total})",
@@ -232,7 +227,7 @@ export const fr = {
   "bourse.tvNote":
     "Données de marché fournies par TradingView, différées ou temps réel selon la source.",
   "bourse.footnote":
-    "Prévisions BPA et DPA issues d'un consensus d'analystes ; PER, rendement et capitalisation recalculés au cours du jour. « NR » signifie non renseigné pour l'instant. Outil pédagogique, ne constitue pas un conseil en investissement.",
+    "BPA et DPA 26 sont des prévisions, 27e des estimations. Capitalisation, PER, rendement, P/B, P/S et P/FCF sont recalculés au cours du jour. Outil pédagogique, ne constitue pas un conseil en investissement.",
   "bourse.gainersToday": "{n} en hausse",
   "bourse.losersToday": "{n} en baisse",
 
@@ -241,22 +236,7 @@ export const fr = {
   "stock.notFound": "Valeur introuvable.",
   "stock.backToList": "Retour aux valeurs",
   "stock.liveChart": "Cours en direct (TradingView)",
-  "stock.history": "Historique pédagogique (12 mois)",
   "stock.valuation": "Valorisation fondamentale",
-  "stock.marketCapSentence": "Capitalisation : {value}.",
-  "stock.per": "PER",
-  "stock.perHint": "Cours rapporté au bénéfice par action",
-  "stock.eps": "BPA",
-  "stock.epsHint": "Bénéfice par action (MAD)",
-  "stock.dy": "Rendement (DY)",
-  "stock.dyHint": "Dividende rapporté au cours",
-  "stock.peg": "PEG",
-  "stock.pegHint": "PER rapporté à la croissance",
-  "stock.target": "Cours cible",
-  "stock.targetHint": "Hypothèse pédagogique",
-  "stock.upside": "Potentiel",
-  "stock.upsideHint": "Écart au cours cible",
-  "stock.priceLabel": "Cours",
 
   /* ---------------------------------------------------------- portefeuille */
   "pf.title": "Portefeuille virtuel",
@@ -539,18 +519,6 @@ export const fr = {
   "session.casablanca": "Casablanca {time}",
 
   /* ------------------------------------------ fiche valeur : fondamentaux */
-  "stock.liveNote": "Le point jaune signale une donnée recalculée au cours du jour.",
-  "stock.marketCap": "Capitalisation",
-  "stock.eps25": "BPA 25",
-  "stock.eps26": "BPA 26e",
-  "stock.dps25": "DPA 25",
-  "stock.dps26": "DPA 26e",
-  "stock.per25": "PER 25",
-  "stock.per26": "PER 26e",
-  "stock.dy25": "D/Y 25",
-  "stock.dy26": "D/Y 26e",
-  "stock.noFundamentals":
-    "Cette valeur n'est pas couverte par le consensus d'analystes : ni BPA, ni DPA, donc ni PER ni rendement à calculer. Le cours et le graphique restent disponibles.",
   "stock.historyUnavailable": "Historique momentanément indisponible",
   "stock.historyRetry":
     "Les cours n'ont pas pu être récupérés pour cette valeur. Actualise la page dans un instant.",
@@ -578,4 +546,33 @@ export const fr = {
     "Liquidités plus investi font la valeur totale, comparée aux 100 000 MAD de départ pour la performance. Les positions sont valorisées d'après le dernier relevé du compte, mis à jour à chaque passage sur la page Portefeuille. Un compte qui n'a encore rien acheté apparaît à son capital de départ.",
   "lb.yourRank": "Ton rang",
   "lb.participants": "Classés",
+
+  /* ------------------------------------------------- fondamentaux (metrics) */
+  "metric.valuation": "Valorisation",
+  "metric.perShare": "Par action",
+  "metric.profitability": "Rendement et rentabilité",
+  "metric.marketCap": "Capitalisation boursière",
+  "metric.eps26": "BPA 26",
+  "metric.eps27": "BPA 27e",
+  "metric.dps26": "DPA 26",
+  "metric.dps27": "DPA 27e",
+  "metric.per26": "PER 26",
+  "metric.per27": "PER 27e",
+  "metric.dy26": "Rendement 26",
+  "metric.dy27": "Rendement 27e",
+  "metric.pb": "P/B 25",
+  "metric.ps": "P/S 25",
+  "metric.pfcf": "P/FCF 25",
+  "metric.bookValue": "Capitaux propres par action 25",
+  "metric.salesPerShare": "Chiffre d'affaires par action 25",
+  "metric.fcfPerShare": "FCF par action 25",
+  "metric.roe": "ROE 25",
+  "metric.roa": "ROA 25",
+  "metric.payout": "Taux de distribution 25",
+  "metric.netMargin": "Marge nette 25",
+  "metric.ebitdaMargin": "Marge EBE 25",
+  "metric.title": "Données fondamentales",
+  "metric.none":
+    "Aucune donnée fondamentale publiée pour cette valeur. Le cours et le graphique restent disponibles.",
+  "metric.liveNote": "Le point jaune signale un indicateur recalculé au cours du jour.",
 } as const;

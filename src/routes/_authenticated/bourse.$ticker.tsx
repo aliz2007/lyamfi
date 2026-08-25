@@ -4,8 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
 import { ArrowLeft } from "lucide-react";
 import { getLiveQuotes } from "@/lib/quotes.functions";
-import { fundamentalsQuery, stocksQuery } from "@/lib/market";
-import { EMPTY, useFormat } from "@/lib/format";
+import { stocksQuery } from "@/lib/market";
+import { detailGroups, metricsQuery, LIVE_METRICS, type Metric } from "@/lib/metrics";
+import { formatMetric } from "@/components/MetricValue";
+import { EMPTY, useFormat, type Formatter } from "@/lib/format";
 import { Disclaimer } from "@/components/Disclaimer";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
@@ -44,7 +46,7 @@ function StockPage() {
   const code = tvSymbol(ticker).split(":")[1]!.toUpperCase();
 
   const { data: stocks = [] } = useQuery(stocksQuery);
-  const { data: fundamentals = [] } = useQuery(fundamentalsQuery);
+  const { data: metricsByCode } = useQuery(metricsQuery);
   const fetchQuotes = useServerFn(getLiveQuotes);
   const { data: quotes = [] } = useQuery({
     queryKey: ["cse-quotes"],
@@ -57,14 +59,13 @@ function StockPage() {
     () => stocks.find((s) => tvSymbol(s.ticker).split(":")[1]!.toUpperCase() === code) ?? null,
     [stocks, code],
   );
-  const fund = useMemo(
-    () => fundamentals.find((x) => x.ticker.toUpperCase() === code) ?? null,
-    [fundamentals, code],
-  );
+  const metrics = metricsByCode?.get(code);
   const live = quotes.find((q) => q.ticker.toUpperCase() === code) ?? null;
 
   const listed = NAME_BY_CODE.has(code);
-  const name = stock?.name ?? fund?.name ?? NAME_BY_CODE.get(code) ?? code;
+  // Le libellé de la cote fait foi : la table `stocks` porte encore des raisons
+  // sociales périmées, et le classeur est en capitales.
+  const name = NAME_BY_CODE.get(code) ?? metrics?.company ?? stock?.name ?? code;
   const price = live?.price ?? (stock ? Number(stock.price) : null);
   const changePct = live?.changePct ?? (stock ? Number(stock.change_pct) : null);
 
@@ -77,17 +78,7 @@ function StockPage() {
     );
   }
 
-  // Tout ce qui dépend du cours est recalculé au prix du jour : PER, rendement
-  // et capitalisation bougent avec le marché, seuls BPA et DPA sont figés.
-  const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
-  const bpa25 = n(fund?.bpa_2025);
-  const bpa26 = n(fund?.bpa_2026e);
-  const dpa25 = n(fund?.dpa_2025);
-  const dpa26 = n(fund?.dpa_2026e);
-  const per = (bpa: number | null) => (price && bpa && bpa > 0 ? price / bpa : null);
-  const dy = (dpa: number | null) =>
-    price && price > 0 && dpa !== null ? (dpa / price) * 100 : null;
-  const marketCap = fund && price ? price * Number(fund.shares_m) * 1e6 : null;
+  const groups = detailGroups(metrics, price);
 
   return (
     <div className="space-y-8">
@@ -155,30 +146,30 @@ function StockPage() {
       {/* --------------------------------------------- données fondamentales */}
       <section>
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="text-lg font-semibold">{t("stock.valuation")}</h2>
-          <p className="text-xs text-muted-foreground">{t("stock.liveNote")}</p>
+          <h2 className="text-lg font-semibold">{t("metric.title")}</h2>
+          {groups.length > 0 && (
+            <p className="text-xs text-muted-foreground">{t("metric.liveNote")}</p>
+          )}
         </div>
 
-        {fund ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Metric
-              label={t("stock.marketCap")}
-              value={marketCap ? f.compact(marketCap) : EMPTY}
-              live
-            />
-            <Metric label={t("stock.eps25")} value={f.num(bpa25)} />
-            <Metric label={t("stock.eps26")} value={f.num(bpa26)} />
-            <Metric label={t("stock.dps25")} value={f.num(dpa25)} />
-            <Metric label={t("stock.dps26")} value={f.num(dpa26)} />
-            <Metric label={t("stock.per25")} value={fmtX(f.num(per(bpa25), 1))} live />
-            <Metric label={t("stock.per26")} value={fmtX(f.num(per(bpa26), 1))} live />
-            <Metric label={t("stock.dy25")} value={fmtPct(f.num(dy(dpa25), 2))} live />
-            <Metric label={t("stock.dy26")} value={fmtPct(f.num(dy(dpa26), 2))} live />
-          </div>
-        ) : (
+        {groups.length === 0 ? (
           <p className="glass mt-4 p-5 text-sm leading-relaxed text-muted-foreground">
-            {t("stock.noFundamentals")}
+            {t("metric.none")}
           </p>
+        ) : (
+          <div className="mt-5 space-y-7">
+            {/* Un groupe vide n'est pas produit, donc pas de titre orphelin. */}
+            {groups.map((group) => (
+              <div key={group.title}>
+                <p className="eyebrow">{t(group.title)}</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {group.metrics.map((metric) => (
+                    <MetricCard key={metric.label} metric={metric} label={t(metric.label)} f={f} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </section>
 
@@ -193,26 +184,26 @@ function StockPage() {
   );
 }
 
-/** Une carte de la grille fondamentale. `live` marque ce qui suit le cours. */
-function Metric({ label, value, live }: { label: string; value: string; live?: boolean }) {
+/** Une carte du tableau de bord. Le point jaune marque ce qui suit le cours. */
+function MetricCard({ metric, label, f }: { metric: Metric; label: string; f: Formatter }) {
+  const live = LIVE_METRICS.has(metric.label);
   return (
     <div className="glass card-hover p-5">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs leading-snug text-muted-foreground">{label}</p>
         {live && (
           <span
             aria-hidden="true"
-            className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-yellow)]"
+            className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-yellow)]"
           />
         )}
       </div>
-      <p className="mt-2 text-2xl font-bold tabular-nums text-brand-yellow">{value}</p>
+      <p className="mt-2 text-2xl font-bold tabular-nums text-brand-yellow">
+        {formatMetric(metric, f)}
+      </p>
     </div>
   );
 }
-
-const fmtX = (v: string) => (v === EMPTY ? v : `${v}x`);
-const fmtPct = (v: string) => (v === EMPTY ? v : `${v} %`);
 
 function Back({ t }: { t: Translate }) {
   return (

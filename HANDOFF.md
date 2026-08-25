@@ -338,15 +338,24 @@ One request covers all 81 stocks. `buildHistory()` is exported apart from the fe
 
 `stock_quotes_daily` records the real close of every stock once per session and backs the sparklines when TradingView cannot be reached. `stock_prices`, the legacy table, is synthetic (a sine wave over `md5(ticker)`) and is charted nowhere.
 
-### Fundamentals grid
+### Fundamentals
 
-Nine indicators, in a glassmorphism card grid. A yellow dot marks the ones recomputed from the live price on every render:
+`stock_metrics` holds the Lyamfi fundamentals workbook, 80 stocks, seeded by `scripts/build-stock-metrics.py` from the xlsx. Regenerate rather than editing the migration by hand. The parser handles what the workbook actually contains: thousands separated by non-breaking spaces (`1 000 000`), and two different blank markers, `_` and `—`.
 
-| Static (from `stock_fundamentals`) | Recomputed at today's price |
+The table stores **only what does not depend on the price**: share count, EPS 26 / 27e, DPS 26 / 27e, book value, sales and free cash flow per share, and the closed-year profitability ratios. Everything price-derived is computed at render time in `lib/metrics.ts`, because storing it would be stale by the next session:
+
+| Derived live | Formula |
 |---|---|
-| BPA 25, BPA 26e, DPA 25, DPA 26e | Capitalisation = price × shares, PER = price ÷ BPA, D/Y = DPA ÷ price |
+| Market cap | `shares × price` |
+| P/E 26, P/E 27e | `price ÷ EPS` |
+| Dividend yield 26, 27e | `DPS ÷ price × 100` |
+| P/B, P/S, P/FCF 25 | `price ÷ book value, sales per share, FCF per share` |
 
-Stocks with no analyst coverage say so instead of showing empty cells.
+The ratio columns are stored as fractions, so `0.163` renders as `16,3 %`.
+
+**A missing indicator is not rendered at all.** No `N/A`, no `0`, no empty card: an absent card reads as "not published", a zero would read as a measurement. `lib/metrics.ts` only ever constructs indicators it could compute, so the components have nothing to filter. Three things count as uncomputable: a missing input, a zero denominator, and a **non-positive price** — that last one matters, because a stock with no quote for the day arrives as `0` and `0 ÷ EPS` is a perfectly finite `0` that would render as `0,0x`.
+
+A group with no computable indicator is dropped too, so the detail page never shows an orphan heading. Diac Salaf, which the workbook has no figures for, shows only its market cap (the share count is known) and is not counted among stocks with fundamentals.
 
 ---
 
