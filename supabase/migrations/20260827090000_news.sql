@@ -30,12 +30,21 @@ CREATE TABLE IF NOT EXISTS public.news_posts (
 CREATE INDEX IF NOT EXISTS news_posts_published_idx
   ON public.news_posts (published_at DESC);
 
--- Lecture seule pour les membres. Aucune écriture directe n'est accordée : le
--- REVOKE est explicite pour que le retrait reste vrai même si un GRANT plus
--- large a été passé à la main sur la base.
+-- Lecture seule pour les membres, et rien d'autre.
+--
+-- ⚠️ On repart de zéro avec REVOKE ALL, on n'énumère pas ce qu'il faut retirer.
+-- Un projet Supabase pose `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL
+-- ON TABLES TO anon, authenticated`, donc la table naît avec TOUT accordé aux
+-- deux rôles. Retirer nommément INSERT, UPDATE et DELETE laissait derrière
+-- TRUNCATE, REFERENCES et TRIGGER, qu'aucune politique RLS ne couvre : RLS
+-- filtre les lignes lues et écrites, elle n'a pas prise sur un TRUNCATE, qui
+-- viderait la table entière.
+--
+-- L'ordre compte : on retire d'abord tout, on raccorde ensuite le seul droit
+-- voulu.
+REVOKE ALL ON public.news_posts FROM authenticated, anon;
 GRANT SELECT ON public.news_posts TO authenticated;
 GRANT ALL    ON public.news_posts TO service_role;
-REVOKE INSERT, UPDATE, DELETE ON public.news_posts FROM authenticated, anon;
 
 ALTER TABLE public.news_posts ENABLE ROW LEVEL SECURITY;
 

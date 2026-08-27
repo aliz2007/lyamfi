@@ -406,7 +406,7 @@ Value comes from the most recent `portfolio_snapshots` row, which already carrie
 
 `/actualites`, between Académie and Budget in the nav. A card feed: illustration on top, gold title, publication date in `JJ/MM/AAAA` right under it, then the body with line breaks preserved.
 
-**The split of rights lives in the database, not the interface.** `authenticated` holds `SELECT` on `news_posts` and nothing else, and the migration `REVOKE`s the three write privileges explicitly. Publishing, editing and deleting go through `news_create`, `news_update` and `news_delete`, three `SECURITY DEFINER` functions that each open with `is_admin()`. Hiding the buttons is cosmetic, exactly as for the admin console. Both admin tiers may write: publishing an article is editorial work, not a privileged operation on an account.
+**The split of rights lives in the database, not the interface.** `authenticated` holds `SELECT` on `news_posts` and nothing else, because the migration does `REVOKE ALL … FROM authenticated, anon` and *then* grants back the single privilege it wants. Enumerating what to remove is not enough: a Supabase project carries `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so the table is born with everything granted, and naming `INSERT, UPDATE, DELETE` leaves `TRUNCATE`, `REFERENCES` and `TRIGGER` behind (this is exactly what shipped first and had to be corrected). Publishing, editing and deleting go through `news_create`, `news_update` and `news_delete`, three `SECURITY DEFINER` functions that each open with `is_admin()`. Hiding the buttons is cosmetic, exactly as for the admin console. Both admin tiers may write: publishing an article is editorial work, not a privileged operation on an account.
 
 The database also does the validation, so it cannot be bypassed from a console: title and body are trimmed and refused when empty (200 and 20 000 characters max), and an image URL is either empty (stored `NULL`) or starts with `http://` or `https://`.
 
@@ -431,6 +431,13 @@ The fill loop is a `useEffect` on the portfolio page: no open tab, no execution.
 
 ### 🟠 The trading session is the browser's clock
 `isMarketOpen` is computed client-side from `Intl.DateTimeFormat` in the `Africa/Casablanca` zone. A user whose device clock is wrong, or who changes it, can make the app believe the session is open. Given trading is already client-side (see the 🔴 items), this adds no new exposure, but it moves server-side with them. Until then, the code fails **closed**: before the clock is read (SSR, first render) the session counts as shut, because queuing an order can be undone and executing one wrongly cannot.
+
+### 🟠 Every table but `news_posts` grants TRUNCATE, REFERENCES and TRIGGER to `anon` and `authenticated`
+A Supabase project sets `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so every table created by a migration starts with all privileges granted, and the explicit `GRANT SELECT` / `GRANT ... TO authenticated` lines in the migrations only *add* to that. **RLS does not cover the leftovers**: it filters the rows a statement reads and writes, and has no say over `TRUNCATE`, which empties the table outright.
+
+Not reachable through the app as it stands: PostgREST exposes no verb that issues `TRUNCATE`, `CREATE TRIGGER` or `ALTER TABLE`, so the publishable key cannot get at any of it over HTTP. It needs a direct Postgres connection, which needs the database password. So this is a privilege model that says something other than what it means, not an open door.
+
+`news_posts` is the only table done right (`REVOKE ALL` then grant back). Fixing the other fifteen is one migration: `REVOKE ALL ON <table> FROM anon, authenticated;` followed by the grants each already documents. Worth doing next time the schema is touched.
 
 ### 🟠 The MASI 20 symbol is not documented
 TradingView publishes no stable code for the MASI 20. `lib/quotes.functions.ts` therefore *discovers* it: it first asks the scanner for everything typed `index` on CSEMA, then falls back to a candidate list (`MASI20`, `MSI20`, `MASI_20`), and normalises whatever comes back to the internal code `MASI20`. If none of it resolves, the dashboard card renders with *Indice indisponible* rather than disappearing, and the TradingView link still works. **This could not be verified from the audit environment: `scanner.tradingview.com` answers 403 to CONNECT there.** Check the card on the live site; if it is empty, the right code goes in `INDEX_CANDIDATES`.
