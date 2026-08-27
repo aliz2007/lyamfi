@@ -30,3 +30,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# `bun.lock` is the lockfile this repo tracks, and the one Lovable syncs.
+# `npm install` is only the documented way in (see HANDOFF.md §3, the install
+# trap), so the lockfile it drops on the way is a local artefact, not a second
+# source of truth.
+package-lock.json
