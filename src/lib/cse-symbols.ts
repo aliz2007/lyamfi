@@ -113,3 +113,34 @@ export const hasCseQuote = (ticker: string) => NAME_BY_TICKER.has(tvSymbol(ticke
 
 /** Tous les tickers TradingView, triés alphabétiquement par nom. */
 export const CSE_TICKERS = CSE_SYMBOLS.map(([proName]) => proName.split(":")[1]!);
+
+/* ------------------------------------------------------------------ indices */
+
+/** Indice large de la Bourse de Casablanca. */
+export const MASI_TICKER = "MASI";
+
+/**
+ * MASI 20, l'indice des vingt valeurs les plus liquides.
+ *
+ * Le code retenu ici est celui sous lequel l'application le range, pas
+ * forcément celui que publie la source : `lib/quotes.functions.ts` accepte
+ * plusieurs graphies (MASI20, MSI20, « MASI 20 ») et les ramène toutes à
+ * celle-ci, parce que le symbole TradingView de cet indice n'est pas
+ * documenté et a déjà changé.
+ */
+export const MASI20_TICKER = "MASI20";
+
+/**
+ * Ce qui est un indice et non une action.
+ *
+ * Les cotations servent aussi à peupler la liste des valeurs négociables du
+ * portefeuille : sans ce filtre, un indice y apparaîtrait comme un titre
+ * achetable.
+ */
+export const INDEX_TICKERS: ReadonlySet<string> = new Set([MASI_TICKER, MASI20_TICKER]);
+
+export const isIndexTicker = (ticker: string) => INDEX_TICKERS.has(ticker.toUpperCase());
+
+/** Page TradingView d'une valeur ou d'un indice de la cote de Casablanca. */
+export const tradingViewUrl = (ticker: string) =>
+  `https://www.tradingview.com/symbols/${tvSymbol(ticker).replace(":", "-")}/`;

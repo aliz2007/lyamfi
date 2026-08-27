@@ -79,6 +79,22 @@ export const shortDate = (v: string | null | undefined, locale: Locale = DEFAULT
       })
     : EMPTY;
 
+/**
+ * Date tout en chiffres, jour d'abord : « 27/08/2026 ».
+ *
+ * Les deux locales du produit placent le jour en tête, donc le même appel
+ * convient aux deux : c'est le format demandé pour la date de publication des
+ * actualités, plus compact que le mois abrégé de `shortDate`.
+ */
+export const numericDate = (v: string | null | undefined, locale: Locale = DEFAULT) =>
+  v
+    ? new Date(v).toLocaleDateString(locale, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : EMPTY;
+
 export const longDate = (v: string | null | undefined, locale: Locale = DEFAULT) =>
   v
     ? new Date(v).toLocaleDateString(locale, { day: "2-digit", month: "long", year: "numeric" })
@@ -103,6 +119,7 @@ export type Formatter = {
   compact: (v: number | null | undefined) => string;
   price: (v: number | null | undefined) => string;
   shortDate: (v: string | null | undefined) => string;
+  numericDate: (v: string | null | undefined) => string;
   longDate: (v: string | null | undefined) => string;
   dateTime: (v: string | null | undefined) => string;
 };
@@ -120,6 +137,7 @@ export function useFormat(): Formatter {
       compact: (v) => compact(v, l),
       price: (v) => price(v, l),
       shortDate: (v) => shortDate(v, l),
+      numericDate: (v) => numericDate(v, l),
       longDate: (v) => longDate(v, l),
       dateTime: (v) => dateTime(v, l),
     }),

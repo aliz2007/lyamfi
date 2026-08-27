@@ -1,10 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Search } from "lucide-react";
+import { ArrowDown, ArrowDownWideNarrow, ArrowUp, ArrowUpNarrowWide, Search } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { stocksQuery } from "@/lib/market";
-import { hasFundamentals, metricsQuery, summaryMetrics, LIVE_METRICS } from "@/lib/metrics";
+import {
+  dy26,
+  hasFundamentals,
+  metricsQuery,
+  per26,
+  summaryMetrics,
+  LIVE_METRICS,
+} from "@/lib/metrics";
 import { formatMetric } from "@/components/MetricValue";
 import { getLiveQuotes } from "@/lib/quotes.functions";
 import { EMPTY, useFormat } from "@/lib/format";
@@ -44,15 +51,27 @@ const CAPS: { id: string; label: Key }[] = [
 /**
  * Tris disponibles. « changeDesc » et « changeAsc » répondent au besoin le
  * plus concret de la page : voir d'un coup les plus fortes hausses ou les
- * plus fortes baisses de la séance.
+ * plus fortes baisses de la séance. « perAsc » et « dyDesc » sont les deux
+ * lectures classiques d'un écran de valorisation : le moins cher payé pour un
+ * bénéfice, le mieux rémunéré en dividende.
  */
-const SORTS = ["default", "changeDesc", "changeAsc", "capDesc", "nameAsc"] as const;
+const SORTS = [
+  "default",
+  "changeDesc",
+  "changeAsc",
+  "perAsc",
+  "dyDesc",
+  "capDesc",
+  "nameAsc",
+] as const;
 type Sort = (typeof SORTS)[number];
 
 const SORT_LABEL: Record<Sort, Key> = {
   default: "bourse.sortDefault",
   changeDesc: "bourse.sortChangeDesc",
   changeAsc: "bourse.sortChangeAsc",
+  perAsc: "bourse.sortPerAsc",
+  dyDesc: "bourse.sortDyDesc",
   capDesc: "bourse.sortCapDesc",
   nameAsc: "bourse.sortNameAsc",
 };
@@ -145,6 +164,10 @@ function BoursePage() {
           changePct: live?.changePct ?? null,
           marketCap: metrics?.shares != null && price != null ? metrics.shares * price : null,
           covered: hasFundamentals(metrics),
+          // Gardés à part des indicateurs mis en forme : le tri a besoin des
+          // nombres, pas des libellés.
+          per26: per26(metrics, price),
+          dy26: dy26(metrics, price),
           metrics: summaryMetrics(metrics, price),
         };
       },
@@ -191,6 +214,30 @@ function BoursePage() {
     }
     if (sort === "capDesc") {
       return rows.sort((a, b) => (b.marketCap ?? -1) - (a.marketCap ?? -1));
+    }
+    if (sort === "perAsc") {
+      // Un PER négatif ou nul ne signale pas une valeur bon marché mais une
+      // société qui perd de l'argent : il n'a rien à faire en tête d'un
+      // classement du moins cher au plus cher, et rejoint la fin de liste avec
+      // les valeurs sans PER calculable.
+      return rows.sort((a, b) => {
+        const av = a.per26 !== null && a.per26 > 0 ? a.per26 : null;
+        const bv = b.per26 !== null && b.per26 > 0 ? b.per26 : null;
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return av - bv;
+      });
+    }
+    if (sort === "dyDesc") {
+      return rows.sort((a, b) => {
+        const av = a.dy26;
+        const bv = b.dy26;
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return bv - av;
+      });
     }
     const dir = sort === "changeDesc" ? -1 : 1;
     return rows.sort((a, b) => {
@@ -264,6 +311,8 @@ function BoursePage() {
               <span className="inline-flex items-center gap-1.5">
                 {s === "changeDesc" && <ArrowUp className="h-3 w-3" />}
                 {s === "changeAsc" && <ArrowDown className="h-3 w-3" />}
+                {s === "perAsc" && <ArrowUpNarrowWide className="h-3 w-3" />}
+                {s === "dyDesc" && <ArrowDownWideNarrow className="h-3 w-3" />}
                 {t(SORT_LABEL[s])}
               </span>
             </Chip>
@@ -280,7 +329,7 @@ function BoursePage() {
             key={l.symbol}
             to="/bourse/$ticker"
             params={{ ticker: l.code }}
-            className="surface-raised card-hover block p-5"
+            className="surface-raised card-hover block p-5 sm:p-6"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -313,12 +362,15 @@ function BoursePage() {
               </span>
             )}
 
-            <div className="-mx-1 mt-3">
+            <div className="-mx-1 mt-4">
               <Sparkline values={sparkByCode?.get(l.code) ?? []} />
             </div>
 
+            {/* La vignette ne porte plus que les ratios de valorisation : cinq
+                lignes au lieu de neuf. L'espacement est repris en conséquence,
+                sinon la carte se tasse en haut et laisse un vide en bas. */}
             {l.metrics.length > 0 && (
-              <dl className="mt-4 space-y-2 text-xs">
+              <dl className="mt-5 space-y-2.5 border-t border-border/50 pt-4 text-xs">
                 {/* Seuls les indicateurs calculables sont construits : rien à
                     masquer ici, la liste est déjà filtrée. */}
                 {l.metrics.map((m) => (

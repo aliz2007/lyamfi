@@ -28,6 +28,7 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-gold: var(--gold);
   --color-brand-yellow: var(--brand-yellow);
   --color-gold-light: var(--gold-light);
@@ -62,6 +63,9 @@
   --destructive: oklch(0.62 0.2 25);
   --destructive-foreground: oklch(0.98 0 0);
   --success: oklch(0.72 0.16 155);
+  /* Ambre : ni le vert d'une séance ouverte, ni le rouge d'un refus. Sert à
+     l'ordre accepté mais mis en attente hors séance. */
+  --warning: oklch(0.78 0.16 65);
   --gold: oklch(0.79 0.14 78);
   /* Jaune du logo (#FCD116). Sert d'accent sur la fiche valeur et le classement. */
   --brand-yellow: oklch(0.872 0.176 93.5);

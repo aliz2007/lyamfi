@@ -133,18 +133,31 @@ export function hasFundamentals(m: StockMetrics | undefined): boolean {
 }
 
 /**
- * Indicateurs affichés sur la vignette de la cote : ce qui situe la valeur
- * d'un coup d'œil, sans noyer la carte.
+ * PER de l'exercice 26 au cours du jour, ou null s'il n'est pas calculable.
+ * Exposé à part de `summaryMetrics` parce que le tri de la liste en a besoin
+ * comme nombre, pas comme libellé mis en forme.
+ */
+export const per26 = (m: StockMetrics | undefined, rawPrice: number | null): number | null =>
+  over(usablePrice(rawPrice), m?.eps_26 ?? null);
+
+/** Rendement du dividende 26 au cours du jour, en pourcentage. */
+export const dy26 = (m: StockMetrics | undefined, rawPrice: number | null): number | null =>
+  times(over(m?.dps_26 ?? null, usablePrice(rawPrice)), 100);
+
+/**
+ * Indicateurs affichés sur la vignette de la cote.
+ *
+ * Volontairement réduit aux ratios de valorisation : capitalisation, PER et
+ * rendement. Les données par action (BPA, DPA) ne bougent pas avec le cours et
+ * ne se comparent pas d'une valeur à l'autre sans le prix en tête ; elles
+ * alourdissaient la vignette sans l'éclairer. Elles restent intégralement sur
+ * la fiche valeur, via `detailGroups`.
  */
 export function summaryMetrics(m: StockMetrics | undefined, rawPrice: number | null): Metric[] {
   const out: Metric[] = [];
   if (!m) return out;
   const price = usablePrice(rawPrice);
   push(out, "metric.marketCap", times(m.shares, price), "compact");
-  push(out, "metric.eps26", m.eps_26, "money");
-  push(out, "metric.eps27", m.eps_27e, "money");
-  push(out, "metric.dps26", m.dps_26, "money");
-  push(out, "metric.dps27", m.dps_27e, "money");
   push(out, "metric.per26", over(price, m.eps_26), "multiple");
   push(out, "metric.per27", over(price, m.eps_27e), "multiple");
   push(out, "metric.dy26", times(over(m.dps_26, price), 100), "percent");

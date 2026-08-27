@@ -96,8 +96,6 @@ function LeaderboardPage() {
           </div>
         )}
       </section>
-
-      <p className="text-xs leading-relaxed text-muted-foreground">{t("lb.note")}</p>
     </div>
   );
 }

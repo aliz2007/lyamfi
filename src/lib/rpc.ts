@@ -33,8 +33,12 @@ export const rpc: RpcFn = (fn, args) => client.rpc(fn, args);
  * migrations n'ont pas été appliquées à la base, pas que l'utilisateur a mal
  * agi. Sans ce message, l'écran affiche une erreur Postgres brute et donne
  * l'impression que la fonctionnalité est cassée.
+ *
+ * Exportée parce que les lectures de table tombent sur exactement le même cas :
+ * une table ajoutée par migration est introuvable tant que celle-ci n'a pas été
+ * jouée.
  */
-function explain(message: string, code?: string): string {
+export function explain(message: string, code?: string): string {
   const m = message.toLowerCase();
   if (code === "PGRST202" || m.includes("does not exist") || m.includes("could not find")) {
     return "Cette fonctionnalité n'est pas encore activée : les migrations de la base de données n'ont pas été appliquées. Contacte l'administrateur du projet.";

@@ -3,22 +3,25 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
 import {
+  Activity,
   ArrowUpRight,
   BarChart3,
+  ExternalLink,
   GraduationCap,
   LineChart,
   PieChart,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { buildLevelProgress, lessonsQuery, progressQuery, stocksQuery } from "@/lib/market";
-import { useFormat } from "@/lib/format";
+import { buildLevelProgress, lessonsQuery, progressQuery } from "@/lib/market";
+import { useFormat, type Formatter } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { getLiveQuotes, type LiveQuote } from "@/lib/quotes.functions";
+import { isIndexTicker, MASI20_TICKER, MASI_TICKER, tradingViewUrl } from "@/lib/cse-symbols";
 import { useAuth } from "@/hooks/useAuth";
 import { greetingName, myProfileQuery } from "@/lib/profile";
 import { useRecordDailyQuotes } from "@/lib/quotes.history";
-import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
+import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 import { levelKey } from "@/lib/levels";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -55,7 +58,6 @@ function Dashboard() {
 
   const { user } = useAuth();
   const { data: profile } = useQuery(myProfileQuery);
-  const { data: stocks = [] } = useQuery(stocksQuery);
   const { data: lessons = [] } = useQuery(lessonsQuery);
   const { data: progress = [] } = useQuery(progressQuery);
 
@@ -110,10 +112,9 @@ function Dashboard() {
 
   const { gainers, losers } = useMemo(() => {
     const list = quotes
-      .filter(
-        (q) =>
-          q.ticker.toUpperCase() !== "MASI" && Number.isFinite(q.changePct) && q.changePct !== 0,
-      )
+      // Les indices ne sont pas des valeurs : ils n'ont rien à faire dans un
+      // palmarès de hausses et de baisses.
+      .filter((q) => !isIndexTicker(q.ticker) && Number.isFinite(q.changePct) && q.changePct !== 0)
       .sort((a, b) => b.changePct - a.changePct);
     return { gainers: list.slice(0, 5), losers: [...list].reverse().slice(0, 5) };
   }, [quotes]);
@@ -139,7 +140,8 @@ function Dashboard() {
 
   const { levels, done, total, ratio } = buildLevelProgress(lessons, progress);
   const name = greetingName(profile, user?.email) ?? t("dash.fallbackName");
-  const masi = quoteMap.get("MASI");
+  const masi = quoteMap.get(MASI_TICKER);
+  const masi20 = quoteMap.get(MASI20_TICKER);
 
   return (
     <div className="space-y-10">
@@ -177,6 +179,28 @@ function Dashboard() {
             tone={(portfolio?.pl ?? 0) >= 0 ? "up" : "down"}
           />
         </div>
+      </section>
+
+      {/* Les deux indices de la cote, entre la valeur du portefeuille et les
+          mouvements du jour. Ils sortent du produit : le clic ouvre le
+          graphique complet sur TradingView, dans un nouvel onglet. */}
+      <section className="grid gap-4 sm:grid-cols-2">
+        <IndexCard
+          label={t("dash.masi")}
+          caption={t("dash.masiFull")}
+          quote={masi ?? null}
+          href={tradingViewUrl(MASI_TICKER)}
+          f={f}
+          t={t}
+        />
+        <IndexCard
+          label={t("dash.masi20")}
+          caption={t("dash.masi20Full")}
+          quote={masi20 ?? null}
+          href={tradingViewUrl(MASI20_TICKER)}
+          f={f}
+          t={t}
+        />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -268,23 +292,6 @@ function Dashboard() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <div className="surface-raised p-6">
-          <p className="text-xs text-muted-foreground">{t("dash.tracked")}</p>
-          <p className="mt-3 text-4xl font-bold text-gradient-gold">{stocks.length}</p>
-          <p className="mt-4 text-xs text-muted-foreground">{t("dash.exchange")}</p>
-        </div>
-        <div className="surface-raised p-6">
-          <p className="text-xs text-muted-foreground">{t("dash.masi")}</p>
-          <p className="mt-3 text-4xl font-bold text-gradient-gold">
-            {masi ? f.price(masi.price) : "…"}
-          </p>
-          <p className="mt-4 text-xs text-muted-foreground">
-            {masi ? f.pct(masi.changePct) : t("dash.liveQuote")}
-          </p>
-        </div>
-      </section>
-
       <section>
         <h2 className="text-lg font-semibold">{t("dash.quickAccess")}</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -303,6 +310,70 @@ function Dashboard() {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * Un indice de la cote, cliquable vers son graphique TradingView.
+ *
+ * La carte reste affichée même sans cotation : le MASI 20 n'est pas un symbole
+ * documenté chez TradingView, et une carte vide qui dit « indisponible » se lit
+ * mieux qu'un bloc qui disparaît sans explication. Le lien vers le graphique,
+ * lui, fonctionne dans tous les cas.
+ */
+function IndexCard({
+  label,
+  caption,
+  quote,
+  href,
+  f,
+  t,
+}: {
+  label: string;
+  caption: string;
+  quote: LiveQuote | null;
+  href: string;
+  f: Formatter;
+  t: Translate;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={t("dash.openOnTradingView")}
+      className="surface-raised card-hover group block p-6"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="mt-3 text-4xl font-bold text-gradient-gold">
+            {quote ? f.price(quote.price) : "…"}
+          </p>
+        </div>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-primary/25 bg-accent">
+          <Activity className="h-4 w-4 text-primary" />
+        </span>
+      </div>
+      <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 text-xs">
+        <span className="text-muted-foreground">{caption}</span>
+        <span
+          className={`tabular-nums ${
+            !quote
+              ? "text-muted-foreground"
+              : quote.changePct >= 0
+                ? "text-[var(--success)]"
+                : "text-destructive"
+          }`}
+        >
+          {quote ? f.pct(quote.changePct) : t("dash.indexUnavailable")}
+        </span>
+      </div>
+      <span className="mt-3 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors group-hover:text-foreground">
+        TradingView
+        <ExternalLink className="h-3 w-3" />
+      </span>
+    </a>
   );
 }
 

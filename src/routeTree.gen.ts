@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedActualitesRouteImport } from './routes/_authenticated/actualites'
 import { Route as AuthenticatedBudgetRouteImport } from './routes/_authenticated/budget'
 import { Route as AuthenticatedClassementRouteImport } from './routes/_authenticated/classement'
 import { Route as AuthenticatedCompteRouteImport } from './routes/_authenticated/compte'
@@ -43,6 +44,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedActualitesRoute = AuthenticatedActualitesRouteImport.update({
+  id: '/actualites',
+  path: '/actualites',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBudgetRoute = AuthenticatedBudgetRouteImport.update({
   id: '/budget',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/actualites': typeof AuthenticatedActualitesRoute
   '/budget': typeof AuthenticatedBudgetRoute
   '/classement': typeof AuthenticatedClassementRoute
   '/compte': typeof AuthenticatedCompteRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/actualites': typeof AuthenticatedActualitesRoute
   '/budget': typeof AuthenticatedBudgetRoute
   '/classement': typeof AuthenticatedClassementRoute
   '/compte': typeof AuthenticatedCompteRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/actualites': typeof AuthenticatedActualitesRoute
   '/_authenticated/budget': typeof AuthenticatedBudgetRoute
   '/_authenticated/classement': typeof AuthenticatedClassementRoute
   '/_authenticated/compte': typeof AuthenticatedCompteRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/actualites'
     | '/budget'
     | '/classement'
     | '/compte'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/actualites'
     | '/budget'
     | '/classement'
     | '/compte'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/actualites'
     | '/_authenticated/budget'
     | '/_authenticated/classement'
     | '/_authenticated/compte'
@@ -244,6 +256,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/actualites': {
+      id: '/_authenticated/actualites'
+      path: '/actualites'
+      fullPath: '/actualites'
+      preLoaderRoute: typeof AuthenticatedActualitesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/budget': {
       id: '/_authenticated/budget'
@@ -326,6 +345,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedActualitesRoute: typeof AuthenticatedActualitesRoute
   AuthenticatedBudgetRoute: typeof AuthenticatedBudgetRoute
   AuthenticatedClassementRoute: typeof AuthenticatedClassementRoute
   AuthenticatedCompteRoute: typeof AuthenticatedCompteRoute
@@ -340,6 +360,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedActualitesRoute: AuthenticatedActualitesRoute,
   AuthenticatedBudgetRoute: AuthenticatedBudgetRoute,
   AuthenticatedClassementRoute: AuthenticatedClassementRoute,
   AuthenticatedCompteRoute: AuthenticatedCompteRoute,

@@ -16,6 +16,7 @@ const NAV = [
   { to: "/portefeuille", label: "nav.portfolio" },
   { to: "/classement", label: "nav.leaderboard" },
   { to: "/academie", label: "nav.academy" },
+  { to: "/actualites", label: "nav.news" },
   { to: "/budget", label: "nav.budget" },
 ] as const satisfies readonly { to: string; label: Key }[];
 

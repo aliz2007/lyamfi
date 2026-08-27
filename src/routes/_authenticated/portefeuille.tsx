@@ -15,8 +15,20 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { Disclaimer } from "@/components/Disclaimer";
+import { MarketSessionBadge } from "@/components/MarketSessionBadge";
+import { useSessionStatus } from "@/hooks/useMarketSession";
 import { supabase } from "@/integrations/supabase/client";
 import { getLiveQuotes, type LiveQuote } from "@/lib/quotes.functions";
+import { isIndexTicker } from "@/lib/cse-symbols";
+import {
+  cancelOrder,
+  fillsAt,
+  listPendingOrders,
+  markOrderFilled,
+  placeOrder as insertPendingOrder,
+  type OrderSide,
+  type OrderType,
+} from "@/lib/orders";
 import { EMPTY, useFormat, type Formatter } from "@/lib/format";
 import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 
@@ -47,6 +59,12 @@ function PortfolioPage() {
   const { t } = useI18n();
   const f = useFormat();
   usePageTitle("pf.title");
+
+  // Séance de la Bourse de Casablanca. Tant que l'horloge n'a pas été lue
+  // (rendu serveur, tout premier rendu), la séance est tenue pour fermée :
+  // mettre un ordre en attente se défait, l'exécuter à tort ne se défait pas.
+  const session = useSessionStatus();
+  const marketOpen = session?.open ?? false;
 
   const qc = useQueryClient();
   const fetchQuotes = useServerFn(getLiveQuotes);
@@ -90,30 +108,24 @@ function PortfolioPage() {
         p = created;
       }
 
-      const [{ data: holdings }, { data: trades }, { data: snaps }, { data: orders }] =
-        await Promise.all([
-          supabase
-            .from("portfolio_holdings")
-            .select("id, ticker, quantity, avg_price")
-            .eq("portfolio_id", p.id),
-          supabase
-            .from("portfolio_trades")
-            .select("id, ticker, side, quantity, price, created_at")
-            .eq("portfolio_id", p.id)
-            .order("created_at", { ascending: false })
-            .limit(20),
-          supabase
-            .from("portfolio_snapshots")
-            .select("date, value, masi")
-            .eq("portfolio_id", p.id)
-            .order("date", { ascending: true }),
-          supabase
-            .from("portfolio_orders")
-            .select("id, ticker, side, quantity, limit_price, status, created_at")
-            .eq("portfolio_id", p.id)
-            .eq("status", "pending")
-            .order("created_at", { ascending: false }),
-        ]);
+      const [{ data: holdings }, { data: trades }, { data: snaps }, orders] = await Promise.all([
+        supabase
+          .from("portfolio_holdings")
+          .select("id, ticker, quantity, avg_price")
+          .eq("portfolio_id", p.id),
+        supabase
+          .from("portfolio_trades")
+          .select("id, ticker, side, quantity, price, created_at")
+          .eq("portfolio_id", p.id)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("portfolio_snapshots")
+          .select("date, value, masi")
+          .eq("portfolio_id", p.id)
+          .order("date", { ascending: true }),
+        listPendingOrders(p.id),
+      ]);
 
       return {
         id: p.id,
@@ -127,14 +139,7 @@ function PortfolioPage() {
           }))
           .filter((h) => h.quantity > 0) as Holding[],
         trades: trades ?? [],
-        orders: (orders ?? []).map((o) => ({
-          id: o.id,
-          ticker: o.ticker,
-          side: o.side as "buy" | "sell",
-          quantity: Number(o.quantity),
-          limit_price: Number(o.limit_price),
-          created_at: o.created_at,
-        })),
+        orders,
         snapshots: (snaps ?? []).map((s) => ({
           date: s.date,
           value: Number(s.value),
@@ -266,46 +271,66 @@ function PortfolioPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  /** Dépose un ordre dans le carnet : à cours limité, ou au marché hors séance. */
   const placeOrder = useMutation({
     mutationFn: async (v: {
       ticker: string;
-      side: "buy" | "sell";
+      side: OrderSide;
+      type: OrderType;
       quantity: number;
-      limitPrice: number;
+      limitPrice: number | null;
     }) => {
       if (!pf?.id) throw new Error(t("pf.errNoPortfolio"));
       if (!(v.quantity > 0)) throw new Error(t("pf.errQty"));
-      if (!(v.limitPrice > 0)) throw new Error(t("pf.errLimit"));
-      const { error } = await supabase.from("portfolio_orders").insert({
-        portfolio_id: pf.id,
-        ticker: v.ticker,
-        side: v.side,
-        quantity: v.quantity,
-        limit_price: v.limitPrice,
-      });
-      if (error) throw error;
+      if (v.type === "limit" && !(Number(v.limitPrice) > 0)) throw new Error(t("pf.errLimit"));
+      await insertPendingOrder({ portfolioId: pf.id, ...v });
     },
     onSuccess: (_d, v) => {
+      const qty = f.num(v.quantity, 0);
       toast.success(
-        t(v.side === "buy" ? "pf.okLimitBuy" : "pf.okLimitSell", {
-          qty: f.num(v.quantity, 0),
-          ticker: v.ticker,
-          price: f.num(v.limitPrice),
-        }),
+        v.type === "market"
+          ? t(v.side === "buy" ? "pf.okQueuedBuy" : "pf.okQueuedSell", {
+              qty,
+              ticker: v.ticker,
+            })
+          : t(v.side === "buy" ? "pf.okLimitBuy" : "pf.okLimitSell", {
+              qty,
+              ticker: v.ticker,
+              price: f.num(v.limitPrice),
+            }),
       );
       qc.invalidateQueries({ queryKey: ["vportfolio"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const cancelOrder = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("portfolio_orders")
-        .update({ status: "cancelled" })
-        .eq("id", id);
-      if (error) throw error;
-    },
+  /**
+   * Un ordre au marché s'exécute tout de suite si la séance est ouverte, et
+   * rejoint le carnet sinon. C'est le seul endroit qui tranche : la base
+   * n'ayant pas de notion d'horaire, la règle vit avec l'horloge du navigateur,
+   * comme le bandeau qui l'annonce.
+   */
+  const submitMarketOrder = (v: {
+    ticker: string;
+    side: OrderSide;
+    quantity: number;
+    price: number;
+  }) => {
+    if (marketOpen) {
+      trade.mutate(v);
+      return;
+    }
+    placeOrder.mutate({
+      ticker: v.ticker,
+      side: v.side,
+      type: "market",
+      quantity: v.quantity,
+      limitPrice: null,
+    });
+  };
+
+  const dropOrder = useMutation({
+    mutationFn: cancelOrder,
     onSuccess: () => {
       toast.success(t("pf.okCancelled"));
       qc.invalidateQueries({ queryKey: ["vportfolio"] });
@@ -313,17 +338,27 @@ function PortfolioPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Exécution des ordres limités dès que le cours en direct atteint le seuil.
+  /**
+   * Moteur d'exécution du carnet.
+   *
+   * Il ne tourne QUE séance ouverte : hors séance, un ordre au marché comme un
+   * ordre limité reste en attente, même si le dernier cours connu franchissait
+   * le seuil. C'est le sens de la mise en attente, et cela évite qu'un ordre
+   * déposé le samedi parte sur la clôture de vendredi.
+   *
+   * Un seul ordre par passage, volontairement : `applyTrade` lit les liquidités
+   * dans le cache de la requête, donc deux exécutions enchaînées sur le même
+   * état écraseraient le solde. L'invalidation qui suit relance le passage
+   * suivant sur des données fraîches, et le carnet se vide de proche en proche.
+   */
   const [filling, setFilling] = useState(false);
   useEffect(() => {
     const orders = pf?.orders ?? [];
-    if (!pf?.id || filling || orders.length === 0 || quotes.length === 0) return;
+    if (!pf?.id || !marketOpen || filling || orders.length === 0 || quotes.length === 0) return;
 
-    const eligible = orders.find((o) => {
-      const price = quoteMap.get(o.ticker.toUpperCase())?.price;
-      if (!price) return false;
-      return o.side === "buy" ? price <= o.limit_price : price >= o.limit_price;
-    });
+    // Le plus ancien d'abord : le carnet se sert dans l'ordre d'arrivée.
+    const queue = [...orders].reverse();
+    const eligible = queue.find((o) => fillsAt(o, quoteMap.get(o.ticker.toUpperCase())?.price));
     if (!eligible) return;
 
     const fillPrice = quoteMap.get(eligible.ticker.toUpperCase())!.price;
@@ -336,14 +371,7 @@ function PortfolioPage() {
           quantity: eligible.quantity,
           price: fillPrice,
         });
-        await supabase
-          .from("portfolio_orders")
-          .update({
-            status: "filled",
-            filled_price: fillPrice,
-            filled_at: new Date().toISOString(),
-          })
-          .eq("id", eligible.id);
+        await markOrderFilled(eligible.id, fillPrice);
         toast.success(
           t(eligible.side === "buy" ? "pf.okFilledBuy" : "pf.okFilledSell", {
             qty: f.num(eligible.quantity, 0),
@@ -352,10 +380,7 @@ function PortfolioPage() {
           }),
         );
       } catch (e) {
-        await supabase
-          .from("portfolio_orders")
-          .update({ status: "cancelled" })
-          .eq("id", eligible.id);
+        await cancelOrder(eligible.id);
         toast.error(t("pf.errFilled", { ticker: eligible.ticker, reason: (e as Error).message }));
       } finally {
         setFilling(false);
@@ -363,7 +388,7 @@ function PortfolioPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pf?.orders, quoteMap, filling]);
+  }, [pf?.orders, quoteMap, filling, marketOpen]);
 
   const reset = useMutation({
     mutationFn: async () => {
@@ -411,8 +436,9 @@ function PortfolioPage() {
         loading={quotesLoading}
         cash={cash}
         holdings={pf?.holdings ?? []}
-        onTrade={(v) => trade.mutate(v)}
-        onPlaceOrder={(v) => placeOrder.mutate(v)}
+        marketOpen={marketOpen}
+        onTrade={submitMarketOrder}
+        onPlaceOrder={(v) => placeOrder.mutate({ ...v, type: "limit", limitPrice: v.limitPrice })}
         pending={trade.isPending || placeOrder.isPending}
       />
 
@@ -420,7 +446,7 @@ function PortfolioPage() {
         <section className="surface-raised p-5 sm:p-7">
           <h2 className="text-sm font-semibold">{t("pf.pendingOrders")}</h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {t("pf.pendingExplain")}
+            {t(marketOpen ? "pf.pendingExplain" : "pf.pendingExplainClosed")}
           </p>
           <ul className="mt-4 space-y-2 text-sm">
             {pf!.orders.map((o) => {
@@ -434,9 +460,20 @@ function PortfolioPage() {
                     <span
                       className={o.side === "buy" ? "text-[var(--success)]" : "text-destructive"}
                     >
-                      {t(o.side === "buy" ? "pf.limitBuy" : "pf.limitSell")}
+                      {t(
+                        o.type === "market"
+                          ? o.side === "buy"
+                            ? "pf.queuedBuy"
+                            : "pf.queuedSell"
+                          : o.side === "buy"
+                            ? "pf.limitBuy"
+                            : "pf.limitSell",
+                      )}
                     </span>{" "}
-                    {f.num(o.quantity, 0)} × {o.ticker} · {f.num(o.limit_price)} MAD
+                    {f.num(o.quantity, 0)} × {o.ticker}
+                    {/* Un ordre au marché n'a pas de seuil : afficher un prix
+                        ici laisserait croire à une condition qui n'existe pas. */}
+                    {o.limitPrice !== null && <> · {f.num(o.limitPrice)} MAD</>}
                   </span>
                   <span className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span>
@@ -445,7 +482,7 @@ function PortfolioPage() {
                       })}
                     </span>
                     <button
-                      onClick={() => cancelOrder.mutate(o.id)}
+                      onClick={() => dropOrder.mutate(o.id)}
                       className="underline-offset-4 hover:text-destructive hover:underline"
                     >
                       {t("common.cancel")}
@@ -619,6 +656,7 @@ function TradePanel({
   loading,
   cash,
   holdings,
+  marketOpen,
   onTrade,
   onPlaceOrder,
   pending,
@@ -629,10 +667,11 @@ function TradePanel({
   loading: boolean;
   cash: number;
   holdings: Holding[];
-  onTrade: (v: { ticker: string; side: "buy" | "sell"; quantity: number; price: number }) => void;
+  marketOpen: boolean;
+  onTrade: (v: { ticker: string; side: OrderSide; quantity: number; price: number }) => void;
   onPlaceOrder: (v: {
     ticker: string;
-    side: "buy" | "sell";
+    side: OrderSide;
     quantity: number;
     limitPrice: number;
   }) => void;
@@ -647,7 +686,9 @@ function TradePanel({
   const list = useMemo(
     () =>
       quotes
-        .filter((s) => s.ticker !== "MASI")
+        // Un indice n'est pas un titre : le MASI et le MASI 20 arrivent avec
+        // les cotations mais ne s'achètent pas.
+        .filter((s) => !isIndexTicker(s.ticker))
         .filter(
           (s) =>
             !q ||
@@ -669,6 +710,10 @@ function TradePanel({
   return (
     <section className="surface-raised p-5 sm:p-7">
       <h2 className="text-sm font-semibold">{t("pf.placeOrder")}</h2>
+
+      {/* Le passage d'ordre reste ouvert 24 h sur 24 : ce bandeau dit ce qu'il
+          adviendra de l'ordre, exécution immédiate ou mise en attente. */}
+      <MarketSessionBadge variant="order" className="mt-4" />
 
       <div className="relative mt-4">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -784,6 +829,7 @@ function TradePanel({
             <span className="font-semibold tabular-nums text-foreground">{f.mad(amount, 2)}</span> ·{" "}
             {t("pf.availableCash", { cash: f.mad(cash, 2) })}
             {orderType === "limit" && <> · {t("pf.limitExplain")}</>}
+            {orderType === "market" && !marketOpen && <> · {t("pf.marketQueuedExplain")}</>}
           </p>
 
           <div className="mt-4 flex gap-3">
@@ -806,7 +852,9 @@ function TradePanel({
               }
               className="flex-1 rounded-full bg-gradient-gold px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
-              {t(orderType === "market" ? "pf.buy" : "pf.placeLimitBuy")}
+              {t(
+                orderType === "limit" ? "pf.placeLimitBuy" : marketOpen ? "pf.buy" : "pf.queueBuy",
+              )}
             </button>
             <button
               disabled={pending || held < qty || (orderType === "limit" && !validLimit)}
@@ -827,7 +875,13 @@ function TradePanel({
               }
               className="flex-1 rounded-full border border-border px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
             >
-              {t(orderType === "market" ? "pf.sell" : "pf.placeLimitSell")}
+              {t(
+                orderType === "limit"
+                  ? "pf.placeLimitSell"
+                  : marketOpen
+                    ? "pf.sell"
+                    : "pf.queueSell",
+              )}
             </button>
           </div>
         </div>

@@ -1,6 +1,8 @@
 # Lyamfi: Codebase Handoff
 
-_Written 2026-08-18 against commit `3108fb0`. Everything below was read from the source and, where marked ✅, executed._
+_Written 2026-08-18, last revised 2026-08-27. Everything below was read from the source and, where marked ✅, executed._
+
+> **Latest change (2026-08-27):** an **Actualités** section with admin CRUD, **leaner `/bourse` cards** with two new sorts, **order execution tied to the real trading session**, and a **MASI / MASI 20 pair on the dashboard**. Two migrations to apply: see §12.
 
 ---
 
@@ -10,16 +12,20 @@ A French-language financial-education platform for the **Bourse de Casablanca (B
 
 **Live:** https://lyamfi.lovable.app
 
-Five surfaces:
+Eight surfaces:
 
 | Surface | Route | What it does |
 |---|---|---|
 | Landing | `/` | Value prop, 4 module teasers, sign-up CTA |
-| Dashboard | `/dashboard` | Portfolio value, day's top 5 gainers/losers, learning progress, MASI |
+| Dashboard | `/dashboard` | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress |
 | Bourse | `/bourse`, `/bourse/$ticker` | 81 listed companies, live prices, charts, fundamentals |
-| Portefeuille | `/portefeuille` | Paper-trading with 100 000 MAD, market + limit orders, vs-MASI curve |
-| Académie | `/academie`, `/academie/$slug` | 6 lessons in 3 gated levels, quiz + badge per lesson |
+| Portefeuille | `/portefeuille` | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve |
+| Classement | `/classement` | Leaderboard by portfolio value, cash / invested split |
+| Académie | `/academie`, `/academie/$slug` | 14 lessons in 3 gated levels, quiz + badge per lesson |
+| Actualités | `/actualites` | News feed, readable by every member, written by admins |
 | Budget | `/budget` | Compound-interest projection, 3 risk profiles |
+
+Nav order is fixed in `components/AppShell.tsx`: Actualités sits between Académie and Budget.
 
 **Origin:** built with [Lovable](https://lovable.dev). 93 commits, 2026-07-31 → 2026-08-18. The repo syncs bidirectionally with the Lovable editor: see `AGENTS.md`: **never force-push, rebase, amend, or squash already-pushed commits**, it corrupts project history on Lovable's side.
 
@@ -33,9 +39,10 @@ I ran these in a clean checkout:
 
 | Check | Result |
 |---|---|
-| `npx tsc --noEmit` | ✅ **Clean.** Zero type errors, under a genuinely strict config (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`). |
-| `npm run build` | ✅ **Succeeds** in ~1s. Emits a Cloudflare Workers bundle (`.output/`, auto-generated `wrangler.json`, `nodejs_compat`). |
-| `npm run lint` | ❌ **590 problems**: but **584 are Prettier formatting** and auto-fixable, and the other 6 are benign `react-refresh` warnings inside vendored shadcn/ui files. **Zero real code-quality errors.** `npm run format` clears it. |
+| `npx tsc --noEmit` | ✅ **Clean.** Zero type errors, under a genuinely strict config (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`). Re-run 2026-08-27. |
+| `npm run build` | ✅ **Succeeds** in a few seconds. Emits a Cloudflare Workers bundle (`.output/`, auto-generated `wrangler.json`, `nodejs_compat`). Re-run 2026-08-27. |
+| `npm run lint` | ❌ **~590 problems**: but **584 are Prettier formatting** and auto-fixable, and the other 6 are benign `react-refresh` warnings inside vendored shadcn/ui files. **Zero real code-quality errors.** `npm run format` clears it. Every file touched since is formatted and lint-clean. |
+| `supabase/setup.sql` | ✅ **Applied twice in a row** against a throwaway PostgreSQL 16 with stand-ins for the `auth` and `storage` schemas, 2026-08-27. Clean both times, so it is genuinely re-runnable. |
 | Tests | **None exist.** No test runner, no test files, no CI workflow. |
 
 The codebase is in good mechanical health. The lint number looks alarming and isn't.
@@ -117,7 +124,7 @@ npm run format   # prettier --write .
 |---|---|---|---|---|
 | 1 | **`CSE_SYMBOLS`**: hardcoded array in `src/lib/cse-symbols.ts` | 82 entries (81 companies + MASI) | Manual | **The master list.** Decides what appears on `/bourse` at all, and drives the ticker tape. |
 | 2 | **TradingView scanner**: `getLiveQuotes()` server fn | ~live universe | Live, 60s refetch | Every price and % change shown anywhere in the app. |
-| 3 | **`stock_fundamentals`** table | 37 rows | Analyst consensus, `as_of 2026-05-25` | BPA/DPA on `/bourse` cards; PER and yield are *recomputed* from these against the live price. |
+| 3 | **`stock_metrics`** table | 80 rows | The fundamentals workbook, seeded 2026-08-25 | Everything price-independent (share count, BPA, DPA, book value…). Market cap, PER, yield, P/B, P/S and P/FCF are *derived at render time* against the live price. The older `stock_fundamentals` (37 rows) is no longer read by the market pages. |
 | 4 | **`stocks`** table | 20 rows | Seeded 2026-07-31, **stale** | Sector filter, company description, the `/bourse/$ticker` detail page, and its PER/BPA/PEG/target-price block. |
 
 ### How they join
@@ -191,9 +198,15 @@ Five migrations in `supabase/migrations/`. **Every table has RLS enabled** and t
 | `portfolio_holdings` | N/A | own, via portfolio |
 | `portfolio_trades` | N/A | own, via portfolio |
 | `portfolio_snapshots` | N/A | own, via portfolio; unique on `(portfolio_id, date)` |
-| `portfolio_orders` | N/A | own, via portfolio; `pending`/`filled`/`cancelled`, `updated_at` trigger |
+| `portfolio_orders` | N/A | own, via portfolio; `pending`/`filled`/`cancelled`, `order_type` `market`/`limit`, `updated_at` trigger |
+| `stock_quotes_daily` | grows | public read; one real close per stock per session |
+| `stock_metrics` | 80 | public read; the fundamentals workbook |
+| `user_roles` | N/A | read own (admins read all); written only through `admin_set_role` |
+| `news_posts` | N/A | **read** for `authenticated`; **no write grant at all**, see §9f |
 
 Nice touches: the `handle_new_user()` trigger is `SECURITY DEFINER` with a pinned `search_path`, and migration #2 exists solely to `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on it, that's a deliberate hardening pass.
+
+`supabase/setup.sql` is the whole schema in one re-runnable file, generated by `scripts/build-setup-sql.py`. **Never edit it by hand: add a migration and regenerate.**
 
 **Orphaned schema (v1 leftovers, safe to drop):**
 - `portfolio_positions` table: the original "% weighting" model, fully replaced by `portfolio_holdings`. Nothing reads it.
@@ -203,12 +216,17 @@ Nice touches: the `handle_new_user()` trigger is `SECURITY DEFINER` with a pinne
 
 ## 8. Feature notes
 
-### Portefeuille (`portefeuille.tsx`, 855 lines: the biggest file)
+### Portefeuille (`portefeuille.tsx`: the biggest file)
 
 The most complex module. Starts every user at **100 000 MAD**, auto-creating a portfolio row on first visit.
 
-- **Market orders** execute immediately at the live price.
-- **Limit orders** persist to `portfolio_orders` and fill when `price ≤ limit` (buy) or `price ≥ limit` (sell), at the *current* price rather than the limit: a realistic favourable fill.
+**Orders can be entered around the clock; they only execute during the session.** The session is the real one: Monday to Friday, 09:30–15:30 Casablanca time, public holidays excluded, computed by `lib/market-session.ts` and read through the `useSessionStatus()` hook (`hooks/useMarketSession.ts`, re-evaluated every 30 s).
+
+- **Market orders, session open:** execute immediately at the live price, as before.
+- **Market orders, session closed:** persist to `portfolio_orders` with `order_type = 'market'` and `limit_price = NULL`, and go out at the next open, oldest first.
+- **Limit orders** persist the same way with `order_type = 'limit'`, and fill when `price ≤ limit` (buy) or `price ≥ limit` (sell), at the *current* price rather than the limit: a realistic favourable fill. They too are frozen outside the session, so a Saturday order can no longer fill on Friday's close.
+- The execution loop **runs only while `marketOpen`**, one order per pass (see §10), and the badge above the order form says which of the two is happening: green *Séance ouverte*, amber *Marché fermé, ordre mis en attente*.
+- All `portfolio_orders` access is isolated in **`lib/orders.ts`** (`listPendingOrders`, `placeOrder`, `markOrderFilled`, `cancelOrder`, `fillsAt`), because the generated Supabase types do not know `order_type` yet.
 - `applyTrade()` does the whole thing client-side: recompute weighted average cost, upsert the holding, adjust `portfolios.cash`, insert a `portfolio_trades` row.
 - **Performance vs MASI** is rebased to 100 from the first snapshot that carries a MASI value.
 - **Reset** wipes holdings, trades, snapshots, and orders, and restores cash to 100 000.
@@ -338,6 +356,12 @@ One request covers all 81 stocks. `buildHistory()` is exported apart from the fe
 
 `stock_quotes_daily` records the real close of every stock once per session and backs the sparklines when TradingView cannot be reached. `stock_prices`, the legacy table, is synthetic (a sine wave over `md5(ticker)`) and is charted nowhere.
 
+### What the market cards show
+
+Since 2026-08-27 the `/bourse` cards carry **only the valuation ratios**: market cap, PER 26, PER 27e, D/Y 26, D/Y 27e. BPA 26 / 27e and DPA 26 / 27e were dropped from the list. Nothing was deleted: `detailGroups()` still builds the full dashboard on `/bourse/$ticker`, and the workbook is untouched. Only `summaryMetrics()` changed, and the card spacing was rebalanced for five rows instead of nine.
+
+Two sorts were added next to the existing ones, sharing the same chip row: **PER 26 ascending** (a negative or zero PER is not a cheap stock but a loss-making one, so it goes to the end of the list with the uncomputable ones) and **D/Y 26 descending**. Both read `per26()` and `dy26()`, exported from `lib/metrics.ts` so the sort gets numbers rather than formatted labels.
+
 ### Fundamentals
 
 `stock_metrics` holds the Lyamfi fundamentals workbook, 80 stocks, seeded by `scripts/build-stock-metrics.py` from the xlsx. Regenerate rather than editing the migration by hand. The parser handles what the workbook actually contains: thousands separated by non-breaking spaces (`1 000 000`), and two different blank markers, `_` and `—`.
@@ -378,6 +402,20 @@ Value comes from the most recent `portfolio_snapshots` row, which already carrie
 
 ---
 
+## 9f. Actualités
+
+`/actualites`, between Académie and Budget in the nav. A card feed: illustration on top, gold title, publication date in `JJ/MM/AAAA` right under it, then the body with line breaks preserved.
+
+**The split of rights lives in the database, not the interface.** `authenticated` holds `SELECT` on `news_posts` and nothing else, and the migration `REVOKE`s the three write privileges explicitly. Publishing, editing and deleting go through `news_create`, `news_update` and `news_delete`, three `SECURITY DEFINER` functions that each open with `is_admin()`. Hiding the buttons is cosmetic, exactly as for the admin console. Both admin tiers may write: publishing an article is editorial work, not a privileged operation on an account.
+
+The database also does the validation, so it cannot be bypassed from a console: title and body are trimmed and refused when empty (200 and 20 000 characters max), and an image URL is either empty (stored `NULL`) or starts with `http://` or `https://`.
+
+Illustrations can be pasted as a URL **or** uploaded. Uploads go to a public Storage bucket named `news`, created by the same migration, with write reserved to admins by four `storage.objects` policies. That whole block is wrapped in an exception handler: `storage.objects` belongs to `supabase_storage_admin`, and the SQL editor runs the file as one transaction, so a privilege refusal there would otherwise roll back every migration. If the bucket is missing, uploading shows a specific message and pasting a URL still works.
+
+Client code: `lib/news.ts` (queries, RPC wrappers, upload) and `routes/_authenticated/actualites.tsx` (feed, editor, per-card edit/delete with a self-disarming confirm).
+
+---
+
 ## 10. Known issues, ranked
 
 ### 🔴 Trading integrity is entirely client-side
@@ -388,8 +426,14 @@ For a solo learning sandbox this is acceptable. It blocks **any** competitive fe
 ### 🔴 Cash update is a non-atomic read-modify-write
 `applyTrade` writes `cash: pf.cash - amount`, where `pf.cash` comes from the React Query cache. Two trades in quick succession, or a stale cache, silently clobber the balance. The same server-side RPC solves this.
 
-### 🟠 Limit orders only fill while the tab is open
-The fill loop is a `useEffect` on the portfolio page: no open tab, no execution. It also fills **at most one order per pass**, so a user with several triggerable orders fills them one render at a time. A scheduled server job (Supabase cron + the trade RPC above) is the real fix.
+### 🟠 Pending orders only fill while the tab is open
+The fill loop is a `useEffect` on the portfolio page: no open tab, no execution. That now covers market orders queued out of session as well as limit orders, so a player who queues an order on Sunday night and never opens the page on Monday stays unfilled. It also fills **at most one order per pass**, deliberately: `applyTrade()` reads cash from the React Query cache, so chaining two fills on the same cached balance would clobber it. The invalidation restarts the pass on fresh data, and the book drains one order at a time. A scheduled server job (Supabase cron + the trade RPC above) is the real fix for both halves.
+
+### 🟠 The trading session is the browser's clock
+`isMarketOpen` is computed client-side from `Intl.DateTimeFormat` in the `Africa/Casablanca` zone. A user whose device clock is wrong, or who changes it, can make the app believe the session is open. Given trading is already client-side (see the 🔴 items), this adds no new exposure, but it moves server-side with them. Until then, the code fails **closed**: before the clock is read (SSR, first render) the session counts as shut, because queuing an order can be undone and executing one wrongly cannot.
+
+### 🟠 The MASI 20 symbol is not documented
+TradingView publishes no stable code for the MASI 20. `lib/quotes.functions.ts` therefore *discovers* it: it first asks the scanner for everything typed `index` on CSEMA, then falls back to a candidate list (`MASI20`, `MSI20`, `MASI_20`), and normalises whatever comes back to the internal code `MASI20`. If none of it resolves, the dashboard card renders with *Indice indisponible* rather than disappearing, and the TradingView link still works. **This could not be verified from the audit environment: `scanner.tradingview.com` answers 403 to CONNECT there.** Check the card on the live site; if it is empty, the right code goes in `INDEX_CANDIDATES`.
 
 ### 🟠 The performance curve only advances when someone visits
 Snapshots are written client-side on page view, so the vs-MASI chart has gaps for every day the user didn't log in. The chart also needs ≥2 snapshots before it renders anything: a new user sees only explanatory text on day one.
@@ -404,6 +448,7 @@ A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts 
 
 ### 🟡 Dead code
 - `components/LazyTradingView.tsx`: no longer imported since the market cards dropped their embed.
+- `lib/market.ts` `stocksQuery` is no longer read by the dashboard (only `/bourse` uses it).
 - `integrations/supabase/auth-middleware.ts`: generated, never imported.
 - `integrations/supabase/client.server.ts`: the service-role admin client; no server-side admin code exists, so it's unused (and its env var is absent).
 - `cseName` and `CSE_TICKERS` exports in `cse-symbols.ts`.
@@ -424,14 +469,15 @@ A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts 
 
 Roughly in order of value-per-effort:
 
-1. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature.
-2. **Translate the lesson content**, if English learners matter. Needs a schema change on `lessons`; see §9b.
-3. **Extend the Moroccan holiday table** in `lib/market-session.ts` past 2027.
+0. **Check the MASI 20 card on the live site** (see §10). One minute of work, and it is the only part of the 2026-08-27 batch that could not be verified from here.
+1. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature. Now that the session gates execution, that RPC should also own the clock, so the server decides what "open" means rather than the browser.
+2. **Translate the lesson content**, if English learners matter. Needs a schema change on `lessons`; see §9b. The `news_posts` rows are French-only for the same reason.
+3. **Extend the Moroccan holiday table** in `lib/market-session.ts` past 2027. It now gates order execution, not just a badge, so a missing holiday means orders filling on a closed day.
 4. **Self-host the logo.** Required before any non-Lovable deployment.
 5. **Run `npm run format`** and get lint to zero, so it's a usable signal again.
 6. **Backfill the `stocks` table** for the other 61 listings: the single biggest content gap.
 7. **Move trading to a Postgres RPC**, closing both the integrity hole and the cash race, and unlocking leaderboards.
-8. **Server-side limit-order execution** via scheduled job.
+8. **Server-side order execution** via scheduled job: the queue now holds market orders as well, so a player who never reopens the page never gets filled.
 9. **Add a test suite**: `applyTrade`, `buildLevelProgress`, and the compound-interest loop are pure, well-isolated logic and would be cheap to cover.
 10. **Fix the stale detail page**: recompute PER/BPA/yield from live prices as the list page already does, so the two views agree.
 
@@ -442,7 +488,60 @@ Roughly in order of value-per-effort:
 - Never force-push, rebase, amend or squash pushed commits (`AGENTS.md`).
 - `bun install` will fail: use `npm install` (§3).
 - Anything imported by a route or a `*.functions.ts` file **ships to the client bundle**; server-only code must live in `*.server.ts` and be imported inside a handler.
+- `src/integrations/supabase/types.ts` is regenerated from the database and knows nothing about tables or columns added by migration. Do not edit it: isolate the cast in a `lib/*.ts` module, as `metrics.ts`, `quotes.history.ts`, `news.ts` and `orders.ts` all do.
+- Never edit `supabase/setup.sql` by hand: add a migration and run `python3 scripts/build-setup-sql.py`.
+- A key added to `lib/locales/fr.ts` must be added to `en.ts` too, or the build fails. That is deliberate.
 
 ### Unverified
 
 The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not be reached from the environment I audited in (outbound access to it was blocked by network policy (403 on CONNECT), not by anything in the app. The calling code in `lib/quotes.functions.ts` is sound, and it's an undocumented public endpoint with no API key, so **treat it as a dependency that can change or rate-limit without notice**), it is the single point of failure for every price in the product. There is currently no fallback if it fails: prices render as `, `.
+
+---
+
+## 12. What to run in the Supabase SQL editor
+
+Two migrations were added on 2026-08-27 and **the app needs them before the new screens work**:
+
+- `supabase/migrations/20260827090000_news.sql`: the `news_posts` table, its policy, the three admin RPCs, and the `news` Storage bucket with its policies.
+- `supabase/migrations/20260827091000_session_orders.sql`: `portfolio_orders.order_type`, a nullable `limit_price`, and the cross-check that ties the two together.
+
+Both are already folded into `supabase/setup.sql`. **Simplest path:** open Supabase → **SQL Editor** → **New query**, paste the whole of `supabase/setup.sql`, Run. It is re-runnable, so replaying it on the existing database is safe and applies only what is missing. Expect *Success. No rows returned.*
+
+Prefer a shorter script? Paste just the two files above, in that order.
+
+### Checking it landed
+
+```sql
+-- 1. The news table and its functions.
+select table_name from information_schema.tables
+ where table_schema = 'public' and table_name = 'news_posts';
+
+select routine_name from information_schema.routines
+ where routine_schema = 'public' and routine_name like 'news\_%' order by 1;
+-- expected 5: news_clean_image, news_clean_text, news_create, news_delete, news_update
+-- (the two news_clean_* are the validators the three RPCs call; they are not
+--  callable by anyone else, EXECUTE is revoked from authenticated and anon)
+
+-- 2. Members may read the news and nothing else.
+select grantee, privilege_type from information_schema.role_table_grants
+ where table_name = 'news_posts' and grantee = 'authenticated';
+-- expected: exactly one row, SELECT
+
+-- 3. Orders carry a type, and limit_price is now optional.
+select column_name, is_nullable from information_schema.columns
+ where table_name = 'portfolio_orders' and column_name in ('order_type', 'limit_price');
+-- expected: order_type NO, limit_price YES
+
+-- 4. The image bucket exists and is public.
+select id, public from storage.buckets where id = 'news';
+-- expected: news | t
+
+-- 5. Uploads are reserved to admins.
+select policyname from pg_policies
+ where schemaname = 'storage' and policyname like 'news%' order by 1;
+-- expected 4: public read, plus insert / update / delete gated on is_admin()
+```
+
+If query 4 returns nothing, the bucket creation was refused by privileges (the migration swallows that on purpose, so the rest still applies). Create it by hand: **Storage → New bucket**, name `news`, **Public** on, then replay the `DO $storage$ … $storage$;` block at the end of the news migration to attach the admin-only write policies. Until then, admins can still illustrate an article by pasting an image URL.
+
+**Nothing else changed on the database.** No table was dropped, no seed rewritten, no existing row touched: `order_type` defaults to `'limit'`, which is exactly what every existing order already was.
