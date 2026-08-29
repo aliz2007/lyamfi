@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Newspaper, Pencil, Trash2, Upload } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { ImagePlus, Newspaper, Pencil, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   createNews,
@@ -9,16 +9,19 @@ import {
   MAX_IMAGE_BYTES,
   NewsUploadError,
   newsQuery,
+  toDayInput,
   updateNews,
   uploadNewsImage,
   type NewsDraft,
   type NewsPost,
 } from "@/lib/news";
+import { plainExcerpt } from "@/lib/excerpt";
+import { MacroBanner } from "@/components/MacroBanner";
 import { myRoleQuery } from "@/lib/admin";
 import { useFormat, type Formatter } from "@/lib/format";
 import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 
-export const Route = createFileRoute("/_authenticated/actualites")({
+export const Route = createFileRoute("/_authenticated/actualites/")({
   head: () => ({
     meta: [
       { title: "Actualités de la Bourse de Casablanca | Lyamfi" },
@@ -28,16 +31,19 @@ export const Route = createFileRoute("/_authenticated/actualites")({
           "Les actualités de la Bourse de Casablanca publiées par Lyamfi : résultats, opérations et mouvements de la cote.",
       },
       { property: "og:title", content: "Actualités | Lyamfi" },
-      {
-        property: "og:description",
-        content: "Le fil d'actualité boursière de Lyamfi.",
-      },
+      { property: "og:description", content: "Le fil d'actualité boursière de Lyamfi." },
     ],
   }),
   component: NewsPage,
 });
 
-const EMPTY_DRAFT: NewsDraft = { title: "", body: "", imageUrl: "" };
+const emptyDraft = (): NewsDraft => ({
+  title: "",
+  body: "",
+  imageUrl: "",
+  // Une publication est datée du jour, sauf décision contraire du rédacteur.
+  publishedAt: new Date().toISOString().slice(0, 10),
+});
 
 function NewsPage() {
   const { t } = useI18n();
@@ -49,16 +55,16 @@ function NewsPage() {
   const isAdmin = role === "admin";
   const { data: posts = [], isLoading, error } = useQuery(newsQuery);
 
+  const [search, setSearch] = useState("");
   /** `null` : le formulaire publie. Sinon il corrige l'article de cet identifiant. */
   const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState<NewsDraft>(EMPTY_DRAFT);
+  const [draft, setDraft] = useState<NewsDraft>(emptyDraft);
   const formRef = useRef<HTMLDivElement>(null);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["news"] });
-
   const reset = () => {
     setEditing(null);
-    setDraft(EMPTY_DRAFT);
+    setDraft(emptyDraft());
   };
 
   const publish = useMutation({
@@ -85,8 +91,6 @@ function NewsPage() {
     mutationFn: (id: string) => deleteNews(id),
     onSuccess: (_d, id) => {
       toast.success(t("news.deleted"));
-      // L'article corrigé vient de disparaître : le formulaire ne doit pas
-      // rester ouvert sur une cible qui n'existe plus.
       if (editing === id) reset();
       refresh();
     },
@@ -95,12 +99,28 @@ function NewsPage() {
 
   const startEdit = (post: NewsPost) => {
     setEditing(post.id);
-    setDraft({ title: post.title, body: post.body, imageUrl: post.imageUrl ?? "" });
+    setDraft({
+      title: post.title,
+      body: post.body,
+      imageUrl: post.imageUrl ?? "",
+      publishedAt: toDayInput(post.publishedAt),
+    });
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  /** Filtrage sur les titres, à la frappe. Aucun aller-retour réseau. */
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return posts;
+    return posts.filter((p) => p.title.toLowerCase().includes(needle));
+  }, [posts, search]);
+
   return (
     <div className="space-y-8">
+      {/* La macroéconomie avant la cote : ce qui cadre l'actualité passe en
+          tête, au-dessus même de la recherche. */}
+      <MacroBanner />
+
       <header className="rise">
         <div className="flex items-center gap-2">
           <Newspaper className="h-5 w-5 text-[var(--brand-yellow)]" />
@@ -111,9 +131,17 @@ function NewsPage() {
         </p>
       </header>
 
-      {/* Le formulaire n'est rendu que pour un administrateur. La barrière
-          réelle est côté base : les trois RPC revérifient is_admin(), et
-          `authenticated` n'a que le SELECT sur la table. */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("news.searchPlaceholder")}
+          aria-label={t("news.searchPlaceholder")}
+          className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-primary"
+        />
+      </div>
+
       {isAdmin && (
         <div ref={formRef}>
           <Editor
@@ -143,12 +171,14 @@ function NewsPage() {
             {t(isAdmin ? "news.emptyAdmin" : "news.emptyHint")}
           </p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="glass p-8 text-center">
+          <p className="text-sm text-muted-foreground">{t("news.noMatch", { q: search.trim() })}</p>
+        </div>
       ) : (
-        // `items-start` : chaque carte garde sa hauteur propre, sinon la plus
-        // longue de la rangée étirerait les autres et creuserait des blancs.
-        <div className="grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {posts.map((post) => (
-            <Article
+        <div className="space-y-4">
+          {filtered.map((post) => (
+            <ArticleCard
               key={post.id}
               post={post}
               t={t}
@@ -166,9 +196,16 @@ function NewsPage() {
   );
 }
 
-/* ------------------------------------------------------------------ article */
+/* -------------------------------------------------------------- vignette */
 
-function Article({
+/**
+ * Vignette horizontale : image à gauche, texte à droite, empilé sur mobile.
+ *
+ * La carte entière mène à l'article. Les commandes d'administration sont donc
+ * posées HORS du lien : imbriquer un bouton dans une ancre produit un balisage
+ * invalide, et cliquer « Supprimer » ouvrirait l'article au passage.
+ */
+function ArticleCard({
   post,
   t,
   f,
@@ -188,84 +225,94 @@ function Article({
   deleting: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
-
-  // Une suppression demandée puis laissée en suspens ne doit pas rester armée :
-  // la carte revient d'elle-même à son état normal.
-  useEffect(() => {
-    if (!confirming) return;
-    const id = setTimeout(() => setConfirming(false), 6000);
-    return () => clearTimeout(id);
-  }, [confirming]);
+  const excerpt = useMemo(() => plainExcerpt(post.body), [post.body]);
 
   return (
     <article
-      className={`surface-raised overflow-hidden ${
+      className={`surface-raised card-hover group overflow-hidden ${
         editing ? "border-primary/60 ring-1 ring-primary/30" : ""
       }`}
     >
-      {post.imageUrl && (
-        <img
-          src={post.imageUrl}
-          alt=""
-          loading="lazy"
-          className="aspect-[16/9] w-full object-cover"
-          // Une URL saisie à la main peut être morte : la vignette disparaît
-          // plutôt que de laisser l'icône d'image cassée du navigateur.
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-      )}
+      <Link
+        to="/actualites/$id"
+        params={{ id: post.id }}
+        className="grid gap-0 sm:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]"
+      >
+        <div className="relative aspect-[16/9] overflow-hidden bg-[oklch(0.22_0.006_90)] sm:aspect-[4/3]">
+          {post.imageUrl ? (
+            <img
+              src={post.imageUrl}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <span className="grid h-full w-full place-items-center">
+              <Newspaper className="h-8 w-8 text-muted-foreground/40" />
+            </span>
+          )}
+        </div>
 
-      <div className="p-5 sm:p-6">
-        <h2 className="text-lg font-semibold leading-snug text-brand-yellow">{post.title}</h2>
-        <p className="mt-1.5 text-xs tabular-nums text-muted-foreground">
-          {f.numericDate(post.publishedAt)}
-        </p>
-        <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-          {post.body}
-        </p>
+        <div className="min-w-0 p-5 sm:p-6">
+          <h2 className="text-lg font-bold leading-snug transition-colors group-hover:text-brand-yellow sm:text-xl">
+            {post.title}
+          </h2>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {f.weekdayDate(post.publishedAt)} · Lyamfi
+          </p>
+          {/* Trois lignes, coupées par le CSS : l'article entier se lit sur sa
+              page, pas dans le flux. */}
+          <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+            {excerpt}
+          </p>
+          <span className="mt-4 inline-block text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+            {t("news.readMore")} →
+          </span>
+        </div>
+      </Link>
 
-        {isAdmin && (
-          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
-            <button
-              onClick={onEdit}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3.5 py-1.5 text-xs text-brand-yellow transition-colors hover:bg-accent"
-            >
-              <Pencil className="h-3.5 w-3.5" /> {t("news.edit")}
-            </button>
-            {confirming ? (
-              <>
-                <button
-                  disabled={deleting}
-                  onClick={onDelete}
-                  className="rounded-full bg-destructive px-3.5 py-1.5 text-xs font-semibold text-destructive-foreground disabled:opacity-50"
-                >
-                  {deleting ? t("news.deleting") : t("news.deleteConfirm")}
-                </button>
-                <button
-                  onClick={() => setConfirming(false)}
-                  className="rounded-full border border-border px-3.5 py-1.5 text-xs text-muted-foreground"
-                >
-                  {t("common.cancel")}
-                </button>
-              </>
-            ) : (
+      {isAdmin && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-5 py-3 sm:px-6">
+          <button
+            onClick={onEdit}
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3.5 py-1.5 text-xs text-brand-yellow transition-colors hover:bg-accent"
+          >
+            <Pencil className="h-3.5 w-3.5" /> {t("news.edit")}
+          </button>
+          {confirming ? (
+            <>
               <button
-                onClick={() => setConfirming(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-destructive/50 px-3.5 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10"
+                disabled={deleting}
+                onClick={onDelete}
+                className="rounded-full bg-destructive px-3.5 py-1.5 text-xs font-semibold text-destructive-foreground disabled:opacity-50"
               >
-                <Trash2 className="h-3.5 w-3.5" /> {t("news.delete")}
+                {deleting ? t("news.deleting") : t("news.deleteConfirm")}
               </button>
-            )}
-          </div>
-        )}
-      </div>
+              <button
+                onClick={() => setConfirming(false)}
+                className="rounded-full border border-border px-3.5 py-1.5 text-xs text-muted-foreground"
+              >
+                {t("common.cancel")}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirming(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-destructive/50 px-3.5 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> {t("news.delete")}
+            </button>
+          )}
+        </div>
+      )}
     </article>
   );
 }
 
-/* ------------------------------------------------------------------- éditeur */
+/* --------------------------------------------------------------- éditeur */
 
 function Editor({
   t,
@@ -317,6 +364,9 @@ function Editor({
     }
   };
 
+  const field =
+    "w-full rounded-xl border border-input bg-background/60 px-4 py-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
+
   return (
     <section className="surface-raised p-5 sm:p-7">
       <h2 className="text-sm font-semibold">{t(editing ? "news.formEdit" : "news.formNew")}</h2>
@@ -335,7 +385,7 @@ function Editor({
               placeholder="https://…"
               inputMode="url"
               maxLength={2000}
-              className="min-w-0 flex-1 rounded-xl border border-input bg-background/60 px-4 py-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className={`min-w-0 flex-1 ${field}`}
             />
             <input
               ref={fileRef}
@@ -379,18 +429,32 @@ function Editor({
           )}
         </div>
 
-        <div>
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="news-title">
-            {t("news.fieldTitle")}
-          </label>
-          <input
-            id="news-title"
-            value={draft.title}
-            onChange={(e) => set("title", e.target.value)}
-            maxLength={200}
-            placeholder={t("news.titlePlaceholder")}
-            className="mt-1.5 w-full rounded-xl border border-input bg-background/60 px-4 py-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
-          />
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem]">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="news-title">
+              {t("news.fieldTitle")}
+            </label>
+            <input
+              id="news-title"
+              value={draft.title}
+              onChange={(e) => set("title", e.target.value)}
+              maxLength={200}
+              placeholder={t("news.titlePlaceholder")}
+              className={`mt-1.5 ${field}`}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="news-date">
+              {t("news.fieldDate")}
+            </label>
+            <input
+              id="news-date"
+              type="date"
+              value={draft.publishedAt}
+              onChange={(e) => set("publishedAt", e.target.value)}
+              className={`mt-1.5 ${field}`}
+            />
+          </div>
         </div>
 
         <div>
@@ -401,11 +465,14 @@ function Editor({
             id="news-body"
             value={draft.body}
             onChange={(e) => set("body", e.target.value)}
-            rows={8}
+            rows={10}
             maxLength={20000}
             placeholder={t("news.bodyPlaceholder")}
-            className="mt-1.5 w-full resize-y rounded-xl border border-input bg-background/60 px-4 py-3 text-sm leading-relaxed outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className={`mt-1.5 resize-y leading-relaxed ${field}`}
           />
+          <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+            {t("news.bodyFormatting")}
+          </p>
         </div>
       </div>
 

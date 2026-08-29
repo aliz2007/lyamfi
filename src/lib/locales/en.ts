@@ -31,7 +31,6 @@ export const en: Record<keyof typeof fr, string> = {
   "nav.portfolio": "Portfolio",
   "nav.academy": "Academy",
   "nav.news": "News",
-  "nav.budget": "Budget",
   "nav.admin": "Admin",
   "nav.account": "My account",
   "nav.signOut": "Sign out",
@@ -126,6 +125,7 @@ export const en: Record<keyof typeof fr, string> = {
   "auth.errPasswordRules": "Your password doesn't meet all the conditions below yet.",
   "auth.errPasswordLong": "A password cannot be longer than {max} characters.",
   "auth.errMismatch": "The two passwords don't match.",
+  "auth.restoring": "Signing you back in…",
   "auth.errCredentials": "Incorrect email or password.",
   "auth.errUnconfirmed":
     "Your address hasn't been confirmed yet. Check your inbox, and your spam folder.",
@@ -310,6 +310,14 @@ export const en: Record<keyof typeof fr, string> = {
   "pf.okFilledSell": "Limit order filled: sold {qty} {ticker} at MAD {price}",
   "pf.okQueuedBuy": "Market closed: buy of {qty} {ticker} queued for the next open",
   "pf.okQueuedSell": "Market closed: sell of {qty} {ticker} queued for the next open",
+  "pf.okSellTaxed": "Sold {qty} {ticker} at {price} MAD, including {tax} MAD of capital-gains tax",
+  "pf.okFilledSellTaxed":
+    "Order filled: sold {qty} {ticker} at {price} MAD, including {tax} MAD of tax",
+  "pf.saleTaxPreview":
+    "If you sell this quantity: {tax} of capital-gains tax ({rate} %), leaving {net} net.",
+  "pf.taxTitle": "Capital-gains tax",
+  "pf.taxNote":
+    "Every sale that realises a gain is taxed at {rate} %, as Morocco taxes disposals of listed securities. The tax falls on the gain alone, never on the sale amount: selling MAD 10,000 of shares bought for 9,000 costs 150, not 1,500. A sale at a loss is not taxed, and earns no tax credit here. It is withheld at the moment of sale, so it is the net proceeds that reach your cash.",
   "pf.okCancelled": "Order cancelled",
   "pf.errFilled": "Limit order cancelled ({ticker}): {reason}",
   "pf.okReset": "Portfolio reset to MAD 100,000",
@@ -583,6 +591,34 @@ export const en: Record<keyof typeof fr, string> = {
     "No fundamentals published for this stock. The price and the chart are still available.",
   "metric.liveNote": "The yellow dot marks a figure recomputed at today's price.",
 
+  /* ----------------------------------------------------------- simulators */
+  "nav.simulators": "Simulators",
+  "sim.title": "Simulators",
+  "sim.intro":
+    "Two calculations that decide a fortune: what savings earn when left to work, and what a loan really costs.",
+  "sim.investTitle": "Investing and compound interest",
+  "sim.creditTitle": "Credit simulator",
+  "sim.creditIntro":
+    "The interest rate your bank advertises does not reflect what the loan really costs. Once insurance, arrangement fees and VAT are added, the true effective rate (the APR) is invariably higher. On a long-dated loan, the mathematics of amortisation mean you can easily pay out more than 60 % of the amount borrowed in bank fees and interest alone. This simulator shows you the real bill for your credit.",
+  "sim.amount": "Amount borrowed",
+  "sim.rate": "Nominal annual interest rate",
+  "sim.duration": "Loan term",
+  "sim.yearsUnit": "years",
+  "sim.fees": "Fees and insurance (per month)",
+  "sim.feesHint":
+    "MAD {amount} by default, the going rate on the Moroccan market. Replace it if your bank quotes something else.",
+  "sim.monthlyAllIn": "All-in monthly payment",
+  "sim.monthlyDetail": "{loan} of loan repayment and {fees} of fees and insurance",
+  "sim.totalCost": "Total cost of the credit",
+  "sim.costRatio": "that is {pct} % of the amount borrowed, on top of the capital",
+  "sim.apr": "Estimated APR",
+  "sim.aprHint": "against the {nominal} % nominal rate advertised",
+  "sim.breakdown": "Where your money goes",
+  "sim.partCapital": "Capital repaid",
+  "sim.partInterest": "Interest",
+  "sim.partFees": "Insurance and fees",
+  "sim.totalPaid": "Total paid out",
+
   /* ------------------------------------------------------------------- news */
   "news.title": "News",
   "news.intro":
@@ -621,4 +657,35 @@ export const en: Record<keyof typeof fr, string> = {
   "news.delete": "Delete",
   "news.deleteConfirm": "Confirm deletion",
   "news.deleting": "Deleting…",
+  "news.searchPlaceholder": "Search the news by title",
+  "news.noMatch": "No article matches « {q} ».",
+  "news.readMore": "Read the article",
+  "news.back": "Back to the news",
+  "news.fieldDate": "Publication date",
+  "news.bodyFormatting":
+    "Formatting: « ## » for a subheading, « - » for a list, « 1. » for a numbered list, « --- » for a separator, « **bold** » for emphasis.",
+  "news.notFound": "This article could not be found.",
+  "news.notFoundHint": "It may have been removed since the link was shared.",
+  "news.articleFooter":
+    "Published by the Lyamfi team. Educational tool, this is not investment advice.",
+
+  /* ------------------------------------------------------- macroeconomics */
+  "macro.bannerTitle": "Macroeconomic data",
+  "macro.bannerText": "Follow inflation, GDP and policy rates in Morocco.",
+  "macro.title": "Macroeconomic indicators",
+  "macro.intro":
+    "The figures that drive the exchange. A higher policy rate makes credit dearer and weighs on valuations; inflation eats into real returns; growth decides the earnings to come.",
+  "macro.back": "Back to the news",
+  "macro.inflation": "Inflation rate",
+  "macro.inflationText": "Consumer price growth, year on year.",
+  "macro.gdp": "GDP growth",
+  "macro.gdpText": "Quarterly change in the country's output.",
+  "macro.rate": "Policy interest rate",
+  "macro.rateText": "Bank Al-Maghrib's rate: the price of money for the whole economy.",
+  "macro.unemployment": "Unemployment rate",
+  "macro.unemploymentText": "Share of the labour force without a job.",
+  "macro.employment": "Employment rate",
+  "macro.employmentText": "Share of the working-age population in work.",
+  "macro.source":
+    "Charts provided by TradingView from public statistics. An empty indicator means the series has not been updated at the source yet.",
 };

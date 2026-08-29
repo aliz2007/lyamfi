@@ -65,13 +65,54 @@ export const newsQuery = {
   staleTime: 60_000,
 };
 
-export type NewsDraft = { title: string; body: string; imageUrl: string };
+/**
+ * Un article précis, pour la page de lecture.
+ *
+ * Servi depuis le flux plutôt que par une requête sur l'identifiant : le flux
+ * est déjà en cache quand on clique une carte, donc l'article s'ouvre sans
+ * aller-retour réseau. La clé commence par « news », donc invalider le flux
+ * invalide aussi les articles ouverts.
+ */
+export const newsPostQuery = (id: string) => ({
+  queryKey: ["news", id],
+  queryFn: async (): Promise<NewsPost | null> => {
+    const posts = await newsQuery.queryFn();
+    return posts.find((p) => p.id === id) ?? null;
+  },
+  staleTime: 60_000,
+});
+
+/**
+ * Brouillon d'article tel que le formulaire le manipule.
+ *
+ * `publishedAt` est une date au format `AAAA-MM-JJ`, celui qu'un
+ * `<input type="date">` produit et relit sans conversion. Vide, la base date
+ * la publication de maintenant à la création, et laisse la date en place à la
+ * modification.
+ */
+export type NewsDraft = {
+  title: string;
+  body: string;
+  imageUrl: string;
+  publishedAt: string;
+};
+
+/** `AAAA-MM-JJ` vers un instant, midi UTC pour ne pas glisser de jour. */
+const toTimestamp = (day: string): string | null =>
+  /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T12:00:00Z`).toISOString() : null;
+
+/** Instant vers `AAAA-MM-JJ`, pour repeupler le champ à la modification. */
+export const toDayInput = (iso: string): string => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+};
 
 export async function createNews(draft: NewsDraft): Promise<string> {
   return callRpc<string>("news_create", {
     p_title: draft.title,
     p_body: draft.body,
     p_image_url: draft.imageUrl,
+    p_published_at: toTimestamp(draft.publishedAt),
   });
 }
 
@@ -81,6 +122,7 @@ export async function updateNews(id: string, draft: NewsDraft): Promise<void> {
     p_title: draft.title,
     p_body: draft.body,
     p_image_url: draft.imageUrl,
+    p_published_at: toTimestamp(draft.publishedAt),
   });
 }
 

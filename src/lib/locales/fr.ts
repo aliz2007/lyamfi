@@ -32,7 +32,6 @@ export const fr = {
   "nav.portfolio": "Portefeuille",
   "nav.academy": "Académie",
   "nav.news": "Actualités",
-  "nav.budget": "Budget",
   "nav.admin": "Admin",
   "nav.account": "Mon compte",
   "nav.signOut": "Quitter",
@@ -129,6 +128,7 @@ export const fr = {
     "Ton mot de passe ne remplit pas encore toutes les conditions ci-dessous.",
   "auth.errPasswordLong": "Le mot de passe ne peut pas dépasser {max} caractères.",
   "auth.errMismatch": "Les deux mots de passe ne sont pas identiques.",
+  "auth.restoring": "Reconnexion à ton espace…",
   "auth.errCredentials": "E-mail ou mot de passe incorrect.",
   "auth.errUnconfirmed":
     "Ton adresse n'est pas encore confirmée. Vérifie ta boîte mail, et les spams.",
@@ -314,6 +314,15 @@ export const fr = {
   "pf.okFilledSell": "Ordre limité exécuté : vente de {qty} {ticker} à {price} MAD",
   "pf.okQueuedBuy": "Marché fermé : achat de {qty} {ticker} mis en attente pour l'ouverture",
   "pf.okQueuedSell": "Marché fermé : vente de {qty} {ticker} mise en attente pour l'ouverture",
+  "pf.okSellTaxed":
+    "Vente de {qty} {ticker} à {price} MAD, dont {tax} MAD d'impôt sur la plus-value",
+  "pf.okFilledSellTaxed":
+    "Ordre exécuté : vente de {qty} {ticker} à {price} MAD, dont {tax} MAD d'impôt",
+  "pf.saleTaxPreview":
+    "Si tu vends cette quantité : {tax} d'impôt sur la plus-value ({rate} %), soit {net} nets.",
+  "pf.taxTitle": "Impôt sur les plus-values",
+  "pf.taxNote":
+    "Chaque vente qui dégage une plus-value est taxée à {rate} %, comme au Maroc sur les cessions de valeurs mobilières cotées. L'impôt ne porte que sur le gain et jamais sur le montant de la vente : revendre 10 000 MAD de titres achetés 9 000 coûte 150 MAD, pas 1 500. Une vente à perte n'est pas taxée, et ne donne pas de crédit d'impôt ici. La retenue se fait au moment de la vente : ce sont les liquidités nettes qui rentrent.",
   "pf.okCancelled": "Ordre annulé",
   "pf.errFilled": "Ordre limité annulé ({ticker}) : {reason}",
   "pf.okReset": "Portefeuille réinitialisé à 100 000 MAD",
@@ -590,6 +599,34 @@ export const fr = {
     "Aucune donnée fondamentale publiée pour cette valeur. Le cours et le graphique restent disponibles.",
   "metric.liveNote": "Le point jaune signale un indicateur recalculé au cours du jour.",
 
+  /* ---------------------------------------------------------- simulateurs */
+  "nav.simulators": "Simulateurs",
+  "sim.title": "Simulateurs",
+  "sim.intro":
+    "Deux calculs qui décident d'un patrimoine : ce que l'épargne rapporte quand on la laisse travailler, et ce qu'un crédit coûte vraiment.",
+  "sim.investTitle": "Investissement et intérêts composés",
+  "sim.creditTitle": "Simulateur de crédit",
+  "sim.creditIntro":
+    "Le taux d'intérêt mis en avant par votre banque ne reflète pas le coût réel de votre emprunt. Une fois les assurances, les frais de dossier et la TVA ajoutés, le véritable taux effectif (le TAEG) est systématiquement plus élevé. Sur un financement de longue durée, la mécanique mathématique de l'amortissement fait que vous pouvez facilement débourser plus de 60 % de la somme initiale empruntée uniquement en frais et intérêts bancaires. Ce simulateur vous dévoile la véritable facture de votre crédit.",
+  "sim.amount": "Capital à emprunter",
+  "sim.rate": "Taux d'intérêt annuel nominal",
+  "sim.duration": "Durée du prêt",
+  "sim.yearsUnit": "ans",
+  "sim.fees": "Frais annexes et assurance (par mois)",
+  "sim.feesHint":
+    "{amount} MAD par défaut, la moyenne constatée sur le marché marocain. Remplace la valeur si ta banque t'annonce autre chose.",
+  "sim.monthlyAllIn": "Mensualité tout compris",
+  "sim.monthlyDetail": "{loan} d'échéance et {fees} de frais et assurance",
+  "sim.totalCost": "Coût total du crédit",
+  "sim.costRatio": "soit {pct} % du capital emprunté, en plus du capital",
+  "sim.apr": "TAEG estimé",
+  "sim.aprHint": "contre {nominal} % de taux nominal affiché",
+  "sim.breakdown": "Où part ton argent",
+  "sim.partCapital": "Capital remboursé",
+  "sim.partInterest": "Intérêts",
+  "sim.partFees": "Assurance et frais",
+  "sim.totalPaid": "Total décaissé",
+
   /* ----------------------------------------------------------- actualités */
   "news.title": "Actualités",
   "news.intro":
@@ -629,4 +666,35 @@ export const fr = {
   "news.delete": "Supprimer",
   "news.deleteConfirm": "Confirmer la suppression",
   "news.deleting": "Suppression…",
+  "news.searchPlaceholder": "Rechercher une actualité par son titre",
+  "news.noMatch": "Aucune actualité ne correspond à « {q} ».",
+  "news.readMore": "Lire l'article",
+  "news.back": "Retour aux actualités",
+  "news.fieldDate": "Date de publication",
+  "news.bodyFormatting":
+    "Mise en forme : « ## » pour un sous-titre, « - » pour une liste, « 1. » pour une liste numérotée, « --- » pour un séparateur, « **gras** » pour l'emphase.",
+  "news.notFound": "Cette actualité est introuvable.",
+  "news.notFoundHint": "Elle a peut-être été retirée depuis que le lien a été partagé.",
+  "news.articleFooter":
+    "Publié par l'équipe Lyamfi. Outil pédagogique, ne constitue pas un conseil en investissement.",
+
+  /* ------------------------------------------------------ macroéconomie */
+  "macro.bannerTitle": "Données macroéconomiques",
+  "macro.bannerText": "Suivez l'évolution de l'inflation, du PIB et des taux directeurs au Maroc.",
+  "macro.title": "Indicateurs macroéconomiques",
+  "macro.intro":
+    "Les chiffres qui commandent la cote. Une hausse du taux directeur renchérit le crédit et pèse sur les valorisations ; l'inflation ronge les rendements réels ; la croissance décide des résultats à venir.",
+  "macro.back": "Retour aux actualités",
+  "macro.inflation": "Taux d'inflation",
+  "macro.inflationText": "Hausse des prix à la consommation, en glissement annuel.",
+  "macro.gdp": "Croissance du PIB",
+  "macro.gdpText": "Variation trimestrielle de la production du pays.",
+  "macro.rate": "Taux directeur",
+  "macro.rateText": "Le taux de Bank Al-Maghrib : le prix de l'argent pour toute l'économie.",
+  "macro.unemployment": "Taux de chômage",
+  "macro.unemploymentText": "Part de la population active sans emploi.",
+  "macro.employment": "Taux d'emploi",
+  "macro.employmentText": "Part de la population en âge de travailler qui occupe un emploi.",
+  "macro.source":
+    "Graphiques fournis par TradingView à partir des statistiques publiques. Un indicateur momentanément vide signifie que la série n'a pas encore été mise à jour à la source.",
 } as const;

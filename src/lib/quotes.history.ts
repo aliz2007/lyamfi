@@ -48,10 +48,12 @@ export const quoteHistoryQuery = (ticker: string) => ({
 });
 
 /**
- * Dépose la clôture du jour pour toutes les valeurs cotées.
+ * Dépose le cours du jour pour toutes les valeurs cotées.
  *
- * La base ignore un couple (valeur, jour) déjà enregistré, donc appeler cette
- * fonction plusieurs fois par jour ne coûte rien et n'écrase jamais rien.
+ * La base met à jour la ligne du jour à chaque appel, et laisse les jours
+ * passés intacts : le dernier cours reçu avant la fin de la séance devient
+ * la clôture, puisque plus rien n'arrive après. C'est ce qui permet au
+ * classement de suivre le marché au lieu de rester sur le cours du matin.
  */
 export async function recordDailyQuotes(quotes: LiveQuote[]): Promise<number> {
   const payload = quotes
@@ -108,20 +110,32 @@ export const recentHistoryQuery = (days = 60) => ({
 });
 
 /**
- * Dépose la clôture du jour, une fois par montage de page.
+ * Dépose le cours du jour, une fois par montage de page.
  *
- * L'appel est sans effet si la journée est déjà enregistrée, donc plusieurs
- * pages peuvent l'utiliser sans se coordonner. Une erreur reste silencieuse :
- * ne pas réussir à archiver un cours ne doit pas dégrader l'écran affiché.
+ * Plusieurs pages peuvent l'utiliser sans se coordonner. Une erreur reste
+ * silencieuse : ne pas réussir à archiver un cours ne doit pas dégrader
+ * l'écran affiché.
+ *
+ * `onRecorded` sert aux pages qui LISENT ce que la base vient d'enregistrer,
+ * le classement en particulier : sans ce signal, elles afficheraient les
+ * valorisations d'avant l'enregistrement et paraîtraient en retard d'un
+ * passage.
  */
-export function useRecordDailyQuotes(quotes: LiveQuote[]): void {
+export function useRecordDailyQuotes(quotes: LiveQuote[], onRecorded?: () => void): void {
   const done = useRef(false);
+  // La référence évite de relancer l'effet quand l'appelant redéfinit la
+  // fonction à chaque rendu, ce qui est le cas courant d'une closure inline.
+  const notify = useRef(onRecorded);
+  notify.current = onRecorded;
+
   useEffect(() => {
     if (done.current || quotes.length === 0) return;
     done.current = true;
-    void recordDailyQuotes(quotes).catch(() => {
-      /* archivage best-effort */
-    });
+    void recordDailyQuotes(quotes)
+      .then(() => notify.current?.())
+      .catch(() => {
+        /* archivage best-effort */
+      });
   }, [quotes]);
 }
 

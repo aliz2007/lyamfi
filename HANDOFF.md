@@ -1,8 +1,10 @@
 # Lyamfi: Codebase Handoff
 
-_Written 2026-08-18, last revised 2026-08-27. Everything below was read from the source and, where marked ✅, executed._
+_Written 2026-08-18, last revised 2026-08-29. Everything below was read from the source and, where marked ✅, executed._
 
-> **Latest change (2026-08-27):** an **Actualités** section with admin CRUD, **leaner `/bourse` cards** with two new sorts, **order execution tied to the real trading session**, and a **MASI / MASI 20 pair on the dashboard**. Two migrations to apply: see §12.
+> **Latest change (2026-08-29):** Actualités **rebuilt** as a searchable feed of horizontal cards leading to a full reading page, a **macroeconomic dashboard** at `/macroeconomie`, **Budget renamed Simulateurs** with a new **credit simulator**, **auto-login**, a **15 % capital-gains tax** on sales, and fixes for the **missing quotes** and the **frozen leaderboard**. One migration to apply: see §12.
+>
+> _2026-08-27:_ the Actualités section itself, leaner `/bourse` cards with two new sorts, order execution tied to the real trading session, and the MASI / MASI 20 pair on the dashboard.
 
 ---
 
@@ -22,10 +24,11 @@ Eight surfaces:
 | Portefeuille | `/portefeuille` | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve |
 | Classement | `/classement` | Leaderboard by portfolio value, cash / invested split |
 | Académie | `/academie`, `/academie/$slug` | 14 lessons in 3 gated levels, quiz + badge per lesson |
-| Actualités | `/actualites` | News feed, readable by every member, written by admins |
-| Budget | `/budget` | Compound-interest projection, 3 risk profiles |
+| Actualités | `/actualites`, `/actualites/$id` | Searchable news feed, full reading page, admin CRUD |
+| Macroéconomie | `/macroeconomie` | 5 TradingView charts on the Moroccan economy |
+| Simulateurs | `/simulateurs` | Compound interest (3 risk profiles) and a credit simulator |
 
-Nav order is fixed in `components/AppShell.tsx`: Actualités sits between Académie and Budget.
+Nav order is fixed in `components/AppShell.tsx`: Actualités sits between Académie and Simulateurs. `/macroeconomie` is reached from the banner atop `/actualites`, not from the nav. `/budget` still resolves: it redirects to `/simulateurs` so old links keep working.
 
 **Origin:** built with [Lovable](https://lovable.dev). 93 commits, 2026-07-31 → 2026-08-18. The repo syncs bidirectionally with the Lovable editor: see `AGENTS.md`: **never force-push, rebase, amend, or squash already-pushed commits**, it corrupts project history on Lovable's side.
 
@@ -226,6 +229,7 @@ The most complex module. Starts every user at **100 000 MAD**, auto-creating a p
 - **Market orders, session closed:** persist to `portfolio_orders` with `order_type = 'market'` and `limit_price = NULL`, and go out at the next open, oldest first.
 - **Limit orders** persist the same way with `order_type = 'limit'`, and fill when `price ≤ limit` (buy) or `price ≥ limit` (sell), at the *current* price rather than the limit: a realistic favourable fill. They too are frozen outside the session, so a Saturday order can no longer fill on Friday's close.
 - The execution loop **runs only while `marketOpen`**, one order per pass (see §10), and the badge above the order form says which of the two is happening: green *Séance ouverte*, amber *Marché fermé, ordre mis en attente*.
+- **A sale that realises a gain is taxed 15 %**, Morocco's rate on disposals of listed securities. The maths is `lib/tax.ts`: the tax falls on the gain alone, never on the sale amount, and a loss is neither taxed nor credited. It is withheld at the moment of sale, so `portfolios.cash` receives the NET proceeds; the trade row still records the gross price, because `portfolio_trades` has no tax column and the portfolio's value is derived from cash and holdings, not from the trade log. The order form previews the tax before you sell, the confirmation restates it, and the bottom of the page explains it.
 - All `portfolio_orders` access is isolated in **`lib/orders.ts`** (`listPendingOrders`, `placeOrder`, `markOrderFilled`, `cancelOrder`, `fillsAt`), because the generated Supabase types do not know `order_type` yet.
 - `applyTrade()` does the whole thing client-side: recompute weighted average cost, upsert the holding, adjust `portfolios.cash`, insert a `portfolio_trades` row.
 - **Performance vs MASI** is rebased to 100 from the first snapshot that carries a MASI value.
@@ -404,7 +408,12 @@ Value comes from the most recent `portfolio_snapshots` row, which already carrie
 
 ## 9f. Actualités
 
-`/actualites`, between Académie and Budget in the nav. A card feed: illustration on top, gold title, publication date in `JJ/MM/AAAA` right under it, then the body with line breaks preserved.
+`/actualites`, between Académie and Simulateurs in the nav. Rebuilt on 2026-08-29 as a press feed rather than a card wall:
+
+- **`/actualites`** is a search box over article titles (filtered as you type, no round trip) and a vertical list of **horizontal** cards: thumbnail left, text right, stacked on mobile. Each card shows the title, the date in full (*Vendredi 28 août 2026*) and a three-line excerpt clamped by CSS. The whole card links through; the admin buttons sit outside the anchor, because a button inside a link is invalid markup and would open the article on its way to deleting it.
+- **`/actualites/$id`** is the reading page: back link, date, large title, illustration, then the body in a `max-w-4xl` column.
+- **`components/ArticleBody.tsx`** renders a small Markdown subset (`##` headings, `-` and `1.` lists, `---` rules, `**bold**`) into React elements. Never `dangerouslySetInnerHTML`: articles are written by admins, but a compromised admin account must not be able to run script in every member's browser. `lib/excerpt.ts` strips the same markup for the feed, where a stray `##` would read as a typo.
+- The admin form carries Image, **Date**, Titre and Corps. The date is optional in the database: absent, a new article is stamped now and an edited one keeps the date it had.
 
 **The split of rights lives in the database, not the interface.** `authenticated` holds `SELECT` on `news_posts` and nothing else, because the migration does `REVOKE ALL … FROM authenticated, anon` and *then* grants back the single privilege it wants. Enumerating what to remove is not enough: a Supabase project carries `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so the table is born with everything granted, and naming `INSERT, UPDATE, DELETE` leaves `TRUNCATE`, `REFERENCES` and `TRIGGER` behind (this is exactly what shipped first and had to be corrected). Publishing, editing and deleting go through `news_create`, `news_update` and `news_delete`, three `SECURITY DEFINER` functions that each open with `is_admin()`. Hiding the buttons is cosmetic, exactly as for the admin console. Both admin tiers may write: publishing an article is editorial work, not a privileged operation on an account.
 
@@ -413,6 +422,26 @@ The database also does the validation, so it cannot be bypassed from a console: 
 Illustrations can be pasted as a URL **or** uploaded. Uploads go to a public Storage bucket named `news`, created by the same migration, with write reserved to admins by four `storage.objects` policies. That whole block is wrapped in an exception handler: `storage.objects` belongs to `supabase_storage_admin`, and the SQL editor runs the file as one transaction, so a privilege refusal there would otherwise roll back every migration. If the bucket is missing, uploading shows a specific message and pasting a URL still works.
 
 Client code: `lib/news.ts` (queries, RPC wrappers, upload) and `routes/_authenticated/actualites.tsx` (feed, editor, per-card edit/delete with a self-disarming confirm).
+
+---
+
+## 9g. Simulateurs (`/simulateurs`, ex-`/budget`)
+
+Two calculators on one page. The compound-interest projection is unchanged, only retitled *Investissement et intérêts composés*.
+
+The **credit simulator** below it exists to make one point: the rate a bank advertises is not what the loan costs. `lib/credit.ts` runs a constant-annuity amortisation and, from the payments actually leaving the account (instalment **plus** monthly fees), solves for the APR by bisection rather than Newton, because bisection cannot diverge on an absurd input someone types out of curiosity. The APR is the effective annual rate, `(1 + monthly)¹² − 1`, so a 0.5 % monthly rate reads 6.17 % and not 6 %.
+
+Fees default to **300 MAD a month**, the going Moroccan average for insurance and arrangement fees, and are editable. A donut splits the total outlay into capital (gold, the only part that is not a cost), interest and fees.
+
+The maths is checked against a hand-computed reference (100 000 MAD over 10 years at 6 % → 1 110,21 MAD a month) and, more usefully, by a round trip: discounting the real outflows at the APR the code returns lands back on the principal to within a dirham.
+
+---
+
+## 9h. Macroéconomie (`/macroeconomie`)
+
+Five TradingView charts on the Moroccan economy: inflation (`ECONOMICS:MAIRMM`), GDP growth (`MAGDPQQ`), the policy rate (`MAINTR`), unemployment (`MAUR`) and employment (`MAER`). Reached from the gold banner at the top of `/actualites`, deliberately not from the nav: it is context for the news, not a sixth destination.
+
+The symbols live in one array at the top of the route, so a code that TradingView renames is a one-line fix. A series TradingView has not updated renders as an empty chart; that is the provider's state, not a bug in the page.
 
 ---
 
@@ -439,6 +468,9 @@ Not reachable through the app as it stands: PostgREST exposes no verb that issue
 
 `news_posts` is the only table done right (`REVOKE ALL` then grant back). Fixing the other fifteen is one migration: `REVOKE ALL ON <table> FROM anon, authenticated;` followed by the grants each already documents. Worth doing next time the schema is touched.
 
+### 🟠 Auto-login trusts a localStorage probe to decide what to paint
+`components/SessionRedirect.tsx` reads whether a `sb-*-auth-token` key exists to choose between the splash and the public page, *before* `getSession()` has answered. That key name is supabase-js's convention, not a documented API. If it ever changes, nothing breaks: the probe returns false, the public page renders, and the redirect simply happens a beat later without the splash. The redirect itself always waits for `getSession()`, so an expired token never gets anyone in.
+
 ### 🟠 The MASI 20 symbol is not documented
 TradingView publishes no stable code for the MASI 20. `lib/quotes.functions.ts` therefore *discovers* it: it first asks the scanner for everything typed `index` on CSEMA, then falls back to a candidate list (`MASI20`, `MSI20`, `MASI_20`), and normalises whatever comes back to the internal code `MASI20`. If none of it resolves, the dashboard card renders with *Indice indisponible* rather than disappearing, and the TradingView link still works. **This could not be verified from the audit environment: `scanner.tradingview.com` answers 403 to CONNECT there.** Check the card on the live site; if it is empty, the right code goes in `INDEX_CANDIDATES`.
 
@@ -449,6 +481,9 @@ Minor related bug: the snapshot date uses `new Date().toISOString().slice(0,10)`
 
 ### 🟠 `record_daily_quotes` trusts the client
 The daily close is posted by the browser, like every trade. The RPC never overwrites a (ticker, day) it already holds, so the exposure is bounded to whoever loads a page first each morning, but that person could still write a fake close. Same threat model as the two 🔴 items above, and the same fix: move the write server-side once trading moves server-side.
+
+### 🟠 Daily closes are now overwritten, not written once
+`record_daily_quotes` used to refuse a (ticker, day) it already held, which froze the leaderboard on the first quote of the morning. It now updates today's row on every call, and leaves past days alone. That is what makes the leaderboard follow the market, and it widens the client-trust window from once a morning to any time: same threat model as the 🔴 items, same fix, whenever writes move server-side.
 
 ### 🟡 `stock_prices` is synthetic and now unused by the UI
 A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts it any more (see §9d). Left in place because dropping a table is not worth the migration churn, but do not mistake it for market data.
@@ -507,48 +542,54 @@ The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not
 
 ## 12. What to run in the Supabase SQL editor
 
-Two migrations were added on 2026-08-27 and **the app needs them before the new screens work**:
+### 2026-08-29 (current)
 
-- `supabase/migrations/20260827090000_news.sql`: the `news_posts` table, its policy, the three admin RPCs, and the `news` Storage bucket with its policies.
-- `supabase/migrations/20260827091000_session_orders.sql`: `portfolio_orders.order_type`, a nullable `limit_price`, and the cross-check that ties the two together.
+One migration, `supabase/migrations/20260829090000_live_quotes_and_news_date.sql`. It replaces three functions and creates nothing:
 
-Both are already folded into `supabase/setup.sql`. **Simplest path:** open Supabase → **SQL Editor** → **New query**, paste the whole of `supabase/setup.sql`, Run. It is re-runnable, so replaying it on the existing database is safe and applies only what is missing. Expect *Success. No rows returned.*
+- `record_daily_quotes` now **updates** today's row instead of refusing it. Past days are untouched. This is the fix for "the leaderboard never refreshes": it valued holdings at whatever price was first recorded that morning.
+- `news_create` and `news_update` take an optional `p_published_at`, for the Date field in the admin form. The old three- and four-argument signatures are dropped explicitly, because adding a parameter to `CREATE OR REPLACE FUNCTION` would create an overload and leave PostgREST with two candidates.
 
-Prefer a shorter script? Paste just the two files above, in that order.
+Paste that file, or the whole of `supabase/setup.sql`, which folds every migration in. Both are re-runnable.
 
-### Checking it landed
+Checked before shipping: applied to a throwaway PostgreSQL 16 holding the schema as it stood on 2026-08-27 (with Supabase's default privileges in place), twice, then exercised — a quote updated mid-session moved a leaderboard row from 11 500 to 13 000 MAD, yesterday's close stayed put, an unchanged quote counted as no write, and a dated article kept its date through an edit that did not supply one.
+
+### 2026-08-27
+
+`20260827090000_news.sql` (the `news_posts` table, the admin RPCs, the `news` bucket) and `20260827091000_session_orders.sql` (`order_type`, nullable `limit_price`). Already applied.
+
+### Checking any of it landed
 
 ```sql
--- 1. The news table and its functions.
-select table_name from information_schema.tables
- where table_schema = 'public' and table_name = 'news_posts';
-
-select routine_name from information_schema.routines
- where routine_schema = 'public' and routine_name like 'news\_%' order by 1;
--- expected 5: news_clean_image, news_clean_text, news_create, news_delete, news_update
--- (the two news_clean_* are the validators the three RPCs call; they are not
---  callable by anyone else, EXECUTE is revoked from authenticated and anon)
-
--- 2. Members may read the news and nothing else.
-select grantee, privilege_type from information_schema.role_table_grants
- where table_name = 'news_posts' and grantee = 'authenticated';
--- expected: exactly one row, SELECT
-
--- 3. Orders carry a type, and limit_price is now optional.
-select column_name, is_nullable from information_schema.columns
- where table_name = 'portfolio_orders' and column_name in ('order_type', 'limit_price');
--- expected: order_type NO, limit_price YES
-
--- 4. The image bucket exists and is public.
-select id, public from storage.buckets where id = 'news';
--- expected: news | t
-
--- 5. Uploads are reserved to admins.
-select policyname from pg_policies
- where schemaname = 'storage' and policyname like 'news%' order by 1;
--- expected 4: public read, plus insert / update / delete gated on is_admin()
+select 1 as n, 'table des actualités' as verification,
+       (select count(*)::text from information_schema.tables
+         where table_schema = 'public' and table_name = 'news_posts') as resultat,
+       '1' as attendu
+union all
+select 2, 'droits des membres sur les actualités',
+       (select coalesce(string_agg(privilege_type, ','), 'aucun')
+          from information_schema.role_table_grants
+         where table_name = 'news_posts' and grantee = 'authenticated'), 'SELECT'
+union all
+select 3, 'colonne order_type',
+       (select count(*)::text from information_schema.columns
+         where table_name = 'portfolio_orders' and column_name = 'order_type'), '1'
+union all
+select 4, 'bucket news public',
+       coalesce((select public::text from storage.buckets where id = 'news'), 'ABSENT'), 'true'
+union all
+select 5, 'news_create accepte une date',
+       (select count(*)::text from information_schema.parameters
+         where specific_schema = 'public' and parameter_name = 'p_published_at'), '2'
+order by n;
 ```
 
-If query 4 returns nothing, the bucket creation was refused by privileges (the migration swallows that on purpose, so the rest still applies). Create it by hand: **Storage → New bucket**, name `news`, **Public** on, then replay the `DO $storage$ … $storage$;` block at the end of the news migration to attach the admin-only write policies. Until then, admins can still illustrate an article by pasting an image URL.
+Row 4 is the one that can legitimately differ: the bucket creation is wrapped in an exception handler so a privilege refusal cannot roll back the rest. If it says `ABSENT`, create it by hand (Storage → New bucket, name `news`, Public on) and replay the `DO $storage$ … $storage$;` block at the end of the news migration. Pasting image URLs works either way.
 
-**Nothing else changed on the database.** No table was dropped, no seed rewritten, no existing row touched: `order_type` defaults to `'limit'`, which is exactly what every existing order already was.
+---
+
+## 13. Supabase dashboard settings that are not in the repo
+
+Two things live only in the Supabase console, and both have bitten this project:
+
+- **Site URL and redirect URLs** (Authentication → URL Configuration). Site URL defaults to `http://localhost:3000`. Supabase refuses to redirect anywhere that is not allow-listed and falls back to Site URL, so a confirmation e-mail sent from production lands on localhost. The app already asks for the right targets (`${origin}/dashboard` and `${origin}/reset-password`, from `routes/auth.tsx`); what is missing is the allow-list. Set Site URL to `https://lyamfi.com` and Redirect URLs to `https://lyamfi.com/**`. See `AUTH-SETUP.md` §2.
+- **The `news` Storage bucket**, if the migration could not create it. See §12.

@@ -95,6 +95,26 @@ export const numericDate = (v: string | null | undefined, locale: Locale = DEFAU
       })
     : EMPTY;
 
+/**
+ * Date en toutes lettres avec le jour de la semaine : « Vendredi 28 août 2026 ».
+ *
+ * En-tête d'un article, où la date se lit comme une phrase et non comme une
+ * référence. Seule l'initiale est capitalisée : le français met le mois en
+ * minuscule, et « Vendredi 28 Août » serait une faute d'usage.
+ */
+export const weekdayDate = (v: string | null | undefined, locale: Locale = DEFAULT) => {
+  if (!v) return EMPTY;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return EMPTY;
+  const text = d.toLocaleDateString(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
 export const longDate = (v: string | null | undefined, locale: Locale = DEFAULT) =>
   v
     ? new Date(v).toLocaleDateString(locale, { day: "2-digit", month: "long", year: "numeric" })
@@ -120,6 +140,7 @@ export type Formatter = {
   price: (v: number | null | undefined) => string;
   shortDate: (v: string | null | undefined) => string;
   numericDate: (v: string | null | undefined) => string;
+  weekdayDate: (v: string | null | undefined) => string;
   longDate: (v: string | null | undefined) => string;
   dateTime: (v: string | null | undefined) => string;
 };
@@ -138,6 +159,7 @@ export function useFormat(): Formatter {
       price: (v) => price(v, l),
       shortDate: (v) => shortDate(v, l),
       numericDate: (v) => numericDate(v, l),
+      weekdayDate: (v) => weekdayDate(v, l),
       longDate: (v) => longDate(v, l),
       dateTime: (v) => dateTime(v, l),
     }),

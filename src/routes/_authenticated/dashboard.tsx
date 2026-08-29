@@ -43,7 +43,7 @@ const QUICK = [
   { to: "/bourse", icon: BarChart3, label: "dash.q1", text: "dash.q1Text" },
   { to: "/portefeuille", icon: PieChart, label: "dash.q2", text: "dash.q2Text" },
   { to: "/academie", icon: GraduationCap, label: "dash.q3", text: "dash.q3Text" },
-  { to: "/budget", icon: LineChart, label: "dash.q4", text: "dash.q4Text" },
+  { to: "/simulateurs", icon: LineChart, label: "dash.q4", text: "dash.q4Text" },
 ] as const satisfies readonly {
   to: string;
   icon: typeof BarChart3;

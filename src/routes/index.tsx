@@ -11,6 +11,7 @@ import {
 import heroImg from "@/assets/hero-market.jpg";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { SessionRedirect } from "@/components/SessionRedirect";
 import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
 
 export const CONTACT_EMAIL = "lyamcorpo@gmail.com";
@@ -35,7 +36,14 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: Landing,
+  // La vitrine reste rendue côté serveur pour le référencement ; la
+  // redirection d'un visiteur connecté se fait donc au montage, pas dans un
+  // `beforeLoad` qui n'aurait pas accès au stockage du navigateur.
+  component: () => (
+    <SessionRedirect>
+      <Landing />
+    </SessionRedirect>
+  ),
 });
 
 const MODULES: { icon: typeof BarChart3; title: Key; text: Key }[] = [

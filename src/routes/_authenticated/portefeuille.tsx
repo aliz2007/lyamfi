@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, Search } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Receipt, Search } from "lucide-react";
 import {
   CartesianGrid,
   Legend,
@@ -29,6 +29,7 @@ import {
   type OrderSide,
   type OrderType,
 } from "@/lib/orders";
+import { CAPITAL_GAINS_RATE, saleBreakdown } from "@/lib/tax";
 import { EMPTY, useFormat, type Formatter } from "@/lib/format";
 import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 
@@ -214,6 +215,8 @@ function PortfolioPage() {
     if (!(quantity > 0)) throw new Error(t("pf.errQty"));
     const amount = quantity * price;
     const existing = pf.holdings.find((h) => h.ticker === ticker);
+    /** Impôt retenu sur cette vente, nul pour un achat comme pour une perte. */
+    let taxed = 0;
 
     if (side === "buy") {
       if (amount > pf.cash + 1e-9) throw new Error(t("pf.errCash"));
@@ -243,9 +246,13 @@ function PortfolioPage() {
         .update({ quantity: newQty, updated_at: new Date().toISOString() })
         .eq("id", existing.id);
       if (error) throw error;
+      // Ce sont les liquidités NETTES d'impôt qui rentrent : la plus-value est
+      // taxée à 15 %, la moins-value ne l'est pas.
+      const { net, tax } = saleBreakdown(quantity, price, existing.avg_price);
+      taxed = tax;
       const { error: cErr } = await supabase
         .from("portfolios")
-        .update({ cash: pf.cash + amount })
+        .update({ cash: pf.cash + net })
         .eq("id", pf.id);
       if (cErr) throw cErr;
     }
@@ -254,17 +261,22 @@ function PortfolioPage() {
       .from("portfolio_trades")
       .insert({ portfolio_id: pf.id, ticker, side, quantity, price });
     if (tErr) throw tErr;
+
+    return { tax: taxed };
   };
 
   const trade = useMutation({
     mutationFn: applyTrade,
-    onSuccess: (_d, v) => {
+    onSuccess: (result, v) => {
+      const vars = { qty: f.num(v.quantity, 0), ticker: v.ticker, price: f.num(v.price) };
       toast.success(
-        t(v.side === "buy" ? "pf.okBuy" : "pf.okSell", {
-          qty: f.num(v.quantity, 0),
-          ticker: v.ticker,
-          price: f.num(v.price),
-        }),
+        v.side === "buy"
+          ? t("pf.okBuy", vars)
+          : result.tax > 0
+            ? // L'impôt n'est pas une surprise à découvrir dans le solde : il est
+              // annoncé sur la confirmation de la vente qui l'a déclenché.
+              t("pf.okSellTaxed", { ...vars, tax: f.num(result.tax) })
+            : t("pf.okSell", vars),
       );
       qc.invalidateQueries({ queryKey: ["vportfolio"] });
     },
@@ -365,19 +377,24 @@ function PortfolioPage() {
     setFilling(true);
     void (async () => {
       try {
-        await applyTrade({
+        const { tax } = await applyTrade({
           ticker: eligible.ticker,
           side: eligible.side,
           quantity: eligible.quantity,
           price: fillPrice,
         });
         await markOrderFilled(eligible.id, fillPrice);
+        const vars = {
+          qty: f.num(eligible.quantity, 0),
+          ticker: eligible.ticker,
+          price: f.num(fillPrice),
+        };
         toast.success(
-          t(eligible.side === "buy" ? "pf.okFilledBuy" : "pf.okFilledSell", {
-            qty: f.num(eligible.quantity, 0),
-            ticker: eligible.ticker,
-            price: f.num(fillPrice),
-          }),
+          eligible.side === "buy"
+            ? t("pf.okFilledBuy", vars)
+            : tax > 0
+              ? t("pf.okFilledSellTaxed", { ...vars, tax: f.num(tax) })
+              : t("pf.okFilledSell", vars),
         );
       } catch (e) {
         await cancelOrder(eligible.id);
@@ -645,6 +662,18 @@ function PortfolioPage() {
           </ul>
         </section>
       )}
+
+      {/* Tout en bas de la page : l'impôt s'applique à chaque vente, il se lit
+          donc après le carnet et l'historique, comme une note de bas de page. */}
+      <section className="surface-raised p-5 sm:p-7">
+        <div className="flex items-center gap-2">
+          <Receipt className="h-4 w-4 text-[var(--brand-yellow)]" />
+          <h2 className="text-sm font-semibold">{t("pf.taxTitle")}</h2>
+        </div>
+        <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">
+          {t("pf.taxNote", { rate: f.num(CAPITAL_GAINS_RATE * 100, 0) })}
+        </p>
+      </section>
     </div>
   );
 }
@@ -701,11 +730,20 @@ function TradePanel({
   );
 
   const selected = quotes.find((s) => s.ticker === ticker) ?? null;
-  const held = holdings.find((h) => h.ticker === ticker)?.quantity ?? 0;
+  const holding = holdings.find((h) => h.ticker === ticker) ?? null;
+  const held = holding?.quantity ?? 0;
   const limitValue = Number(limitPrice.replace(",", "."));
   const validLimit = Number.isFinite(limitValue) && limitValue > 0;
   const execPrice = orderType === "limit" && validLimit ? limitValue : (selected?.price ?? 0);
   const amount = execPrice * qty;
+
+  // Estimation de l'impôt si cette quantité était vendue au cours retenu. Elle
+  // n'apparaît que si elle est due : annoncer « 0 MAD d'impôt » sur une
+  // moins-value serait du bruit.
+  const sale =
+    holding && held >= qty && execPrice > 0
+      ? saleBreakdown(qty, execPrice, holding.avg_price)
+      : null;
 
   return (
     <section className="surface-raised p-5 sm:p-7">
@@ -831,6 +869,16 @@ function TradePanel({
             {orderType === "limit" && <> · {t("pf.limitExplain")}</>}
             {orderType === "market" && !marketOpen && <> · {t("pf.marketQueuedExplain")}</>}
           </p>
+
+          {sale && sale.tax > 0 && (
+            <p className="mt-2 text-xs leading-relaxed text-[var(--warning)]">
+              {t("pf.saleTaxPreview", {
+                tax: f.mad(sale.tax, 2),
+                net: f.mad(sale.net, 2),
+                rate: f.num(CAPITAL_GAINS_RATE * 100, 0),
+              })}
+            </p>
+          )}
 
           <div className="mt-4 flex gap-3">
             <button

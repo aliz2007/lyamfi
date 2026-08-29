@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Trophy } from "lucide-react";
+import { getLiveQuotes } from "@/lib/quotes.functions";
+import { useRecordDailyQuotes } from "@/lib/quotes.history";
 import { leaderboardQuery, type LeaderboardRow } from "@/lib/leaderboard";
 import { GoldenGoat } from "@/components/GoldenGoat";
 import { EMPTY, useFormat, type Formatter } from "@/lib/format";
@@ -25,6 +28,20 @@ function LeaderboardPage() {
   const { t } = useI18n();
   const f = useFormat();
   usePageTitle("lb.title");
+
+  const qc = useQueryClient();
+
+  // Le classement valorise les positions d'après les cours enregistrés en base,
+  // pas d'après les cotations du navigateur : arriver ici sans les rafraîchir
+  // afficherait la valorisation du dernier passage de quelqu'un d'autre.
+  const fetchQuotes = useServerFn(getLiveQuotes);
+  const { data: quotes = [] } = useQuery({
+    queryKey: ["cse-quotes"],
+    queryFn: () => fetchQuotes(),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  useRecordDailyQuotes(quotes, () => qc.invalidateQueries({ queryKey: ["leaderboard"] }));
 
   const { data: rows = [], isLoading, error } = useQuery(leaderboardQuery);
   const you = rows.find((r) => r.is_self) ?? null;

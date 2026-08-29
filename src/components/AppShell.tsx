@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { myRoleQuery } from "@/lib/admin";
-import { supabase } from "@/integrations/supabase/client";
+import { signOutCompletely } from "@/lib/session";
 import { useT, type Key } from "@/lib/i18n";
 
 // `as const` conserve les chemins littéraux, que <Link to> exige ; le
@@ -17,7 +17,7 @@ const NAV = [
   { to: "/classement", label: "nav.leaderboard" },
   { to: "/academie", label: "nav.academy" },
   { to: "/actualites", label: "nav.news" },
-  { to: "/budget", label: "nav.budget" },
+  { to: "/simulateurs", label: "nav.simulators" },
 ] as const satisfies readonly { to: string; label: Key }[];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -32,7 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // en cours, potentiellement la table des comptes de l'espace admin, encore
   // rendue dans le DOM. On quitte donc explicitement vers l'accueil.
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await signOutCompletely();
     navigate({ to: "/" });
   };
 

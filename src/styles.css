@@ -244,6 +244,19 @@
   animation: sheen-slide 7s ease-in-out infinite;
 }
 
+/* Reflet qui traverse une bande au survol : la bannière macroéconomique s'en
+   sert pour signaler qu'elle est cliquable sans se déguiser en bouton. */
+@utility sheen-sweep {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    oklch(0.872 0.176 93.5 / 0.1) 45%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: sheen-slide 2.4s ease-in-out infinite;
+}
+
 @keyframes sheen-slide {
   0%,
   100% {
@@ -258,7 +271,8 @@
 @media (prefers-reduced-motion: reduce) {
   .reveal,
   .rise,
-  .sheen {
+  .sheen,
+  .sheen-sweep {
     animation: none;
   }
 

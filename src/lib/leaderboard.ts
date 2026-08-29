@@ -57,5 +57,11 @@ export const leaderboardQuery = {
       };
     });
   },
-  staleTime: 60_000,
+  // Le classement bouge à chaque ordre passé et à chaque cours relevé, donc il
+  // est relu à l'ouverture de la page et rafraîchi tant qu'elle reste ouverte.
+  // Un `staleTime` d'une minute suffisait à faire croire que rien ne s'était
+  // passé quand on revenait du portefeuille juste après avoir acheté.
+  staleTime: 0,
+  refetchOnMount: "always" as const,
+  refetchInterval: 60_000,
 };

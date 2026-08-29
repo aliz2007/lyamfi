@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PasswordField, PasswordRules } from "@/components/PasswordField";
+import { SessionRedirect } from "@/components/SessionRedirect";
 import { supabase } from "@/integrations/supabase/client";
 import { checkPassword, PASSWORD_MAX } from "@/lib/password";
 import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
@@ -28,7 +29,13 @@ export const Route = createFileRoute("/auth")({
     const mode: Mode = raw === "signup" ? "signup" : raw === "forgot" ? "forgot" : "login";
     return { mode };
   },
-  component: AuthPage,
+  // Enveloppé : un visiteur déjà connecté n'a rien à faire sur le
+  // formulaire de connexion, il part directement au tableau de bord.
+  component: () => (
+    <SessionRedirect>
+      <AuthPage />
+    </SessionRedirect>
+  ),
 });
 
 /** Traduit les messages d'erreur Supabase (anglais) en messages actionnables. */
@@ -71,12 +78,6 @@ function AuthPage() {
 
   const pw = useMemo(() => checkPassword(password), [password]);
   const mismatch = isSignup && confirm.length > 0 && confirm !== password;
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
-    });
-  }, [navigate]);
 
   const switchMode = (next: Mode) => {
     setMode(next);

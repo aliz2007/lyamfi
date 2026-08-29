@@ -13,14 +13,17 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as AuthenticatedActualitesRouteImport } from './routes/_authenticated/actualites'
 import { Route as AuthenticatedBudgetRouteImport } from './routes/_authenticated/budget'
 import { Route as AuthenticatedClassementRouteImport } from './routes/_authenticated/classement'
 import { Route as AuthenticatedCompteRouteImport } from './routes/_authenticated/compte'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedMacroeconomieRouteImport } from './routes/_authenticated/macroeconomie'
 import { Route as AuthenticatedPortefeuilleRouteImport } from './routes/_authenticated/portefeuille'
+import { Route as AuthenticatedSimulateursRouteImport } from './routes/_authenticated/simulateurs'
 import { Route as AuthenticatedAcademieIndexRouteImport } from './routes/_authenticated/academie.index'
 import { Route as AuthenticatedAcademieSlugRouteImport } from './routes/_authenticated/academie.$slug'
+import { Route as AuthenticatedActualitesIndexRouteImport } from './routes/_authenticated/actualites.index'
+import { Route as AuthenticatedActualitesIdRouteImport } from './routes/_authenticated/actualites.$id'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminUserIdRouteImport } from './routes/_authenticated/admin.$userId'
 import { Route as AuthenticatedBourseIndexRouteImport } from './routes/_authenticated/bourse.index'
@@ -45,11 +48,6 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedActualitesRoute = AuthenticatedActualitesRouteImport.update({
-  id: '/actualites',
-  path: '/actualites',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedBudgetRoute = AuthenticatedBudgetRouteImport.update({
   id: '/budget',
   path: '/budget',
@@ -70,10 +68,22 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMacroeconomieRoute =
+  AuthenticatedMacroeconomieRouteImport.update({
+    id: '/macroeconomie',
+    path: '/macroeconomie',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPortefeuilleRoute =
   AuthenticatedPortefeuilleRouteImport.update({
     id: '/portefeuille',
     path: '/portefeuille',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSimulateursRoute =
+  AuthenticatedSimulateursRouteImport.update({
+    id: '/simulateurs',
+    path: '/simulateurs',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAcademieIndexRoute =
@@ -86,6 +96,18 @@ const AuthenticatedAcademieSlugRoute =
   AuthenticatedAcademieSlugRouteImport.update({
     id: '/academie/$slug',
     path: '/academie/$slug',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedActualitesIndexRoute =
+  AuthenticatedActualitesIndexRouteImport.update({
+    id: '/actualites/',
+    path: '/actualites/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedActualitesIdRoute =
+  AuthenticatedActualitesIdRouteImport.update({
+    id: '/actualites/$id',
+    path: '/actualites/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -116,16 +138,19 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/actualites': typeof AuthenticatedActualitesRoute
   '/budget': typeof AuthenticatedBudgetRoute
   '/classement': typeof AuthenticatedClassementRoute
   '/compte': typeof AuthenticatedCompteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/macroeconomie': typeof AuthenticatedMacroeconomieRoute
   '/portefeuille': typeof AuthenticatedPortefeuilleRoute
+  '/simulateurs': typeof AuthenticatedSimulateursRoute
   '/academie/$slug': typeof AuthenticatedAcademieSlugRoute
+  '/actualites/$id': typeof AuthenticatedActualitesIdRoute
   '/admin/$userId': typeof AuthenticatedAdminUserIdRoute
   '/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
   '/academie/': typeof AuthenticatedAcademieIndexRoute
+  '/actualites/': typeof AuthenticatedActualitesIndexRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/bourse/': typeof AuthenticatedBourseIndexRoute
 }
@@ -133,16 +158,19 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/actualites': typeof AuthenticatedActualitesRoute
   '/budget': typeof AuthenticatedBudgetRoute
   '/classement': typeof AuthenticatedClassementRoute
   '/compte': typeof AuthenticatedCompteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/macroeconomie': typeof AuthenticatedMacroeconomieRoute
   '/portefeuille': typeof AuthenticatedPortefeuilleRoute
+  '/simulateurs': typeof AuthenticatedSimulateursRoute
   '/academie/$slug': typeof AuthenticatedAcademieSlugRoute
+  '/actualites/$id': typeof AuthenticatedActualitesIdRoute
   '/admin/$userId': typeof AuthenticatedAdminUserIdRoute
   '/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
   '/academie': typeof AuthenticatedAcademieIndexRoute
+  '/actualites': typeof AuthenticatedActualitesIndexRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/bourse': typeof AuthenticatedBourseIndexRoute
 }
@@ -152,16 +180,19 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/_authenticated/actualites': typeof AuthenticatedActualitesRoute
   '/_authenticated/budget': typeof AuthenticatedBudgetRoute
   '/_authenticated/classement': typeof AuthenticatedClassementRoute
   '/_authenticated/compte': typeof AuthenticatedCompteRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/macroeconomie': typeof AuthenticatedMacroeconomieRoute
   '/_authenticated/portefeuille': typeof AuthenticatedPortefeuilleRoute
+  '/_authenticated/simulateurs': typeof AuthenticatedSimulateursRoute
   '/_authenticated/academie/$slug': typeof AuthenticatedAcademieSlugRoute
+  '/_authenticated/actualites/$id': typeof AuthenticatedActualitesIdRoute
   '/_authenticated/admin/$userId': typeof AuthenticatedAdminUserIdRoute
   '/_authenticated/bourse/$ticker': typeof AuthenticatedBourseTickerRoute
   '/_authenticated/academie/': typeof AuthenticatedAcademieIndexRoute
+  '/_authenticated/actualites/': typeof AuthenticatedActualitesIndexRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/bourse/': typeof AuthenticatedBourseIndexRoute
 }
@@ -171,16 +202,19 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
-    | '/actualites'
     | '/budget'
     | '/classement'
     | '/compte'
     | '/dashboard'
+    | '/macroeconomie'
     | '/portefeuille'
+    | '/simulateurs'
     | '/academie/$slug'
+    | '/actualites/$id'
     | '/admin/$userId'
     | '/bourse/$ticker'
     | '/academie/'
+    | '/actualites/'
     | '/admin/'
     | '/bourse/'
   fileRoutesByTo: FileRoutesByTo
@@ -188,16 +222,19 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
-    | '/actualites'
     | '/budget'
     | '/classement'
     | '/compte'
     | '/dashboard'
+    | '/macroeconomie'
     | '/portefeuille'
+    | '/simulateurs'
     | '/academie/$slug'
+    | '/actualites/$id'
     | '/admin/$userId'
     | '/bourse/$ticker'
     | '/academie'
+    | '/actualites'
     | '/admin'
     | '/bourse'
   id:
@@ -206,16 +243,19 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
-    | '/_authenticated/actualites'
     | '/_authenticated/budget'
     | '/_authenticated/classement'
     | '/_authenticated/compte'
     | '/_authenticated/dashboard'
+    | '/_authenticated/macroeconomie'
     | '/_authenticated/portefeuille'
+    | '/_authenticated/simulateurs'
     | '/_authenticated/academie/$slug'
+    | '/_authenticated/actualites/$id'
     | '/_authenticated/admin/$userId'
     | '/_authenticated/bourse/$ticker'
     | '/_authenticated/academie/'
+    | '/_authenticated/actualites/'
     | '/_authenticated/admin/'
     | '/_authenticated/bourse/'
   fileRoutesById: FileRoutesById
@@ -257,13 +297,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/actualites': {
-      id: '/_authenticated/actualites'
-      path: '/actualites'
-      fullPath: '/actualites'
-      preLoaderRoute: typeof AuthenticatedActualitesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/budget': {
       id: '/_authenticated/budget'
       path: '/budget'
@@ -292,11 +325,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/macroeconomie': {
+      id: '/_authenticated/macroeconomie'
+      path: '/macroeconomie'
+      fullPath: '/macroeconomie'
+      preLoaderRoute: typeof AuthenticatedMacroeconomieRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/portefeuille': {
       id: '/_authenticated/portefeuille'
       path: '/portefeuille'
       fullPath: '/portefeuille'
       preLoaderRoute: typeof AuthenticatedPortefeuilleRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/simulateurs': {
+      id: '/_authenticated/simulateurs'
+      path: '/simulateurs'
+      fullPath: '/simulateurs'
+      preLoaderRoute: typeof AuthenticatedSimulateursRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/academie/': {
@@ -311,6 +358,20 @@ declare module '@tanstack/react-router' {
       path: '/academie/$slug'
       fullPath: '/academie/$slug'
       preLoaderRoute: typeof AuthenticatedAcademieSlugRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/actualites/': {
+      id: '/_authenticated/actualites/'
+      path: '/actualites'
+      fullPath: '/actualites/'
+      preLoaderRoute: typeof AuthenticatedActualitesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/actualites/$id': {
+      id: '/_authenticated/actualites/$id'
+      path: '/actualites/$id'
+      fullPath: '/actualites/$id'
+      preLoaderRoute: typeof AuthenticatedActualitesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/': {
@@ -345,31 +406,37 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedActualitesRoute: typeof AuthenticatedActualitesRoute
   AuthenticatedBudgetRoute: typeof AuthenticatedBudgetRoute
   AuthenticatedClassementRoute: typeof AuthenticatedClassementRoute
   AuthenticatedCompteRoute: typeof AuthenticatedCompteRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedMacroeconomieRoute: typeof AuthenticatedMacroeconomieRoute
   AuthenticatedPortefeuilleRoute: typeof AuthenticatedPortefeuilleRoute
+  AuthenticatedSimulateursRoute: typeof AuthenticatedSimulateursRoute
   AuthenticatedAcademieSlugRoute: typeof AuthenticatedAcademieSlugRoute
+  AuthenticatedActualitesIdRoute: typeof AuthenticatedActualitesIdRoute
   AuthenticatedAdminUserIdRoute: typeof AuthenticatedAdminUserIdRoute
   AuthenticatedBourseTickerRoute: typeof AuthenticatedBourseTickerRoute
   AuthenticatedAcademieIndexRoute: typeof AuthenticatedAcademieIndexRoute
+  AuthenticatedActualitesIndexRoute: typeof AuthenticatedActualitesIndexRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedBourseIndexRoute: typeof AuthenticatedBourseIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedActualitesRoute: AuthenticatedActualitesRoute,
   AuthenticatedBudgetRoute: AuthenticatedBudgetRoute,
   AuthenticatedClassementRoute: AuthenticatedClassementRoute,
   AuthenticatedCompteRoute: AuthenticatedCompteRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedMacroeconomieRoute: AuthenticatedMacroeconomieRoute,
   AuthenticatedPortefeuilleRoute: AuthenticatedPortefeuilleRoute,
+  AuthenticatedSimulateursRoute: AuthenticatedSimulateursRoute,
   AuthenticatedAcademieSlugRoute: AuthenticatedAcademieSlugRoute,
+  AuthenticatedActualitesIdRoute: AuthenticatedActualitesIdRoute,
   AuthenticatedAdminUserIdRoute: AuthenticatedAdminUserIdRoute,
   AuthenticatedBourseTickerRoute: AuthenticatedBourseTickerRoute,
   AuthenticatedAcademieIndexRoute: AuthenticatedAcademieIndexRoute,
+  AuthenticatedActualitesIndexRoute: AuthenticatedActualitesIndexRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedBourseIndexRoute: AuthenticatedBourseIndexRoute,
 }

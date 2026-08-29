@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { MASI20_TICKER, MASI_TICKER } from "@/lib/cse-symbols";
+import { CSE_SYMBOLS, MASI20_TICKER, MASI_TICKER } from "@/lib/cse-symbols";
 
 export type LiveQuote = {
   ticker: string;
@@ -115,6 +115,30 @@ async function fetchIndices(): Promise<LiveQuote[]> {
 }
 
 /**
+ * Rattrape les valeurs que le balayage par place ne renvoie pas.
+ *
+ * Le filtre `exchange = CSEMA` est un écran de sélection : il omet des valeurs
+ * peu liquides (Agma, Auto Nejma, CMT, Dari Couspate, Delattre Levivier, Diac
+ * Salaf, Zellidja en ont fait les frais), exactement comme il omettait déjà
+ * l'indice MASI. L'interrogation par symbole, elle, ne trie rien : on demande
+ * nommément ce qui manque, en une seule requête.
+ *
+ * L'absence d'un titre n'est donc plus une fatalité affichée en « N/A » : elle
+ * ne le reste que si TradingView ne connaît vraiment pas le code.
+ */
+async function fetchBySymbol(symbols: string[]): Promise<LiveQuote[]> {
+  if (symbols.length === 0) return [];
+  try {
+    return (await scan({ symbols: { tickers: symbols }, columns: COLUMNS }))
+      .map(toQuote)
+      .filter((q) => q.price > 0);
+  } catch {
+    // Le rattrapage est un bonus : son échec ne doit pas emporter la cote.
+    return [];
+  }
+}
+
+/**
  * Cotations en direct de la Bourse de Casablanca (source TradingView).
  * Appelée côté serveur pour éviter les restrictions CORS du navigateur.
  */
@@ -138,17 +162,27 @@ export const getLiveQuotes = createServerFn({ method: "GET" }).handler(
       })
       .filter((r) => r.price > 0);
 
-    // Le filtre par place ne renvoie pas systématiquement les indices : ils sont
-    // complétés à part, et jamais dupliqués s'ils étaient déjà là.
     const seen = new Set(rows.map((r) => r.ticker.toUpperCase()));
-    if (!seen.has(MASI_TICKER) || !seen.has(MASI20_TICKER)) {
-      for (const q of await fetchIndices()) {
-        if (!seen.has(q.ticker)) {
-          rows.push(q);
-          seen.add(q.ticker);
-        }
+    const add = (quotes: LiveQuote[]) => {
+      for (const q of quotes) {
+        const code = q.ticker.toUpperCase();
+        if (seen.has(code)) continue;
+        rows.push({ ...q, ticker: code });
+        seen.add(code);
       }
-    }
+    };
+
+    // Rattrapage nominatif des valeurs cotées que le balayage a laissées de
+    // côté. La cote de référence est `CSE_SYMBOLS`, pas ce que TradingView a
+    // bien voulu renvoyer.
+    const missing = CSE_SYMBOLS.map(([symbol]) => symbol).filter(
+      (symbol) => !seen.has(symbol.split(":")[1]!.toUpperCase()),
+    );
+    add(await fetchBySymbol(missing));
+
+    // Les indices demandent un traitement à part : le code du MASI 20 n'est pas
+    // documenté, il se découvre au lieu de se demander.
+    if (!seen.has(MASI_TICKER) || !seen.has(MASI20_TICKER)) add(await fetchIndices());
 
     return rows;
   },
