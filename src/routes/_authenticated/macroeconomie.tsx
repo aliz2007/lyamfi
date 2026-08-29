@@ -91,9 +91,10 @@ function MacroPage() {
             series={byId.get(indicator.id) ?? null}
             loading={isLoading}
             href={`https://www.tradingview.com/symbols/${indicator.tv}/`}
-            // Une série tenue à la main affiche jusqu'où elle est vérifiée :
-            // un taux directeur périmé se lit comme un taux directeur actuel.
-            checkedAt={indicator.code === null ? POLICY_RATE_CHECKED : null}
+            // L'avertissement suit la source RÉELLEMENT servie : tant que le
+            // FMI répond, la série est automatique et rien n'est à signaler.
+            checkedAt={byId.get(indicator.id)?.source === "manual" ? POLICY_RATE_CHECKED : null}
+            stepped={indicator.id === "policyRate"}
             t={t}
             f={f}
           />
@@ -118,6 +119,7 @@ function IndicatorCard({
   loading,
   href,
   checkedAt,
+  stepped,
   t,
   f,
 }: {
@@ -126,6 +128,7 @@ function IndicatorCard({
   loading: boolean;
   href: string;
   checkedAt: string | null;
+  stepped: boolean;
   t: Translate;
   f: Formatter;
 }) {
@@ -213,7 +216,7 @@ function IndicatorCard({
                 name={t(labels.label)}
                 // Un taux directeur ne glisse pas d'une décision à l'autre : il
                 // tient sa valeur puis saute. La courbe le dit.
-                type={checkedAt ? "stepAfter" : "monotone"}
+                type={stepped ? "stepAfter" : "monotone"}
                 dataKey="value"
                 stroke="var(--gold)"
                 strokeWidth={2.5}

@@ -698,7 +698,7 @@ export const fr = {
   "macro.employmentText": "Part de la population en âge de travailler qui occupe un emploi.",
   "macro.asOf": "en {year}",
   "macro.handMaintained":
-    "Série tenue à la main : aucune source ouverte ne publie le taux directeur marocain. Vérifiée jusqu'à {date}.",
+    "Le FMI est momentanément injoignable : cette série est le relevé de secours, tenu à la main et vérifié jusqu'à {date}.",
   "macro.vsPrevious": "{delta} point(s) par rapport à {year}",
   "macro.loading": "Chargement de la série…",
   "macro.unavailable":
@@ -706,5 +706,5 @@ export const fr = {
   "macro.monthlyOnTradingView": "Version mensuelle et interactive sur TradingView",
   "macro.error": "Impossible de charger les indicateurs : {reason}",
   "macro.source":
-    "Séries annuelles publiées par la Banque mondiale pour le Maroc. TradingView les publie au mois ou au trimestre, mais ne sert pas ces symboles hors de son propre site : chaque carte y renvoie.",
+    "Inflation, PIB, chômage et emploi : séries annuelles de la Banque mondiale. Taux directeur : relevé mensuel du FMI, réduit à ses décisions. TradingView publie les mêmes chiffres plus finement mais ne sert pas ces symboles hors de son site, d'où le lien sur chaque carte.",
 } as const;

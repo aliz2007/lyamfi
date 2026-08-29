@@ -35,6 +35,12 @@ export type MacroSeries = {
   id: string;
   /** Du plus ancien au plus récent, valeurs manquantes retirées. */
   points: MacroPoint[];
+  /**
+   * D'où vient la série. `manual` signale un repli sur la table écrite à la
+   * main : l'interface avertit alors, au lieu de laisser croire à une donnée
+   * tenue à jour toute seule.
+   */
+  source: "worldbank" | "imf" | "manual";
 };
 
 /**
@@ -51,25 +57,20 @@ export const MACRO_INDICATORS = [
 ] as const;
 
 /**
- * Taux directeur de Bank Al-Maghrib, tenu à la main.
+ * Taux directeur de Bank Al-Maghrib : FILET DE SÉCURITÉ, pas la source.
  *
- * POURQUOI PAS UNE SOURCE AUTOMATIQUE
+ * La source est le FMI (voir `fetchPolicyRate`), qui publie le taux directeur
+ * marocain au mois et se met donc à jour tout seul. Cette table ne sert que si
+ * le FMI est injoignable ou cesse de publier la série : la carte affiche alors
+ * quelque chose plutôt que rien, en disant clairement qu'elle est tenue à la
+ * main et jusqu'à quand.
  *
- * La Banque mondiale ne publie tout simplement pas le taux directeur marocain :
- * `FR.INR.RINR`, le taux d'intérêt RÉEL, revient vide pour le Maroc, et ce
- * n'était de toute façon pas la même grandeur. Bank Al-Maghrib n'expose pas
- * d'API. Il n'y a donc rien à interroger.
+ * La Banque mondiale, elle, ne publie pas ce taux du tout : `FR.INR.RINR` est
+ * le taux d'intérêt RÉEL, une autre grandeur, et revient vide pour le Maroc.
  *
- * POURQUOI C'EST ACCEPTABLE
- *
- * Un taux directeur n'est pas une série mesurée mais une suite de DÉCISIONS :
- * le Conseil se réunit quatre fois par an et, la plupart du temps, ne bouge
- * pas. Une douzaine de lignes couvrent donc quinze ans, et la maintenance est
- * d'une ligne quand le Conseil tranche.
- *
- * ⚠️ MISE À JOUR. Ajouter une ligne à la fin après chaque décision, et avancer
- * `POLICY_RATE_CHECKED`. La date est affichée sur la carte : un lecteur voit
- * ainsi jusqu'où la série est tenue, au lieu de croire un chiffre périmé.
+ * ⚠️ À ne mettre à jour que si l'avertissement « série tenue à la main »
+ * apparaît sur la carte en production. Tant qu'il n'apparaît pas, le FMI
+ * répond et cette liste n'est jamais lue.
  */
 export const POLICY_RATE: { date: string; value: number }[] = [
   { date: "2012-03", value: 3.0 },
@@ -86,8 +87,33 @@ export const POLICY_RATE: { date: string; value: number }[] = [
   { date: "2025-03", value: 2.25 },
 ];
 
-/** Jusqu'où la liste ci-dessus a été vérifiée. Affiché sur la carte. */
+/** Jusqu'où le filet ci-dessus a été vérifié. Affiché en cas de repli. */
 export const POLICY_RATE_CHECKED = "2025-03";
+
+/**
+ * Ne garde qu'un point par changement de valeur.
+ *
+ * Le FMI publie le taux directeur tous les mois, donc cent quatre-vingts
+ * points dont l'immense majorité répète le précédent. Un taux directeur se lit
+ * par ses décisions : on ne conserve que les mois où il bouge, plus le dernier
+ * connu pour que la courbe aille jusqu'à aujourd'hui.
+ */
+export function keepChanges(points: MacroPoint[]): MacroPoint[] {
+  if (points.length === 0) return [];
+
+  // Chaque valeur qui diffère de la précédente retenue est une décision.
+  const out: MacroPoint[] = [points[0]!];
+  for (const p of points.slice(1)) {
+    if (p.value !== out[out.length - 1]!.value) out.push(p);
+  }
+
+  // Le dernier mois publié ferme la courbe, même s'il ne change rien : sans
+  // lui, le tracé s'arrêterait à la dernière décision et donnerait à croire
+  // que la série n'est plus tenue.
+  const last = points[points.length - 1]!;
+  if (out[out.length - 1] !== last) out.push(last);
+  return out;
+}
 
 export type MacroId = (typeof MACRO_INDICATORS)[number]["id"];
 
@@ -132,6 +158,53 @@ export function policyRateSeries(): MacroPoint[] {
   }));
 }
 
+/**
+ * Le taux directeur, tel que le FMI le publie.
+ *
+ * `IFS` est la base des Statistiques financières internationales ; la clé se lit
+ * fréquence.pays.indicateur, soit mensuel, Maroc, taux directeur. Service libre,
+ * sans clé ni quota.
+ *
+ * La réponse est du SDMX enveloppé en JSON, dont la forme varie : `Series` peut
+ * être un objet ou un tableau, `Obs` aussi, et les valeurs arrivent en chaînes.
+ * D'où un extracteur défensif, testé à part.
+ */
+export function parseImfSeries(json: unknown): MacroPoint[] {
+  const asRecord = (v: unknown): Record<string, unknown> =>
+    typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {};
+
+  const dataset = asRecord(asRecord(asRecord(json)["CompactData"])["DataSet"]);
+  const rawSeries = dataset["Series"];
+  const series = Array.isArray(rawSeries) ? rawSeries : [rawSeries];
+
+  const out: MacroPoint[] = [];
+  for (const one of series) {
+    const rawObs = asRecord(one)["Obs"];
+    for (const obs of Array.isArray(rawObs) ? rawObs : [rawObs]) {
+      const row = asRecord(obs);
+      const period = String(row["@TIME_PERIOD"] ?? "");
+      // La valeur arrive en chaîne : on refuse le vide AVANT de convertir, sans
+      // quoi `Number("")` vaudrait zéro et se tracerait comme un taux nul.
+      const raw = row["@OBS_VALUE"];
+      if (raw === null || raw === undefined || String(raw).trim() === "") continue;
+      const value = Number(raw);
+      const year = Number(period.slice(0, 4));
+      if (!Number.isFinite(value) || !Number.isInteger(year) || year < 1900) continue;
+      out.push({ year, value, label: period });
+    }
+  }
+  return out.sort((a, b) => (a.label ?? "").localeCompare(b.label ?? ""));
+}
+
+async function fetchPolicyRate(): Promise<MacroPoint[]> {
+  const url =
+    "https://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/IFS/M.MA.FPOLM_PA" +
+    "?startPeriod=2010";
+  const res = await fetch(url, { headers: { accept: "application/json" } });
+  if (!res.ok) throw new Error(`FMI : ${res.status}`);
+  return keepChanges(parseImfSeries(await res.json()));
+}
+
 /** Une série, ou une série vide si la source n'a rien à en dire. */
 async function fetchSeries(code: string): Promise<MacroPoint[]> {
   const url =
@@ -153,11 +226,20 @@ async function fetchSeries(code: string): Promise<MacroPoint[]> {
 export const getMacroSeries = createServerFn({ method: "GET" }).handler(
   async (): Promise<MacroSeries[]> =>
     Promise.all(
-      MACRO_INDICATORS.map(async (indicator) => ({
-        id: indicator.id,
-        points: indicator.code
-          ? await fetchSeries(indicator.code).catch(() => [])
-          : policyRateSeries(),
-      })),
+      MACRO_INDICATORS.map(async (indicator): Promise<MacroSeries> => {
+        if (indicator.code) {
+          return {
+            id: indicator.id,
+            points: await fetchSeries(indicator.code).catch(() => []),
+            source: "worldbank",
+          };
+        }
+        // Le FMI d'abord ; la table écrite à la main seulement s'il ne répond
+        // pas ou ne publie plus rien d'exploitable.
+        const imf = await fetchPolicyRate().catch(() => []);
+        return imf.length >= 2
+          ? { id: indicator.id, points: imf, source: "imf" }
+          : { id: indicator.id, points: policyRateSeries(), source: "manual" };
+      }),
     ),
 );

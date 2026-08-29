@@ -689,7 +689,7 @@ export const en: Record<keyof typeof fr, string> = {
   "macro.employmentText": "Share of the working-age population in work.",
   "macro.asOf": "in {year}",
   "macro.handMaintained":
-    "Hand-maintained series: no open source publishes the Moroccan policy rate. Verified through {date}.",
+    "The IMF is temporarily unreachable: this is the backup series, hand-kept and verified through {date}.",
   "macro.vsPrevious": "{delta} point(s) against {year}",
   "macro.loading": "Loading the series…",
   "macro.unavailable":
@@ -697,5 +697,5 @@ export const en: Record<keyof typeof fr, string> = {
   "macro.monthlyOnTradingView": "Monthly and interactive on TradingView",
   "macro.error": "Could not load the indicators: {reason}",
   "macro.source":
-    "Annual series published by the World Bank for Morocco. TradingView publishes them monthly or quarterly but does not serve those symbols outside its own site: each card links there.",
+    "Inflation, GDP, unemployment and employment: annual World Bank series. Policy rate: the IMF's monthly reading, reduced to its decisions. TradingView publishes the same figures more finely but does not serve those symbols outside its own site, hence the link on each card.",
 };
