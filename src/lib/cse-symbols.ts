@@ -79,7 +79,7 @@ export const CSE_SYMBOLS: ReadonlyArray<readonly [string, string]> = [
   ["CSEMA:UMR", "Unimer"],
   ["CSEMA:VCN", "Vicenne"],
   ["CSEMA:WAA", "Wafa Assurance"],
-  ["CSEMA:ZEL", "Zellidja"],
+  ["CSEMA:ZDJ", "Zellidja"],
 ];
 
 /** Alias entre les tickers utilisés en base et les symboles TradingView. */

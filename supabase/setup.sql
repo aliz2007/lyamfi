@@ -3022,7 +3022,7 @@ INSERT INTO public.stock_metrics (ticker, company, shares, eps_26, eps_27e, dps_
   ('UMR', 'UNIMER', 11413880, 0.44, 0.88, NULL, NULL, 86.5, 101.76, 4.69, -0.035, -0.013, NULL, -0.03, 0.044),
   ('VCN', 'VICENNE', 10258850, 16.2, 18.35, 9.66, 10.35, 90.79, 80.23, 2.43, 0.116, 0.072, 0.598, 0.133, 0.23),
   ('WAA', 'WAFA ASSURANCE', 3500000, 285.71, 314.61, 151.2, 168, 2333.33, NULL, NULL, 0.112, 0.032, 0.636, 0.071, NULL),
-  ('ZEL', 'Zellidja S.A', 572849, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+  ('ZDJ', 'Zellidja S.A', 572849, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
 ON CONFLICT (ticker) DO UPDATE SET
   company = EXCLUDED.company,
   shares = EXCLUDED.shares,
@@ -3042,7 +3042,7 @@ ON CONFLICT (ticker) DO UPDATE SET
 
 -- Les valeurs radiées de la cote disparaissent de la table.
 DELETE FROM public.stock_metrics
-WHERE ticker NOT IN ('ADH', 'ADI', 'AFI', 'AFM', 'AGM', 'AKT', 'ALM', 'ARD', 'ATH', 'ATL', 'ATW', 'BAL', 'BCI', 'BCP', 'BOA', 'CAP', 'CDM', 'CFG', 'CIH', 'CMA', 'CMG', 'CMT', 'COL', 'CRS', 'CSR', 'CTM', 'DHO', 'DIA', 'DLM', 'DRI', 'DWY', 'DYT', 'EQD', 'FBR', 'GAZ', 'GTM', 'HPS', 'IAM', 'IBC', 'IMO', 'INV', 'JET', 'LBV', 'LES', 'LHM', 'M2M', 'MAB', 'MDP', 'MIC', 'MLE', 'MNG', 'MOX', 'MSA', 'MUT', 'NEJ', 'NKL', 'OUL', 'PRO', 'RDS', 'REB', 'RIS', 'S2M', 'SAH', 'SBM', 'SID', 'SLF', 'SMI', 'SNA', 'SNP', 'SOT', 'SRM', 'STR', 'T2S', 'TGC', 'TMA', 'TQM', 'UMR', 'VCN', 'WAA', 'ZEL');
+WHERE ticker NOT IN ('ADH', 'ADI', 'AFI', 'AFM', 'AGM', 'AKT', 'ALM', 'ARD', 'ATH', 'ATL', 'ATW', 'BAL', 'BCI', 'BCP', 'BOA', 'CAP', 'CDM', 'CFG', 'CIH', 'CMA', 'CMG', 'CMT', 'COL', 'CRS', 'CSR', 'CTM', 'DHO', 'DIA', 'DLM', 'DRI', 'DWY', 'DYT', 'EQD', 'FBR', 'GAZ', 'GTM', 'HPS', 'IAM', 'IBC', 'IMO', 'INV', 'JET', 'LBV', 'LES', 'LHM', 'M2M', 'MAB', 'MDP', 'MIC', 'MLE', 'MNG', 'MOX', 'MSA', 'MUT', 'NEJ', 'NKL', 'OUL', 'PRO', 'RDS', 'REB', 'RIS', 'S2M', 'SAH', 'SBM', 'SID', 'SLF', 'SMI', 'SNA', 'SNP', 'SOT', 'SRM', 'STR', 'T2S', 'TGC', 'TMA', 'TQM', 'UMR', 'VCN', 'WAA', 'ZDJ');
 
 
 -- ---------------------------------------------------------------------
@@ -3623,3 +3623,35 @@ END; $$;
 
 REVOKE EXECUTE ON FUNCTION public.news_update(uuid, text, text, text, timestamptz) FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION public.news_update(uuid, text, text, text, timestamptz) TO authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- 20260829100000_zellidja_ticker.sql
+-- ---------------------------------------------------------------------
+
+-- Zellidja se cote ZDJ, pas ZEL.
+--
+-- Le classeur des fondamentaux écrivait ZEL, et `CSE_SYMBOLS` l'avait repris.
+-- La Bourse de Casablanca et TradingView cotent la valeur sous ZDJ : la
+-- jointure par ticker ne se faisait donc jamais, et Zellidja s'affichait sans
+-- cours ni capitalisation, en « N/A », sans que rien ne signale l'erreur.
+--
+-- La correction est faite en trois endroits, pour qu'elle ne se défasse pas :
+--   * `src/lib/cse-symbols.ts`, la cote de référence ;
+--   * `scripts/build-stock-metrics.py`, via TICKER_FIXES, pour qu'une
+--     régénération du classeur reproduise la correction ;
+--   * la migration du classeur, déjà générée, dont la ligne et la liste de
+--     conservation portent désormais ZDJ.
+--
+-- Reste à renommer la ligne dans les bases déjà installées : c'est cette
+-- migration. Sans elle, la valeur garderait ses fondamentaux sous l'ancien
+-- code jusqu'au prochain passage complet de setup.sql.
+
+-- Cas improbable mais destructeur : si les deux codes coexistaient, le
+-- renommage violerait la clé primaire. L'ancien s'efface alors devant le
+-- nouveau, qui vient du classeur régénéré et fait foi.
+DELETE FROM public.stock_metrics
+WHERE ticker = 'ZEL'
+  AND EXISTS (SELECT 1 FROM public.stock_metrics WHERE ticker = 'ZDJ');
+
+UPDATE public.stock_metrics SET ticker = 'ZDJ' WHERE ticker = 'ZEL';

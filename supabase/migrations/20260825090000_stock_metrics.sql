@@ -121,7 +121,7 @@ INSERT INTO public.stock_metrics (ticker, company, shares, eps_26, eps_27e, dps_
   ('UMR', 'UNIMER', 11413880, 0.44, 0.88, NULL, NULL, 86.5, 101.76, 4.69, -0.035, -0.013, NULL, -0.03, 0.044),
   ('VCN', 'VICENNE', 10258850, 16.2, 18.35, 9.66, 10.35, 90.79, 80.23, 2.43, 0.116, 0.072, 0.598, 0.133, 0.23),
   ('WAA', 'WAFA ASSURANCE', 3500000, 285.71, 314.61, 151.2, 168, 2333.33, NULL, NULL, 0.112, 0.032, 0.636, 0.071, NULL),
-  ('ZEL', 'Zellidja S.A', 572849, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+  ('ZDJ', 'Zellidja S.A', 572849, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
 ON CONFLICT (ticker) DO UPDATE SET
   company = EXCLUDED.company,
   shares = EXCLUDED.shares,
@@ -141,4 +141,4 @@ ON CONFLICT (ticker) DO UPDATE SET
 
 -- Les valeurs radiées de la cote disparaissent de la table.
 DELETE FROM public.stock_metrics
-WHERE ticker NOT IN ('ADH', 'ADI', 'AFI', 'AFM', 'AGM', 'AKT', 'ALM', 'ARD', 'ATH', 'ATL', 'ATW', 'BAL', 'BCI', 'BCP', 'BOA', 'CAP', 'CDM', 'CFG', 'CIH', 'CMA', 'CMG', 'CMT', 'COL', 'CRS', 'CSR', 'CTM', 'DHO', 'DIA', 'DLM', 'DRI', 'DWY', 'DYT', 'EQD', 'FBR', 'GAZ', 'GTM', 'HPS', 'IAM', 'IBC', 'IMO', 'INV', 'JET', 'LBV', 'LES', 'LHM', 'M2M', 'MAB', 'MDP', 'MIC', 'MLE', 'MNG', 'MOX', 'MSA', 'MUT', 'NEJ', 'NKL', 'OUL', 'PRO', 'RDS', 'REB', 'RIS', 'S2M', 'SAH', 'SBM', 'SID', 'SLF', 'SMI', 'SNA', 'SNP', 'SOT', 'SRM', 'STR', 'T2S', 'TGC', 'TMA', 'TQM', 'UMR', 'VCN', 'WAA', 'ZEL');
+WHERE ticker NOT IN ('ADH', 'ADI', 'AFI', 'AFM', 'AGM', 'AKT', 'ALM', 'ARD', 'ATH', 'ATL', 'ATW', 'BAL', 'BCI', 'BCP', 'BOA', 'CAP', 'CDM', 'CFG', 'CIH', 'CMA', 'CMG', 'CMT', 'COL', 'CRS', 'CSR', 'CTM', 'DHO', 'DIA', 'DLM', 'DRI', 'DWY', 'DYT', 'EQD', 'FBR', 'GAZ', 'GTM', 'HPS', 'IAM', 'IBC', 'IMO', 'INV', 'JET', 'LBV', 'LES', 'LHM', 'M2M', 'MAB', 'MDP', 'MIC', 'MLE', 'MNG', 'MOX', 'MSA', 'MUT', 'NEJ', 'NKL', 'OUL', 'PRO', 'RDS', 'REB', 'RIS', 'S2M', 'SAH', 'SBM', 'SID', 'SLF', 'SMI', 'SNA', 'SNP', 'SOT', 'SRM', 'STR', 'T2S', 'TGC', 'TMA', 'TQM', 'UMR', 'VCN', 'WAA', 'ZDJ');

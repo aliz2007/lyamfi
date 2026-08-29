@@ -58,12 +58,26 @@ rows = [r for r in openpyxl.load_workbook(XL, data_only=True)["Feuille 1"].iter_
 header = [str(c).strip() if c else "" for c in rows[0]]
 index = {name: header.index(name) for name, _ in COLUMNS}
 
+# Codes que le classeur écrit autrement que la cote.
+#
+# Le ticker sert de clé de jointure avec `CSE_SYMBOLS` et avec les cotations
+# TradingView : un code qui ne correspond pas laisse la valeur sans cours ni
+# capitalisation, affichée « N/A » sans que rien ne signale l'erreur. La
+# correction vit ici plutôt que dans la migration générée, pour qu'une
+# régénération du classeur la reproduise au lieu de la perdre.
+TICKER_FIXES = {
+    # Zellidja : le classeur note ZEL, la Bourse de Casablanca et TradingView
+    # cotent ZDJ.
+    "ZEL": "ZDJ",
+}
+
 records, skipped = [], []
 for raw in rows[1:]:
     ticker = raw[index["Ticker"]]
     if not ticker or not str(ticker).strip():
         continue
     ticker = str(ticker).strip().upper()
+    ticker = TICKER_FIXES.get(ticker, ticker)
     company = str(raw[index["Société"]]).strip()
     values = [sql_text(ticker), sql_text(company)]
     for name, _ in COLUMNS[2:]:
