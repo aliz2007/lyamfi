@@ -680,14 +680,16 @@ export const en: Record<keyof typeof fr, string> = {
   "macro.inflationText": "Consumer price growth, year on year.",
   "macro.gdp": "GDP growth",
   "macro.gdpText": "Quarterly change in the country's output.",
-  "macro.rate": "Real interest rate",
+  "macro.rate": "Policy interest rate",
   "macro.rateText":
-    "What borrowers pay once inflation is deducted. It tracks Bank Al-Maghrib's policy rate without being the same thing.",
+    "Bank Al-Maghrib's rate: the price of money for the whole economy. It moves only by decision of the Board, at most four times a year.",
   "macro.unemployment": "Unemployment rate",
   "macro.unemploymentText": "Share of the labour force without a job.",
   "macro.employment": "Employment rate",
   "macro.employmentText": "Share of the working-age population in work.",
   "macro.asOf": "in {year}",
+  "macro.handMaintained":
+    "Hand-maintained series: no open source publishes the Moroccan policy rate. Verified through {date}.",
   "macro.vsPrevious": "{delta} point(s) against {year}",
   "macro.loading": "Loading the series…",
   "macro.unavailable":

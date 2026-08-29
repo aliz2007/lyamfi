@@ -23,7 +23,12 @@ import { createServerFn } from "@tanstack/react-start";
  * cote, l'annuel suffit et se lit même mieux.
  */
 
-export type MacroPoint = { year: number; value: number };
+export type MacroPoint = {
+  year: number;
+  value: number;
+  /** Abscisse à afficher quand l'année ne suffit pas, ex. « 2022-09 ». */
+  label?: string;
+};
 
 export type MacroSeries = {
   /** Identifiant interne de l'indicateur, cf. `MACRO_INDICATORS`. */
@@ -33,20 +38,56 @@ export type MacroSeries = {
 };
 
 /**
- * Les cinq indicateurs, et le code Banque mondiale correspondant.
+ * Les cinq indicateurs, dans l'ordre d'affichage.
  *
- * ⚠️ `policyRate` n'est PAS le taux directeur de Bank Al-Maghrib : la Banque
- * mondiale ne le publie pas. `FR.INR.RINR` est le taux d'intérêt réel, qui en
- * est le reflet une fois l'inflation déduite. L'interface le nomme donc pour ce
- * qu'il est, et renvoie vers TradingView pour le taux directeur lui-même.
+ * `code` est le code Banque mondiale, ou `null` pour la série tenue à la main.
  */
 export const MACRO_INDICATORS = [
   { id: "inflation", code: "FP.CPI.TOTL.ZG", tv: "ECONOMICS-MAIRMM" },
   { id: "gdp", code: "NY.GDP.MKTP.KD.ZG", tv: "ECONOMICS-MAGDPQQ" },
-  { id: "policyRate", code: "FR.INR.RINR", tv: "ECONOMICS-MAINTR" },
+  { id: "policyRate", code: null, tv: "ECONOMICS-MAINTR" },
   { id: "unemployment", code: "SL.UEM.TOTL.ZS", tv: "ECONOMICS-MAUR" },
   { id: "employment", code: "SL.EMP.TOTL.SP.ZS", tv: "ECONOMICS-MAER" },
 ] as const;
+
+/**
+ * Taux directeur de Bank Al-Maghrib, tenu à la main.
+ *
+ * POURQUOI PAS UNE SOURCE AUTOMATIQUE
+ *
+ * La Banque mondiale ne publie tout simplement pas le taux directeur marocain :
+ * `FR.INR.RINR`, le taux d'intérêt RÉEL, revient vide pour le Maroc, et ce
+ * n'était de toute façon pas la même grandeur. Bank Al-Maghrib n'expose pas
+ * d'API. Il n'y a donc rien à interroger.
+ *
+ * POURQUOI C'EST ACCEPTABLE
+ *
+ * Un taux directeur n'est pas une série mesurée mais une suite de DÉCISIONS :
+ * le Conseil se réunit quatre fois par an et, la plupart du temps, ne bouge
+ * pas. Une douzaine de lignes couvrent donc quinze ans, et la maintenance est
+ * d'une ligne quand le Conseil tranche.
+ *
+ * ⚠️ MISE À JOUR. Ajouter une ligne à la fin après chaque décision, et avancer
+ * `POLICY_RATE_CHECKED`. La date est affichée sur la carte : un lecteur voit
+ * ainsi jusqu'où la série est tenue, au lieu de croire un chiffre périmé.
+ */
+export const POLICY_RATE: { date: string; value: number }[] = [
+  { date: "2012-03", value: 3.0 },
+  { date: "2014-09", value: 2.75 },
+  { date: "2014-12", value: 2.5 },
+  { date: "2016-03", value: 2.25 },
+  { date: "2020-03", value: 2.0 },
+  { date: "2020-06", value: 1.5 },
+  { date: "2022-09", value: 2.0 },
+  { date: "2022-12", value: 2.5 },
+  { date: "2023-03", value: 3.0 },
+  { date: "2024-06", value: 2.75 },
+  { date: "2024-12", value: 2.5 },
+  { date: "2025-03", value: 2.25 },
+];
+
+/** Jusqu'où la liste ci-dessus a été vérifiée. Affiché sur la carte. */
+export const POLICY_RATE_CHECKED = "2025-03";
 
 export type MacroId = (typeof MACRO_INDICATORS)[number]["id"];
 
@@ -82,6 +123,15 @@ export function parseWorldBank(json: unknown): MacroPoint[] {
   return out.sort((a, b) => a.year - b.year);
 }
 
+/** La suite de décisions, mise à la forme commune des autres séries. */
+export function policyRateSeries(): MacroPoint[] {
+  return POLICY_RATE.map((d) => ({
+    year: Number(d.date.slice(0, 4)),
+    value: d.value,
+    label: d.date,
+  }));
+}
+
 /** Une série, ou une série vide si la source n'a rien à en dire. */
 async function fetchSeries(code: string): Promise<MacroPoint[]> {
   const url =
@@ -105,7 +155,9 @@ export const getMacroSeries = createServerFn({ method: "GET" }).handler(
     Promise.all(
       MACRO_INDICATORS.map(async (indicator) => ({
         id: indicator.id,
-        points: await fetchSeries(indicator.code).catch(() => []),
+        points: indicator.code
+          ? await fetchSeries(indicator.code).catch(() => [])
+          : policyRateSeries(),
       })),
     ),
 );

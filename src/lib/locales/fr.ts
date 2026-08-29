@@ -689,14 +689,16 @@ export const fr = {
   "macro.inflationText": "Hausse des prix à la consommation, en glissement annuel.",
   "macro.gdp": "Croissance du PIB",
   "macro.gdpText": "Variation trimestrielle de la production du pays.",
-  "macro.rate": "Taux d'intérêt réel",
+  "macro.rate": "Taux directeur",
   "macro.rateText":
-    "Le taux payé par les emprunteurs une fois l'inflation déduite. Il suit le taux directeur de Bank Al-Maghrib sans lui être identique.",
+    "Le taux de Bank Al-Maghrib : le prix de l'argent pour toute l'économie. Il ne varie que sur décision du Conseil, quatre fois par an au plus.",
   "macro.unemployment": "Taux de chômage",
   "macro.unemploymentText": "Part de la population active sans emploi.",
   "macro.employment": "Taux d'emploi",
   "macro.employmentText": "Part de la population en âge de travailler qui occupe un emploi.",
   "macro.asOf": "en {year}",
+  "macro.handMaintained":
+    "Série tenue à la main : aucune source ouverte ne publie le taux directeur marocain. Vérifiée jusqu'à {date}.",
   "macro.vsPrevious": "{delta} point(s) par rapport à {year}",
   "macro.loading": "Chargement de la série…",
   "macro.unavailable":

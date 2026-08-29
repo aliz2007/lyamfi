@@ -4,7 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Disclaimer } from "@/components/Disclaimer";
-import { getMacroSeries, MACRO_INDICATORS, type MacroSeries } from "@/lib/macro.functions";
+import {
+  getMacroSeries,
+  MACRO_INDICATORS,
+  POLICY_RATE_CHECKED,
+  type MacroSeries,
+} from "@/lib/macro.functions";
 import { EMPTY, useFormat, type Formatter } from "@/lib/format";
 import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 
@@ -15,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/macroeconomie")({
       {
         name: "description",
         content:
-          "Inflation, croissance du PIB, taux d'intérêt réel, chômage et emploi au Maroc : les chiffres qui situent la Bourse de Casablanca dans son économie.",
+          "Inflation, croissance du PIB, taux directeur, chômage et emploi au Maroc : les chiffres qui situent la Bourse de Casablanca dans son économie.",
       },
       { property: "og:title", content: "Indicateurs macroéconomiques | Lyamfi" },
       {
@@ -86,6 +91,9 @@ function MacroPage() {
             series={byId.get(indicator.id) ?? null}
             loading={isLoading}
             href={`https://www.tradingview.com/symbols/${indicator.tv}/`}
+            // Une série tenue à la main affiche jusqu'où elle est vérifiée :
+            // un taux directeur périmé se lit comme un taux directeur actuel.
+            checkedAt={indicator.code === null ? POLICY_RATE_CHECKED : null}
             t={t}
             f={f}
           />
@@ -109,6 +117,7 @@ function IndicatorCard({
   series,
   loading,
   href,
+  checkedAt,
   t,
   f,
 }: {
@@ -116,6 +125,7 @@ function IndicatorCard({
   series: MacroSeries | null;
   loading: boolean;
   href: string;
+  checkedAt: string | null;
   t: Translate;
   f: Formatter;
 }) {
@@ -123,6 +133,9 @@ function IndicatorCard({
   const last = points[points.length - 1] ?? null;
   const previous = points[points.length - 2] ?? null;
   const delta = last && previous ? last.value - previous.value : null;
+  // L'abscisse est l'année, sauf quand la série porte un repère plus fin :
+  // le taux directeur bouge trois fois dans une même année.
+  const data = points.map((p) => ({ x: p.label ?? String(p.year), value: p.value }));
 
   return (
     <section className="glass glass-gold overflow-hidden p-5 sm:p-6">
@@ -137,7 +150,7 @@ function IndicatorCard({
           </p>
           {last && (
             <p className="text-xs tabular-nums text-muted-foreground">
-              {t("macro.asOf", { year: String(last.year) })}
+              {t("macro.asOf", { year: last.label ?? String(last.year) })}
             </p>
           )}
         </div>
@@ -151,7 +164,7 @@ function IndicatorCard({
         >
           {t("macro.vsPrevious", {
             delta: `${delta > 0 ? "+" : ""}${f.num(delta, 1)}`,
-            year: String(previous!.year),
+            year: previous!.label ?? String(previous!.year),
           })}
         </p>
       )}
@@ -165,7 +178,7 @@ function IndicatorCard({
       ) : (
         <div className="-mx-2 mt-5 h-52">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={points}>
+            <AreaChart data={data}>
               <defs>
                 <linearGradient id={`macro-${labels.label}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--gold)" stopOpacity={0.5} />
@@ -173,7 +186,7 @@ function IndicatorCard({
                 </linearGradient>
               </defs>
               <XAxis
-                dataKey="year"
+                dataKey="x"
                 tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
@@ -198,7 +211,9 @@ function IndicatorCard({
               />
               <Area
                 name={t(labels.label)}
-                type="monotone"
+                // Un taux directeur ne glisse pas d'une décision à l'autre : il
+                // tient sa valeur puis saute. La courbe le dit.
+                type={checkedAt ? "stepAfter" : "monotone"}
                 dataKey="value"
                 stroke="var(--gold)"
                 strokeWidth={2.5}
@@ -207,6 +222,12 @@ function IndicatorCard({
             </AreaChart>
           </ResponsiveContainer>
         </div>
+      )}
+
+      {checkedAt && (
+        <p className="mt-4 text-[11px] leading-snug text-muted-foreground">
+          {t("macro.handMaintained", { date: checkedAt })}
+        </p>
       )}
 
       <a
