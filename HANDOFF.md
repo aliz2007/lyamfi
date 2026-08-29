@@ -439,9 +439,18 @@ The maths is checked against a hand-computed reference (100 000 MAD over 10 year
 
 ## 9h. Macroéconomie (`/macroeconomie`)
 
-Five TradingView charts on the Moroccan economy: inflation (`ECONOMICS:MAIRMM`), GDP growth (`MAGDPQQ`), the policy rate (`MAINTR`), unemployment (`MAUR`) and employment (`MAER`). Reached from the gold banner at the top of `/actualites`, deliberately not from the nav: it is context for the news, not a sixth destination.
+Five indicators on the Moroccan economy, reached from the gold banner at the top of `/actualites`, deliberately not from the nav: it is context for the news, not a sixth destination.
 
-The symbols live in one array at the top of the route, so a code that TradingView renames is a one-line fix. A series TradingView has not updated renders as an empty chart; that is the provider's state, not a bug in the page.
+**It does not use TradingView widgets, and cannot.** The page shipped with five `advanced-chart` embeds on `ECONOMICS:MA…` symbols, exactly as specified. Every one of them refused to render: *« Symbole disponible uniquement sur TradingView »*. Economic series are not among what the free embeddable widgets are licensed to serve, so no amount of configuration would have fixed it.
+
+What replaced them: the **World Bank's open API** (`api.worldbank.org`, no key, no quota), charted with Recharts like everything else on the site. Same trade as §9d, where the market cards dropped their TradingView embeds for local sparklines.
+
+- The trade-off is granularity: the World Bank publishes annually, TradingView monthly or quarterly. Each card therefore keeps a link to its TradingView page for the finer series.
+- **`policyRate` is not Bank Al-Maghrib's policy rate.** The World Bank does not publish it; `FR.INR.RINR` is the real interest rate, which tracks it without being it. The card is labelled for what the number actually is, and the link goes to the policy rate itself.
+- `parseWorldBank()` is exported apart from the fetch, as `buildHistory()` is in §9d, so the shape handling is checked without network. The trap it exists to avoid: `Number(null)` is `0`, so filtering after conversion would chart an unpublished year as zero inflation. It filters on the raw value.
+- A series that fails to load leaves its card with the explanation and the link rather than an empty frame.
+
+**Unverified:** `api.worldbank.org` is blocked by the same egress policy that blocks TradingView from the audit environment, so the live response was never seen. The parser is tested against the documented shape; the request itself is not.
 
 ---
 

@@ -689,12 +689,20 @@ export const fr = {
   "macro.inflationText": "Hausse des prix à la consommation, en glissement annuel.",
   "macro.gdp": "Croissance du PIB",
   "macro.gdpText": "Variation trimestrielle de la production du pays.",
-  "macro.rate": "Taux directeur",
-  "macro.rateText": "Le taux de Bank Al-Maghrib : le prix de l'argent pour toute l'économie.",
+  "macro.rate": "Taux d'intérêt réel",
+  "macro.rateText":
+    "Le taux payé par les emprunteurs une fois l'inflation déduite. Il suit le taux directeur de Bank Al-Maghrib sans lui être identique.",
   "macro.unemployment": "Taux de chômage",
   "macro.unemploymentText": "Part de la population active sans emploi.",
   "macro.employment": "Taux d'emploi",
   "macro.employmentText": "Part de la population en âge de travailler qui occupe un emploi.",
+  "macro.asOf": "en {year}",
+  "macro.vsPrevious": "{delta} point(s) par rapport à {year}",
+  "macro.loading": "Chargement de la série…",
+  "macro.unavailable":
+    "Série momentanément indisponible. Le lien ci-dessous ouvre la version mensuelle sur TradingView.",
+  "macro.monthlyOnTradingView": "Version mensuelle et interactive sur TradingView",
+  "macro.error": "Impossible de charger les indicateurs : {reason}",
   "macro.source":
-    "Graphiques fournis par TradingView à partir des statistiques publiques. Un indicateur momentanément vide signifie que la série n'a pas encore été mise à jour à la source.",
+    "Séries annuelles publiées par la Banque mondiale pour le Maroc. TradingView les publie au mois ou au trimestre, mais ne sert pas ces symboles hors de son propre site : chaque carte y renvoie.",
 } as const;

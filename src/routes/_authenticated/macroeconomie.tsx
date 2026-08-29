@@ -1,8 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowLeft, ExternalLink } from "lucide-react";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Disclaimer } from "@/components/Disclaimer";
-import { TradingViewWidget } from "@/components/TradingViewWidget";
-import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
+import { getMacroSeries, MACRO_INDICATORS, type MacroSeries } from "@/lib/macro.functions";
+import { EMPTY, useFormat, type Formatter } from "@/lib/format";
+import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/macroeconomie")({
   head: () => ({
@@ -11,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/macroeconomie")({
       {
         name: "description",
         content:
-          "Inflation, croissance du PIB, taux directeur, chômage et emploi au Maroc : les graphiques qui situent la Bourse de Casablanca dans son économie.",
+          "Inflation, croissance du PIB, taux d'intérêt réel, chômage et emploi au Maroc : les chiffres qui situent la Bourse de Casablanca dans son économie.",
       },
       { property: "og:title", content: "Indicateurs macroéconomiques | Lyamfi" },
       {
@@ -23,25 +27,34 @@ export const Route = createFileRoute("/_authenticated/macroeconomie")({
   component: MacroPage,
 });
 
-/**
- * Les cinq indicateurs, avec leur symbole TradingView.
- *
- * Les codes viennent du fournisseur de données économiques de TradingView :
- * préfixe pays `MA`, puis l'indicateur. Ils sont écrits ici une fois pour
- * toutes plutôt que dans le composant, pour qu'une correction de symbole se
- * fasse à un seul endroit.
- */
-const INDICATORS: { symbol: string; label: Key; text: Key }[] = [
-  { symbol: "ECONOMICS:MAIRMM", label: "macro.inflation", text: "macro.inflationText" },
-  { symbol: "ECONOMICS:MAGDPQQ", label: "macro.gdp", text: "macro.gdpText" },
-  { symbol: "ECONOMICS:MAINTR", label: "macro.rate", text: "macro.rateText" },
-  { symbol: "ECONOMICS:MAUR", label: "macro.unemployment", text: "macro.unemploymentText" },
-  { symbol: "ECONOMICS:MAER", label: "macro.employment", text: "macro.employmentText" },
-];
+/** Libellés et lien de repli, dans l'ordre d'affichage. */
+const LABELS: Record<string, { label: Key; text: Key }> = {
+  inflation: { label: "macro.inflation", text: "macro.inflationText" },
+  gdp: { label: "macro.gdp", text: "macro.gdpText" },
+  policyRate: { label: "macro.rate", text: "macro.rateText" },
+  unemployment: { label: "macro.unemployment", text: "macro.unemploymentText" },
+  employment: { label: "macro.employment", text: "macro.employmentText" },
+};
 
 function MacroPage() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
+  const f = useFormat();
   usePageTitle("macro.title");
+
+  const fetchSeries = useServerFn(getMacroSeries);
+  const {
+    data: series = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["macro-series"],
+    queryFn: () => fetchSeries(),
+    // Des séries annuelles ne bougent pas dans la journée.
+    staleTime: 12 * 60 * 60_000,
+    retry: 1,
+  });
+
+  const byId = new Map(series.map((s) => [s.id, s]));
 
   return (
     <div className="space-y-8">
@@ -59,42 +72,23 @@ function MacroPage() {
         </p>
       </header>
 
-      {/* Une colonne sur mobile, deux au-delà : un graphique économique se lit
-          mal sous 400 pixels de large. */}
+      {error && (
+        <p className="glass p-5 text-sm text-destructive">
+          {t("macro.error", { reason: (error as Error).message })}
+        </p>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-2">
-        {INDICATORS.map((indicator) => (
-          <section key={indicator.symbol} className="glass glass-gold overflow-hidden p-4 sm:p-5">
-            <h2 className="text-sm font-semibold text-brand-yellow">{t(indicator.label)}</h2>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              {t(indicator.text)}
-            </p>
-            <TradingViewWidget
-              // Le locale entre dans la clé : changer de langue reconstruit le
-              // widget, qui ne sait pas se traduire une fois monté.
-              key={`${indicator.symbol}-${locale}`}
-              widget="advanced-chart"
-              className="mt-4 h-[340px] w-full"
-              config={{
-                symbol: indicator.symbol,
-                interval: "1M",
-                timezone: "Africa/Casablanca",
-                theme: "dark",
-                // Style 3 : courbe pleine. Un chandelier n'a pas de sens sur une
-                // série économique publiée une fois par mois ou par trimestre.
-                style: "3",
-                locale: locale === "en-GB" ? "en" : "fr",
-                backgroundColor: "rgba(0, 0, 0, 0)",
-                gridColor: "rgba(255, 255, 255, 0.05)",
-                hide_side_toolbar: true,
-                hide_top_toolbar: true,
-                hide_legend: false,
-                allow_symbol_change: false,
-                withdateranges: true,
-                save_image: false,
-                autosize: true,
-              }}
-            />
-          </section>
+        {MACRO_INDICATORS.map((indicator) => (
+          <IndicatorCard
+            key={indicator.id}
+            labels={LABELS[indicator.id]!}
+            series={byId.get(indicator.id) ?? null}
+            loading={isLoading}
+            href={`https://www.tradingview.com/symbols/${indicator.tv}/`}
+            t={t}
+            f={f}
+          />
         ))}
       </div>
 
@@ -102,5 +96,128 @@ function MacroPage() {
 
       <Disclaimer />
     </div>
+  );
+}
+
+/**
+ * Une carte par indicateur : la dernière valeur en grand, l'écart avec l'année
+ * précédente, puis la série tracée. Le lien TradingView reste offert pour la
+ * version mensuelle et interactive, que seul leur site sert.
+ */
+function IndicatorCard({
+  labels,
+  series,
+  loading,
+  href,
+  t,
+  f,
+}: {
+  labels: { label: Key; text: Key };
+  series: MacroSeries | null;
+  loading: boolean;
+  href: string;
+  t: Translate;
+  f: Formatter;
+}) {
+  const points = series?.points ?? [];
+  const last = points[points.length - 1] ?? null;
+  const previous = points[points.length - 2] ?? null;
+  const delta = last && previous ? last.value - previous.value : null;
+
+  return (
+    <section className="glass glass-gold overflow-hidden p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-brand-yellow">{t(labels.label)}</h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t(labels.text)}</p>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
+            {last ? `${f.num(last.value, 1)} %` : EMPTY}
+          </p>
+          {last && (
+            <p className="text-xs tabular-nums text-muted-foreground">
+              {t("macro.asOf", { year: String(last.year) })}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {delta !== null && (
+        <p
+          className={`mt-3 text-xs tabular-nums ${
+            delta >= 0 ? "text-[var(--success)]" : "text-destructive"
+          }`}
+        >
+          {t("macro.vsPrevious", {
+            delta: `${delta > 0 ? "+" : ""}${f.num(delta, 1)}`,
+            year: String(previous!.year),
+          })}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="mt-6 text-xs text-muted-foreground">{t("macro.loading")}</p>
+      ) : points.length < 2 ? (
+        <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
+          {t("macro.unavailable")}
+        </p>
+      ) : (
+        <div className="-mx-2 mt-5 h-52">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={points}>
+              <defs>
+                <linearGradient id={`macro-${labels.label}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--gold)" stopOpacity={0.5} />
+                  <stop offset="100%" stopColor="var(--gold)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="year"
+                tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                minTickGap={28}
+              />
+              <YAxis
+                tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                width={44}
+                tickFormatter={(v: number) => `${f.num(v, 0)}`}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  fontSize: 12,
+                }}
+                formatter={(v: number) => `${f.num(v, 2)} %`}
+                labelFormatter={(l) => String(l)}
+              />
+              <Area
+                name={t(labels.label)}
+                type="monotone"
+                dataKey="value"
+                stroke="var(--gold)"
+                strokeWidth={2.5}
+                fill={`url(#macro-${labels.label})`}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="mt-4 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-brand-yellow"
+      >
+        {t("macro.monthlyOnTradingView")}
+        <ExternalLink className="h-3 w-3" />
+      </a>
+    </section>
   );
 }

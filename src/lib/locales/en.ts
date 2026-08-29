@@ -680,12 +680,20 @@ export const en: Record<keyof typeof fr, string> = {
   "macro.inflationText": "Consumer price growth, year on year.",
   "macro.gdp": "GDP growth",
   "macro.gdpText": "Quarterly change in the country's output.",
-  "macro.rate": "Policy interest rate",
-  "macro.rateText": "Bank Al-Maghrib's rate: the price of money for the whole economy.",
+  "macro.rate": "Real interest rate",
+  "macro.rateText":
+    "What borrowers pay once inflation is deducted. It tracks Bank Al-Maghrib's policy rate without being the same thing.",
   "macro.unemployment": "Unemployment rate",
   "macro.unemploymentText": "Share of the labour force without a job.",
   "macro.employment": "Employment rate",
   "macro.employmentText": "Share of the working-age population in work.",
+  "macro.asOf": "in {year}",
+  "macro.vsPrevious": "{delta} point(s) against {year}",
+  "macro.loading": "Loading the series…",
+  "macro.unavailable":
+    "Series temporarily unavailable. The link below opens the monthly version on TradingView.",
+  "macro.monthlyOnTradingView": "Monthly and interactive on TradingView",
+  "macro.error": "Could not load the indicators: {reason}",
   "macro.source":
-    "Charts provided by TradingView from public statistics. An empty indicator means the series has not been updated at the source yet.",
+    "Annual series published by the World Bank for Morocco. TradingView publishes them monthly or quarterly but does not serve those symbols outside its own site: each card links there.",
 };
