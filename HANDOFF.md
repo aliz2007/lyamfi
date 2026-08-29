@@ -20,7 +20,7 @@ Eight surfaces:
 |---|---|---|
 | Landing | `/` | Value prop, 4 module teasers, sign-up CTA |
 | Dashboard | `/dashboard` | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress |
-| Bourse | `/bourse`, `/bourse/$ticker` | 81 listed companies, live prices, charts, fundamentals |
+| Bourse | `/bourse`, `/bourse/$ticker` | 80 listed companies, live prices, charts, fundamentals |
 | Portefeuille | `/portefeuille` | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve |
 | Classement | `/classement` | Leaderboard by portfolio value, cash / invested split |
 | Académie | `/academie`, `/academie/$slug` | 14 lessons in 3 gated levels, quiz + badge per lesson |
@@ -45,8 +45,8 @@ I ran these in a clean checkout:
 | `npx tsc --noEmit` | ✅ **Clean.** Zero type errors, under a genuinely strict config (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`). Re-run 2026-08-27. |
 | `npm run build` | ✅ **Succeeds** in a few seconds. Emits a Cloudflare Workers bundle (`.output/`, auto-generated `wrangler.json`, `nodejs_compat`). Re-run 2026-08-27. |
 | `npm run lint` | ❌ **~590 problems**: but **584 are Prettier formatting** and auto-fixable, and the other 6 are benign `react-refresh` warnings inside vendored shadcn/ui files. **Zero real code-quality errors.** `npm run format` clears it. Every file touched since is formatted and lint-clean. |
-| `supabase/setup.sql` | ✅ **Applied twice in a row** against a throwaway PostgreSQL 16 with stand-ins for the `auth` and `storage` schemas, 2026-08-27. Clean both times, so it is genuinely re-runnable. |
-| Tests | **None exist.** No test runner, no test files, no CI workflow. |
+| `supabase/setup.sql` | ✅ **Applied twice in a row** against a throwaway PostgreSQL 16 with stand-ins for the `auth` and `storage` schemas and Supabase's default privileges, last on 2026-08-29. Clean both times, so it is genuinely re-runnable. |
+| Tests | **No test runner and no CI.** The pure logic added since 2026-08-27 was nonetheless checked by throwaway scripts run under `node --experimental-strip-types`: session hours, order fills, the PER/yield sorts, the capital-gains tax, the credit amortisation and APR, the excerpt stripper, and both macro parsers. Those scripts were not kept; a real suite is still §11 item 9. |
 
 The codebase is in good mechanical health. The lint number looks alarming and isn't.
 
@@ -125,10 +125,24 @@ npm run format   # prettier --write .
 
 | # | Source | Size | Freshness | Used for |
 |---|---|---|---|---|
-| 1 | **`CSE_SYMBOLS`**: hardcoded array in `src/lib/cse-symbols.ts` | 82 entries (81 companies + MASI) | Manual | **The master list.** Decides what appears on `/bourse` at all, and drives the ticker tape. |
+| 1 | **`CSE_SYMBOLS`**: hardcoded array in `src/lib/cse-symbols.ts` | 81 entries (80 companies + MASI) | Manual | **The master list.** Decides what appears on `/bourse` at all, and drives the ticker tape. |
 | 2 | **TradingView scanner**: `getLiveQuotes()` server fn | ~live universe | Live, 60s refetch | Every price and % change shown anywhere in the app. |
 | 3 | **`stock_metrics`** table | 80 rows | The fundamentals workbook, seeded 2026-08-25 | Everything price-independent (share count, BPA, DPA, book value…). Market cap, PER, yield, P/B, P/S and P/FCF are *derived at render time* against the live price. The older `stock_fundamentals` (37 rows) is no longer read by the market pages. |
 | 4 | **`stocks`** table | 20 rows | Seeded 2026-07-31, **stale** | Sector filter, company description, the `/bourse/$ticker` detail page, and its PER/BPA/PEG/target-price block. |
+
+### The ticker is a join key, and a wrong one fails silently
+
+`CSE_SYMBOLS`, `stock_metrics` and the TradingView quotes are joined **by ticker and nothing else**. A code that disagrees between any two of them produces a card with no price and no market cap, rendered as `N/A` — and `N/A` is also the correct output for a figure nobody published, so the two are indistinguishable on screen.
+
+That is exactly what hid **Zellidja** for weeks: the fundamentals workbook writes `ZEL`, and `CSE_SYMBOLS` had followed it, but the exchange and TradingView both quote `ZDJ`. Corrected 2026-08-29 in three places at once, which is what such a fix costs: the listing, `TICKER_FIXES` in `scripts/build-stock-metrics.py` (so regenerating the workbook reproduces it), and the generated migration — including the keep-list at its end, which drives a `DELETE`, so leaving that on the old code would have wiped the renamed row on the next full replay.
+
+**To find the next one**, compare what the app records against what it lists:
+
+```sql
+select ticker from public.stock_quotes_daily where date = current_date;
+```
+
+Anything TradingView returns that `CSE_SYMBOLS` does not carry is the other half of a mismatch.
 
 ### How they join
 
@@ -342,7 +356,7 @@ The market cards used to embed a TradingView `mini-symbol-overview` widget. That
 
 What replaced them:
 
-- **Every one of the 81 listed stocks now has an internal page.** `/bourse/$ticker` is keyed on the CSE code (post-alias, e.g. `DIS` resolves to `DWY`), not on `stocks.ticker`, so coverage is no longer limited to the 20 rows in the `stocks` table.
+- **Every one of the 80 listed stocks now has an internal page.** `/bourse/$ticker` is keyed on the CSE code (post-alias, e.g. `DIS` resolves to `DWY`), not on `stocks.ticker`, so coverage is no longer limited to the 20 rows in the `stocks` table.
 - **The chart is the TradingView `advanced-chart` widget**, embedded in the detail page. It was briefly a Lightweight Charts canvas fed by a series reconstructed from the screener's performance windows; seven points across a year is a real chart but a thin one, and the widget gives full history plus TradingView's own tooling. The original complaint was about the **list**, where clicking a stock left the site instead of opening a page, and that stays fixed: cards link here.
 - **Cards carry a local SVG sparkline** (`components/Sparkline.tsx`) fed by one bulk query, not 81.
 
@@ -356,7 +370,7 @@ The **sparklines on the list** are local SVG, fed by `lib/history.functions.ts`.
 price(t) = close / (1 + perf(t) / 100)
 ```
 
-One request covers all 81 stocks. `buildHistory()` is exported apart from the fetch so the reconstruction is unit-testable without network.
+One request covers all 80 stocks. `buildHistory()` is exported apart from the fetch so the reconstruction is unit-testable without network.
 
 `stock_quotes_daily` records the real close of every stock once per session and backs the sparklines when TradingView cannot be reached. `stock_prices`, the legacy table, is synthetic (a sine wave over `md5(ticker)`) and is charted nowhere.
 
@@ -368,7 +382,7 @@ Two sorts were added next to the existing ones, sharing the same chip row: **PER
 
 ### Fundamentals
 
-`stock_metrics` holds the Lyamfi fundamentals workbook, 80 stocks, seeded by `scripts/build-stock-metrics.py` from the xlsx. Regenerate rather than editing the migration by hand. The parser handles what the workbook actually contains: thousands separated by non-breaking spaces (`1 000 000`), and two different blank markers, `_` and `—`.
+`stock_metrics` holds the Lyamfi fundamentals workbook, 80 stocks, seeded by `scripts/build-stock-metrics.py` from the xlsx. Regenerate rather than editing the migration by hand. Where the workbook's own ticker disagrees with the exchange, the correction goes in `TICKER_FIXES` at the top of that script, never in the generated SQL, so it survives regeneration (see §5). The parser handles what the workbook actually contains: thousands separated by non-breaking spaces (`1 000 000`), and two different blank markers, `_` and `—`.
 
 The table stores **only what does not depend on the price**: share count, EPS 26 / 27e, DPS 26 / 27e, book value, sales and free cash flow per share, and the closed-year profitability ratios. Everything price-derived is computed at render time in `lib/metrics.ts`, because storing it would be stale by the next session:
 
@@ -440,6 +454,8 @@ The maths is checked against a hand-computed reference (100 000 MAD over 10 year
 ## 9h. Macroéconomie (`/macroeconomie`)
 
 Five indicators on the Moroccan economy, reached from the gold banner at the top of `/actualites`, deliberately not from the nav: it is context for the news, not a sixth destination.
+
+Sources and parsing live in `src/lib/macro.functions.ts`, the page in `src/routes/_authenticated/macroeconomie.tsx`, the banner in `src/components/MacroBanner.tsx`.
 
 **It does not use TradingView widgets, and cannot.** The page shipped with five `advanced-chart` embeds on `ECONOMICS:MA…` symbols, exactly as specified. Every one of them refused to render: *« Symbole disponible uniquement sur TradingView »*. Economic series are not among what the free embeddable widgets are licensed to serve, so no amount of configuration would have fixed it.
 
@@ -521,7 +537,7 @@ A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts 
 
 Roughly in order of value-per-effort:
 
-0. **Check the MASI 20 card on the live site** (see §10). One minute of work, and it is the only part of the 2026-08-27 batch that could not be verified from here.
+0. **Check `/macroeconomie` on the live site.** If the policy-rate card shows the « série tenue à la main » warning, the IMF request is failing and wants another source; if it does not, nothing there needs maintaining. Everything else from both batches is confirmed working in production.
 1. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature. Now that the session gates execution, that RPC should also own the clock, so the server decides what "open" means rather than the browser.
 2. **Translate the lesson content**, if English learners matter. Needs a schema change on `lessons`; see §9b. The `news_posts` rows are French-only for the same reason.
 3. **Extend the Moroccan holiday table** in `lib/market-session.ts` past 2027. It now gates order execution, not just a badge, so a missing holiday means orders filling on a closed day.
