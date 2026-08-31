@@ -8,47 +8,54 @@ import type { Key } from "@/lib/i18n";
  * Le filtre par secteur lisait `stocks.sector`, une table de démonstration qui
  * ne contient que vingt lignes. Le filtre était donc faux par construction :
  * « Agroalimentaire » ne remontait que Cosumar et les Boissons du Maroc, alors
- * que la cote en compte plusieurs autres, et les soixante valeurs absentes de
- * la table n'apparaissaient dans aucun secteur. Ce n'était pas un bug de
- * filtrage mais un manque de données.
+ * que la cote en compte sept, et les soixante valeurs absentes de la table
+ * n'apparaissaient dans aucun secteur. Ce n'était pas un bug de filtrage mais
+ * un manque de données.
+ *
+ * D'OÙ VIENT CE DÉCOUPAGE
+ *
+ * Du classeur fourni par Lyamfi (« Secteur Action Lyamfi »), et de lui seul.
+ * Ce n'est pas la nomenclature officielle de la Bourse de Casablanca : le
+ * classeur regroupe les boissons avec l'agroalimentaire, isole l'automobile,
+ * range les foncières sous OPCI, et garde un fourre-tout « Autres » plutôt que
+ * de créer une case par valeur isolée. C'est un découpage de produit, pensé
+ * pour un filtre lisible, et c'est celui qui fait foi ici.
  *
  * La cote fait quatre-vingts sociétés et ne bouge que de quelques lignes par
  * an : c'est une constante du produit, pas une donnée à administrer. Elle vit
- * donc ici, à côté de `CSE_SYMBOLS` qui liste les mêmes valeurs, et le test de
- * couverture ci-dessous garantit qu'une introduction en bourse ne peut pas être
- * ajoutée à la cote sans recevoir son secteur.
- *
- * Le découpage suit celui que publie la Bourse de Casablanca. Les banques y
- * sont séparées des sociétés de financement, les boissons de l'agroalimentaire,
- * et les holdings ne sont pas classées avec leurs participations.
+ * donc ici, à côté de `CSE_SYMBOLS` qui liste les mêmes valeurs, et le contrôle
+ * de couverture (voir §5 du HANDOFF) garantit qu'une introduction en bourse ne
+ * peut pas rejoindre la cote sans recevoir son secteur.
  */
 
-/** Les secteurs de la cote, dans l'ordre alphabétique du libellé français. */
+/**
+ * Les secteurs du classeur.
+ *
+ * « autres » est un fourre-tout assumé : il ferme la liste des pastilles au
+ * lieu de se ranger à sa lettre entre deux secteurs nommés.
+ */
 export const SECTORS = [
-  "agroalimentaire",
+  "agro",
   "assurances",
+  "automobile",
   "banques",
-  "batiment",
-  "boissons",
-  "chimie",
-  "distributeurs",
-  "electricite",
-  "financement",
-  "holdings",
+  "materiaux",
+  "distribution",
+  "energie",
   "immobilier",
-  "informatique",
-  "ingenierie",
-  "loisirs",
+  "industrie",
   "mines",
-  "papier",
-  "petrole",
-  "pharmacie",
+  "opci",
   "sante",
-  "telecoms",
-  "transport",
+  "financiers",
+  "technologies",
+  "autres",
 ] as const;
 
 export type SectorId = (typeof SECTORS)[number];
+
+/** Le fourre-tout, épinglé en fin de liste plutôt que trié à sa lettre. */
+export const CATCH_ALL_SECTOR: SectorId = "autres";
 
 /**
  * La clé de traduction d'un secteur.
@@ -63,108 +70,124 @@ export const sectorKey = (id: SectorId): Key => `sector.${id}`;
  *
  * Les codes sont ceux de `CSE_SYMBOLS`, c'est-à-dire ceux de la Bourse de
  * Casablanca, pas ceux de la table `stocks` (qui porte encore DIS pour Disway
- * ou LFA pour Holcim).
+ * ou LFA pour Holcim). Le commentaire de chaque ligne reprend le libellé du
+ * classeur, pour que la comparaison avec lui reste faisable à l'œil.
  */
 export const SECTOR_BY_CODE: Readonly<Record<string, SectorId>> = {
-  /* ------------------------------------------- agroalimentaire et boissons */
-  CRS: "agroalimentaire", // Cartier Saada
-  CSR: "agroalimentaire", // Cosumar
-  DRI: "agroalimentaire", // Dari Couspate
-  LES: "agroalimentaire", // Lesieur Cristal
-  MUT: "agroalimentaire", // Mutandis
-  UMR: "agroalimentaire", // Unimer
-  OUL: "boissons", // Les Eaux Minérales d'Oulmès
-  SBM: "boissons", // Société des Boissons du Maroc
+  /* --------------------------------------------------- agro-alimentaire (7) */
+  CRS: "agro", // Cartier Saada
+  CSR: "agro", // Cosumar
+  DRI: "agro", // Dari Couspate
+  LES: "agro", // Lesieur Cristal
+  MUT: "agro", // Mutandis
+  OUL: "agro", // Oulmès
+  SBM: "agro", // Société des Boissons du Maroc
 
-  /* ------------------------------------------------ banques et assurances */
-  ATW: "banques", // Attijariwafa Bank
-  BCP: "banques", // Banque Centrale Populaire
-  BOA: "banques", // Bank of Africa
-  BCI: "banques", // BMCI
-  CDM: "banques", // Crédit du Maroc
-  CFG: "banques", // CFG Bank
-  CIH: "banques", // CIH Bank
-  AFM: "assurances", // AFMA (courtage)
-  AGM: "assurances", // Agma (courtage)
-  ATL: "assurances", // AtlantaSanad
+  /* ---------------------------------------------------------- assurances (6) */
+  AFM: "assurances", // AFMA
+  AGM: "assurances", // Agma
+  ATL: "assurances", // AtlantaSanad Assurance
+  MAB: "assurances", // Maghrebail
   SAH: "assurances", // Sanlam Maroc
   WAA: "assurances", // Wafa Assurance
 
-  /* ------------------------------ sociétés de financement et portefeuilles */
-  CAP: "financement", // Cash Plus
-  DIA: "financement", // Diac Salaf
-  MAB: "financement", // Maghrebail
-  MLE: "financement", // Maroc Leasing
-  SLF: "financement", // Salafin
-  DHO: "holdings", // Delta Holding
-  REB: "holdings", // Rebab Company
-  ZDJ: "holdings", // Zellidja
+  /* ---------------------------------------------------------- automobile (3) */
+  ATH: "automobile", // Auto Hall
+  NEJ: "automobile", // Auto Nejma
+  NKL: "automobile", // Ennakl Automobiles
 
-  /* -------------------------------- bâtiment, matériaux et infrastructures */
-  AFI: "batiment", // Afric Industries
-  ALM: "batiment", // Aluminium du Maroc
-  CMA: "batiment", // Ciments du Maroc
-  GTM: "batiment", // SGTM
-  JET: "batiment", // Jet Contractors
-  LHM: "batiment", // Holcim Maroc
-  SID: "batiment", // Sonasid
-  TGC: "batiment", // TGCC
+  /* ------------------------------------------------------------- banques (7) */
+  ATW: "banques", // Attijariwafa bank
+  BOA: "banques", // Bank of Africa
+  BCP: "banques", // BCP
+  BCI: "banques", // BMCI
+  CDM: "banques", // CDM
+  CFG: "banques", // CFG Bank
+  CIH: "banques", // CIH Bank
 
-  /* ------------------------------- ingénierie et biens d'équipement */
-  CMG: "ingenierie", // CMGP Group
-  DLM: "ingenierie", // Delattre Levivier Maroc
-  FBR: "ingenierie", // Fenie Brossette
-  SRM: "ingenierie", // Société de Réalisations Mécaniques
-  STR: "ingenierie", // Stroc Industrie
+  /* ---------------------------------------- matériaux de construction (2) */
+  CMA: "materiaux", // Ciments du Maroc
+  LHM: "materiaux", // LafargeHolcim Maroc
 
-  /* ----------------------------------------------- immobilier et foncières */
-  ADH: "immobilier", // Douja Promotion Groupe Addoha
-  ADI: "immobilier", // Alliances Développement Immobilier
-  ARD: "immobilier", // Aradei Capital
-  BAL: "immobilier", // Société Immobilière Balima
-  IMO: "immobilier", // Immorente Invest
+  /* -------------------------------------------------------- distribution (6) */
+  DYT: "distribution", // Disty Technologies
+  DWY: "distribution", // Disway
+  FBR: "distribution", // Fenie Brossette
+  LBV: "distribution", // Label'Vie
+  SRM: "distribution", // Réalisations Mécaniques
+  SNA: "distribution", // Stokvis Nord Afrique
+
+  /* ------------------------------------------------------------- énergie (4) */
+  GAZ: "energie", // Afriquia Gaz
+  MOX: "energie", // Maghreb Oxygène
+  TQM: "energie", // Taqa Morocco
+  TMA: "energie", // TotalEnergies Marketing Maroc
+
+  /* ---------------------------------------------------------- immobilier (3) */
+  ADH: "immobilier", // Addoha
+  ADI: "immobilier", // Alliances
   RDS: "immobilier", // Résidences Dar Saada
 
-  /* --------------------------------------------- informatique et paiements */
-  DWY: "informatique", // Disway
-  DYT: "informatique", // Disty Technologies
-  HPS: "informatique", // Hightech Payment Systems
-  IBC: "informatique", // IB Maroc
-  INV: "informatique", // Involys
-  M2M: "informatique", // M2M Group
-  MIC: "informatique", // Microdata
-  S2M: "informatique", // S2M
-  T2S: "informatique", // T2S Group Holding
+  /* --------------------------------------------------- industrie et BTP (9) */
+  AFI: "industrie", // Afric Industries
+  ALM: "industrie", // Aluminium du Maroc
+  JET: "industrie", // Jet Contractors
+  GTM: "industrie", // SGTM
+  SMI: "industrie", // SMI
+  SNP: "industrie", // SNEP
+  SID: "industrie", // Sonasid
+  STR: "industrie", // Stroc Industrie
+  TGC: "industrie", // TGCC
 
-  /* ----------------------------------------------------------- industrie */
-  COL: "chimie", // Colorado
-  MOX: "chimie", // Maghreb Oxygène
-  SNP: "chimie", // Snep
-  MDP: "papier", // Med Paper
-  PRO: "pharmacie", // Promopharm
-  SOT: "pharmacie", // Sothema
+  /* --------------------------------------------------------------- mines (3) */
+  MNG: "mines", // Managem
+  CMT: "mines", // Minière de Touissit
+  REB: "mines", // Rebab Company
+
+  /* ---------------------------------------------------------------- OPCI (4) */
+  ARD: "opci", // Aradei Capital
+  BAL: "opci", // Balima
+  IMO: "opci", // Immorente Invest
+  RIS: "opci", // Risma
+
+  /* --------------------------------------------------------------- santé (3) */
   AKT: "sante", // Akdital
+  T2S: "sante", // T2S Group Holding
   VCN: "sante", // Vicenne
 
-  /* ------------------------------------------------------ mines et énergie */
-  CMT: "mines", // Compagnie Minière de Touissit
-  MNG: "mines", // Managem
-  SMI: "mines", // Société Métallurgique d'Imiter
-  GAZ: "petrole", // Afriquia Gaz
-  TMA: "petrole", // TotalEnergies Marketing Maroc
-  TQM: "electricite", // Taqa Morocco
+  /* -------------------------------------------------- services financiers (5) */
+  CAP: "financiers", // Cash Plus
+  DIA: "financiers", // Diac Salaf
+  EQD: "financiers", // Eqdom
+  MLE: "financiers", // Maroc Leasing
+  SLF: "financiers", // Salafin
 
-  /* ------------------------------------- distribution, transport, services */
-  ATH: "distributeurs", // Auto Hall
-  EQD: "distributeurs", // Société d'Équipement Domestique et Ménager
-  LBV: "distributeurs", // Label'Vie
-  NEJ: "distributeurs", // Auto Nejma
-  NKL: "distributeurs", // Ennakl
-  SNA: "distributeurs", // Stokvis Nord Afrique
-  CTM: "transport", // Compagnie de Transports au Maroc
-  MSA: "transport", // Marsa Maroc
-  RIS: "loisirs", // Risma
-  IAM: "telecoms", // Maroc Telecom
+  /* -------------------------------------------------------- technologies (4) */
+  HPS: "technologies", // HPS
+  IBC: "technologies", // IB Maroc.com
+  INV: "technologies", // Involys
+  MIC: "technologies", // Microdata
+
+  // ⚠️ Absent du classeur, seule valeur de la cote qui n'y figure pas. S2M
+  // édite du logiciel monétique, le métier exact de HPS, que le classeur range
+  // ici : c'est la case la moins arbitraire. À corriger si Lyamfi la veut
+  // ailleurs.
+  S2M: "technologies", // Société Maghrébine de Monétique
+
+  /* -------------------------------------------------------------- autres (14) */
+  IAM: "autres", // Itissalat Al-Maghrib (Maroc Telecom)
+  MSA: "autres", // Marsa Maroc
+  CTM: "autres", // CTM
+  SOT: "autres", // Sothema
+  COL: "autres", // Colorado
+  M2M: "autres", // M2M Group
+  MDP: "autres", // Med Paper
+  PRO: "autres", // Promopharm
+  ZDJ: "autres", // Zellidja
+  DHO: "autres", // Delta Holding
+  UMR: "autres", // Unimer
+  DLM: "autres", // Delattre Levivier Maroc
+  CMG: "autres", // CMGP
 };
 
 /** Le secteur d'une valeur, ou `null` si son code est inconnu. */

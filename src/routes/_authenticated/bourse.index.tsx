@@ -23,7 +23,7 @@ import { getLiveQuotes } from "@/lib/quotes.functions";
 import { EMPTY, useFormat } from "@/lib/format";
 import { Sparkline } from "@/components/Sparkline";
 import { CSE_SYMBOLS } from "@/lib/cse-symbols";
-import { SECTORS, sectorKey, sectorOf, type SectorId } from "@/lib/sectors";
+import { CATCH_ALL_SECTOR, SECTORS, sectorKey, sectorOf, type SectorId } from "@/lib/sectors";
 import { useFavourites } from "@/lib/favourites";
 import { MarketSessionBadge } from "@/components/MarketSessionBadge";
 import { chartSeries, recentHistoryQuery, useRecordDailyQuotes } from "@/lib/quotes.history";
@@ -142,9 +142,16 @@ function BoursePage() {
   const favourites = useFavourites();
 
   // Les libellés sont traduits : l'ordre des pastilles suit la langue affichée,
-  // pas l'ordre des identifiants.
+  // pas l'ordre des identifiants. « Autres » fait exception et ferme la liste :
+  // un fourre-tout rangé à sa lettre, entre deux secteurs nommés, se lirait
+  // comme un secteur de plus.
   const sectors = useMemo(
-    () => [...SECTORS].sort((a, b) => t(sectorKey(a)).localeCompare(t(sectorKey(b)), locale)),
+    () =>
+      [...SECTORS].sort((a, b) => {
+        if (a === CATCH_ALL_SECTOR) return 1;
+        if (b === CATCH_ALL_SECTOR) return -1;
+        return t(sectorKey(a)).localeCompare(t(sectorKey(b)), locale);
+      }),
     [t, locale],
   );
 
