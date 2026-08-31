@@ -224,21 +224,30 @@ function Dashboard() {
                 <li className="py-3 text-xs text-muted-foreground">{t("dash.noQuotes")}</li>
               ) : (
                 block.rows.map((q) => (
-                  <li key={q.ticker} className="flex items-center justify-between gap-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{q.ticker}</p>
-                      <p className="truncate text-xs text-muted-foreground">{q.name}</p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-semibold tabular-nums">{f.price(q.price)}</p>
-                      <p
-                        className={`text-xs tabular-nums ${
-                          q.changePct >= 0 ? "text-[var(--success)]" : "text-destructive"
-                        }`}
-                      >
-                        {f.pct(q.changePct)}
-                      </p>
-                    </div>
+                  // Le palmarès n'était qu'un affichage : voir une valeur bouger
+                  // sans pouvoir l'ouvrir obligeait à la retrouver à la main dans
+                  // la cote. Chaque ligne mène désormais à sa fiche.
+                  <li key={q.ticker}>
+                    <Link
+                      to="/bourse/$ticker"
+                      params={{ ticker: q.ticker }}
+                      className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-accent/50"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{q.ticker}</p>
+                        <p className="truncate text-xs text-muted-foreground">{q.name}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold tabular-nums">{f.price(q.price)}</p>
+                        <p
+                          className={`text-xs tabular-nums ${
+                            q.changePct >= 0 ? "text-[var(--success)]" : "text-destructive"
+                          }`}
+                        >
+                          {f.pct(q.changePct)}
+                        </p>
+                      </div>
+                    </Link>
                   </li>
                 ))
               )}

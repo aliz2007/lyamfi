@@ -94,6 +94,10 @@ const TV_ALIASES: Record<string, string> = {
   LFA: "LHM",
   CIM: "CMA",
   AFG: "GAZ",
+  // Le MASI 20 se range sous MASI20 dans le produit (cf. `MASI20_TICKER`)
+  // mais TradingView le cote MSI20 : sans cet alias, le lien de la carte du
+  // tableau de bord ouvrait un symbole inexistant.
+  MASI20: "MSI20",
 };
 
 const NAME_BY_TICKER = new Map(
@@ -122,11 +126,11 @@ export const MASI_TICKER = "MASI";
 /**
  * MASI 20, l'indice des vingt valeurs les plus liquides.
  *
- * Le code retenu ici est celui sous lequel l'application le range, pas
- * forcément celui que publie la source : `lib/quotes.functions.ts` accepte
- * plusieurs graphies (MASI20, MSI20, « MASI 20 ») et les ramène toutes à
- * celle-ci, parce que le symbole TradingView de cet indice n'est pas
- * documenté et a déjà changé.
+ * Le code retenu ici est celui sous lequel l'application le range, pas celui
+ * que publie la source : `lib/quotes.functions.ts` accepte plusieurs graphies
+ * (MASI20, MSI20, « MASI 20 ») et les ramène toutes à celle-ci. TradingView,
+ * lui, cote l'indice MSI20 ; c'est `TV_ALIASES` qui fait la traduction, et
+ * c'est le seul endroit où le symbole de la source est écrit.
  */
 export const MASI20_TICKER = "MASI20";
 

@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Disclaimer } from "@/components/Disclaimer";
+import { WorldMarketCard } from "@/components/WorldMarketCard";
 import {
   getMacroSeries,
   MACRO_INDICATORS,
@@ -16,21 +17,36 @@ import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 export const Route = createFileRoute("/_authenticated/macroeconomie")({
   head: () => ({
     meta: [
-      { title: "Indicateurs macroéconomiques du Maroc | Lyamfi" },
+      { title: "Données macro et marchés internationaux | Lyamfi" },
       {
         name: "description",
         content:
-          "Inflation, croissance du PIB, taux directeur, chômage et emploi au Maroc : les chiffres qui situent la Bourse de Casablanca dans son économie.",
+          "Inflation, croissance du PIB, taux directeur, chômage et emploi au Maroc, plus les cours en direct de l'or, de l'argent, du pétrole, du gaz et du bitcoin.",
       },
-      { property: "og:title", content: "Indicateurs macroéconomiques | Lyamfi" },
+      { property: "og:title", content: "Données macro et marchés internationaux | Lyamfi" },
       {
         property: "og:description",
-        content: "Les grands chiffres de l'économie marocaine, en graphiques.",
+        content: "Les grands chiffres de l'économie marocaine et les cours mondiaux, en direct.",
       },
     ],
   }),
   component: MacroPage,
 });
+
+/**
+ * Les cours mondiaux affichés sous les indicateurs marocains.
+ *
+ * Ce sont des instruments cotés en continu, servis en direct par TradingView :
+ * l'ordre va des métaux à l'énergie puis au bitcoin, du plus ancien repère de
+ * valeur au plus récent.
+ */
+const WORLD_MARKETS: { symbol: string; label: Key; text: Key }[] = [
+  { symbol: "OANDA:XAUUSD", label: "macro.gold", text: "macro.goldText" },
+  { symbol: "OANDA:XAGUSD", label: "macro.silver", text: "macro.silverText" },
+  { symbol: "TVC:USOIL", label: "macro.oil", text: "macro.oilText" },
+  { symbol: "TVC:NATGAS", label: "macro.gas", text: "macro.gasText" },
+  { symbol: "BINANCE:BTCUSD", label: "macro.bitcoin", text: "macro.bitcoinText" },
+];
 
 /** Libellés et lien de repli, dans l'ordre d'affichage. */
 const LABELS: Record<string, { label: Key; text: Key }> = {
@@ -83,6 +99,8 @@ function MacroPage() {
         </p>
       )}
 
+      <h2 className="text-xl font-semibold sm:text-2xl">{t("macro.moroccoHeading")}</h2>
+
       <div className="grid gap-5 lg:grid-cols-2">
         {MACRO_INDICATORS.map((indicator) => (
           <IndicatorCard
@@ -102,6 +120,24 @@ function MacroPage() {
       </div>
 
       <p className="text-xs leading-relaxed text-muted-foreground">{t("macro.source")}</p>
+
+      {/* ------------------------------------------- marchés internationaux */}
+      <div className="hairline h-px" aria-hidden="true" />
+
+      <div>
+        <h2 className="text-xl font-semibold sm:text-2xl">{t("macro.worldHeading")}</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          {t("macro.worldIntro")}
+        </p>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        {WORLD_MARKETS.map((m) => (
+          <WorldMarketCard key={m.symbol} label={m.label} text={m.text} symbol={m.symbol} />
+        ))}
+      </div>
+
+      <p className="text-xs leading-relaxed text-muted-foreground">{t("macro.worldSource")}</p>
 
       <Disclaimer />
     </div>

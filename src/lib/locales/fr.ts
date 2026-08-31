@@ -204,8 +204,8 @@ export const fr = {
   "dash.q2Text": "Allocation et diversification",
   "dash.q3": "Académie",
   "dash.q3Text": "Leçons, quiz et badges",
-  "dash.q4": "Budget",
-  "dash.q4Text": "Intérêts composés",
+  "dash.q4": "Simulateurs",
+  "dash.q4Text": "Investissement et crédit",
 
   /* --------------------------------------------------------------- bourse */
   "bourse.title": "Bourse de Casablanca",
@@ -236,6 +236,35 @@ export const fr = {
     "BPA et DPA 26 sont des prévisions, 27e des estimations. Capitalisation, PER, rendement, P/B, P/S et P/FCF sont recalculés au cours du jour. Outil pédagogique, ne constitue pas un conseil en investissement.",
   "bourse.gainersToday": "{n} en hausse",
   "bourse.losersToday": "{n} en baisse",
+  "bourse.favourites": "Favoris",
+  "bourse.addFavourite": "Ajouter aux favoris",
+  "bourse.removeFavourite": "Retirer des favoris",
+  "bourse.noFavourites": "Vous n'avez pas encore ajouté d'actions à vos favoris.",
+  "bourse.noFavouritesHint":
+    "Touchez l'étoile en haut d'une vignette pour la retrouver ici, d'une session à l'autre.",
+
+  /* ------------------------------------------------- secteurs de la cote */
+  "sector.agroalimentaire": "Agroalimentaire",
+  "sector.assurances": "Assurances",
+  "sector.banques": "Banques",
+  "sector.batiment": "Bâtiment et matériaux",
+  "sector.boissons": "Boissons",
+  "sector.chimie": "Chimie",
+  "sector.distributeurs": "Distribution",
+  "sector.electricite": "Électricité",
+  "sector.financement": "Sociétés de financement",
+  "sector.holdings": "Holdings",
+  "sector.immobilier": "Immobilier",
+  "sector.informatique": "Informatique et paiement",
+  "sector.ingenierie": "Ingénierie et équipement",
+  "sector.loisirs": "Loisirs et hôtellerie",
+  "sector.mines": "Mines",
+  "sector.papier": "Papier",
+  "sector.petrole": "Pétrole et gaz",
+  "sector.pharmacie": "Pharmacie",
+  "sector.sante": "Santé",
+  "sector.telecoms": "Télécoms",
+  "sector.transport": "Transport",
 
   /* --------------------------------------------------------- fiche valeur */
   "stock.back": "Valeurs",
@@ -679,9 +708,10 @@ export const fr = {
     "Publié par l'équipe Lyamfi. Outil pédagogique, ne constitue pas un conseil en investissement.",
 
   /* ------------------------------------------------------ macroéconomie */
-  "macro.bannerTitle": "Données macroéconomiques",
-  "macro.bannerText": "Suivez l'évolution de l'inflation, du PIB et des taux directeurs au Maroc.",
-  "macro.title": "Indicateurs macroéconomiques",
+  "macro.bannerTitle": "Données macro et marchés internationaux",
+  "macro.bannerText":
+    "L'inflation, le PIB et le taux directeur au Maroc, puis l'or, le pétrole et le bitcoin en direct.",
+  "macro.title": "Données macro et marchés internationaux",
   "macro.intro":
     "Les chiffres qui commandent la cote. Une hausse du taux directeur renchérit le crédit et pèse sur les valorisations ; l'inflation ronge les rendements réels ; la croissance décide des résultats à venir.",
   "macro.back": "Retour aux actualités",
@@ -696,6 +726,27 @@ export const fr = {
   "macro.unemploymentText": "Part de la population active sans emploi.",
   "macro.employment": "Taux d'emploi",
   "macro.employmentText": "Part de la population en âge de travailler qui occupe un emploi.",
+  "macro.moroccoHeading": "Indicateurs macroéconomiques du Maroc",
+  "macro.worldHeading": "Marchés internationaux",
+  "macro.worldIntro":
+    "Les cours qui commandent les prix ici sans être cotés ici. L'énergie et les métaux entrent dans le coût de production des sociétés de la cote ; le bitcoin, lui, sert de thermomètre à l'appétit pour le risque.",
+  "macro.gold": "Or",
+  "macro.goldText":
+    "L'once en dollars. La valeur refuge de référence, et le contrepoids des taux réels.",
+  "macro.silver": "Argent",
+  "macro.silverText":
+    "L'once en dollars. À la fois métal précieux et métal industriel, donc plus nerveux que l'or.",
+  "macro.oil": "Pétrole brut",
+  "macro.oilText":
+    "Le baril en dollars. Il pèse sur la facture énergétique du pays comme sur les marges des industriels.",
+  "macro.gas": "Gaz naturel",
+  "macro.gasText":
+    "Le MMBtu en dollars. Le second poste d'énergie, plus saisonnier que le pétrole.",
+  "macro.bitcoin": "Bitcoin",
+  "macro.bitcoinText":
+    "En dollars. Sans lien direct avec la cote de Casablanca, mais bon indicateur de l'appétit mondial pour le risque.",
+  "macro.worldSource":
+    "Cours en direct fournis par TradingView, différés ou temps réel selon la place. Ces instruments ne sont pas négociables sur Lyamfi : ils servent de repère, pas de support d'ordre.",
   "macro.asOf": "en {year}",
   "macro.handMaintained":
     "Le FMI est momentanément injoignable : cette série est le relevé de secours, tenu à la main et vérifié jusqu'à {date}.",

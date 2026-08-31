@@ -1,9 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowDownWideNarrow, ArrowUp, ArrowUpNarrowWide, Search } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowDownWideNarrow,
+  ArrowUp,
+  ArrowUpNarrowWide,
+  Search,
+  Star,
+} from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { stocksQuery } from "@/lib/market";
 import {
   dy26,
   hasFundamentals,
@@ -16,11 +22,13 @@ import { formatMetric } from "@/components/MetricValue";
 import { getLiveQuotes } from "@/lib/quotes.functions";
 import { EMPTY, useFormat } from "@/lib/format";
 import { Sparkline } from "@/components/Sparkline";
-import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
+import { CSE_SYMBOLS } from "@/lib/cse-symbols";
+import { SECTORS, sectorKey, sectorOf, type SectorId } from "@/lib/sectors";
+import { useFavourites } from "@/lib/favourites";
 import { MarketSessionBadge } from "@/components/MarketSessionBadge";
 import { chartSeries, recentHistoryQuery, useRecordDailyQuotes } from "@/lib/quotes.history";
 import { getPriceHistory } from "@/lib/history.functions";
-import { useI18n, usePageTitle, type Key } from "@/lib/i18n";
+import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/bourse/")({
   head: () => ({
@@ -83,7 +91,6 @@ function BoursePage() {
   const f = useFormat();
   usePageTitle("bourse.title");
 
-  const { data: stocks = [] } = useQuery(stocksQuery);
   const { data: metricsByCode } = useQuery(metricsQuery);
   const fetchQuotes = useServerFn(getLiveQuotes);
   const { data: quotes = [] } = useQuery({
@@ -125,23 +132,26 @@ function BoursePage() {
     return out;
   }, [tvHistory, recordedByCode]);
 
-  const [sector, setSector] = useState("all");
+  const [sector, setSector] = useState<SectorId | "all">("all");
   const [cap, setCap] = useState("all");
   const [sort, setSort] = useState<Sort>("default");
+  const [onlyFavourites, setOnlyFavourites] = useState(false);
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(PAGE);
 
-  const sectors = useMemo(() => Array.from(new Set(stocks.map((s) => s.sector))).sort(), [stocks]);
+  const favourites = useFavourites();
+
+  // Les libellés sont traduits : l'ordre des pastilles suit la langue affichée,
+  // pas l'ordre des identifiants.
+  const sectors = useMemo(
+    () => [...SECTORS].sort((a, b) => t(sectorKey(a)).localeCompare(t(sectorKey(b)), locale)),
+    [t, locale],
+  );
 
   const quoteByCode = useMemo(
     () => new Map(quotes.map((x) => [x.ticker.toUpperCase(), x])),
     [quotes],
   );
-  const stockByCode = useMemo(
-    () => new Map(stocks.map((s) => [tvSymbol(s.ticker).split(":")[1]!.toUpperCase(), s])),
-    [stocks],
-  );
-
   /** Toutes les valeurs cotées : celles dont les fondamentaux sont publiés d'abord. */
   const listings = useMemo(() => {
     const rows = CSE_SYMBOLS.filter(([symbol]) => symbol !== "CSEMA:MASI").map(
@@ -149,7 +159,6 @@ function BoursePage() {
         const code = symbol.split(":")[1]!.toUpperCase();
         const metrics = metricsByCode?.get(code);
         const live = quoteByCode.get(code) ?? null;
-        const stock = stockByCode.get(code) ?? null;
         const price = live?.price ?? null;
 
         return {
@@ -159,7 +168,10 @@ function BoursePage() {
           // raisons sociales périmées (Saham Assurance pour Sanlam Maroc), et
           // le classeur est en capitales.
           title,
-          sector: stock?.sector ?? null,
+          // Le secteur vient de `lib/sectors.ts`, pas de la table `stocks` :
+          // celle-ci n'a jamais porté que vingt sociétés de démonstration, ce
+          // qui laissait soixante valeurs sans secteur et vidait les filtres.
+          sector: sectorOf(code),
           price,
           changePct: live?.changePct ?? null,
           marketCap: metrics?.shares != null && price != null ? metrics.shares * price : null,
@@ -178,7 +190,7 @@ function BoursePage() {
       if (a.covered && b.covered) return (b.marketCap ?? 0) - (a.marketCap ?? 0);
       return a.title.localeCompare(b.title, "fr");
     });
-  }, [metricsByCode, quoteByCode, stockByCode]);
+  }, [metricsByCode, quoteByCode]);
 
   const filtered = useMemo(
     () =>
@@ -191,14 +203,15 @@ function BoursePage() {
               (cap === "mid" && mc >= 5e9 && mc <= 20e9) ||
               (cap === "small" && mc < 5e9)));
         const sectorOk = sector === "all" || l.sector === sector;
+        const favouriteOk = !onlyFavourites || favourites.codes.has(l.code);
         const needle = q.trim().toLowerCase();
         const qOk =
           !needle ||
           l.title.toLowerCase().includes(needle) ||
           l.code.toLowerCase().includes(needle);
-        return capOk && sectorOk && qOk;
+        return capOk && sectorOk && favouriteOk && qOk;
       }),
-    [listings, cap, sector, q],
+    [listings, cap, sector, q, onlyFavourites, favourites.codes],
   );
 
   /**
@@ -250,7 +263,7 @@ function BoursePage() {
     });
   }, [filtered, sort, locale]);
 
-  useEffect(() => setLimit(PAGE), [q, sector, cap, sort]);
+  useEffect(() => setLimit(PAGE), [q, sector, cap, sort, onlyFavourites]);
 
   const coveredCount = listings.filter((l) => l.covered).length;
   const up = filtered.filter((l) => (l.changePct ?? 0) > 0).length;
@@ -289,9 +302,9 @@ function BoursePage() {
           <Chip active={sector === "all"} onClick={() => setSector("all")}>
             {t("bourse.allSectors")}
           </Chip>
-          {sectors.map((s) => (
-            <Chip key={s} active={sector === s} onClick={() => setSector(s)}>
-              {s}
+          {sectors.map((id) => (
+            <Chip key={id} active={sector === id} onClick={() => setSector(id)}>
+              {t(sectorKey(id))}
             </Chip>
           ))}
         </div>
@@ -317,78 +330,110 @@ function BoursePage() {
               </span>
             </Chip>
           ))}
+
+          {/* Le filtre Favoris se pose au bout des tris, séparé par un trait :
+              ce n'est pas un tri de plus mais une restriction de la liste, et
+              il se combine avec le secteur, la capitalisation et la recherche. */}
+          <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
+          <Chip active={onlyFavourites} onClick={() => setOnlyFavourites((v) => !v)}>
+            <span className="inline-flex items-center gap-1.5">
+              <Star
+                className={`h-3 w-3 transition-colors ${
+                  onlyFavourites ? "fill-brand-yellow text-brand-yellow" : "text-brand-yellow"
+                }`}
+              />
+              {t("bourse.favourites")}
+            </span>
+          </Chip>
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sorted.slice(0, limit).map((l) => (
-          // La vignette entière mène à la fiche interne. Auparavant seules les
-          // 20 valeurs présentes dans `stocks` étaient cliquables, et le
-          // graphique incrusté renvoyait vers tradingview.com.
-          <Link
-            key={l.symbol}
-            to="/bourse/$ticker"
-            params={{ ticker: l.code }}
-            className="surface-raised card-hover block p-5 sm:p-6"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{l.title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {l.code} · {l.sector ?? "BVC"}
-                </p>
+          // L'étoile est POSÉE À CÔTÉ du lien, pas dedans : un bouton imbriqué
+          // dans une ancre est du HTML invalide, et le clavier ne saurait plus
+          // atteindre l'un sans l'autre. La carte porte donc le relief et
+          // l'effet de survol, le lien n'en garde que la surface cliquable —
+          // ainsi le clic sur l'étoile n'a aucun chemin vers la navigation.
+          <div key={l.symbol} className="surface-raised card-hover relative">
+            <Link to="/bourse/$ticker" params={{ ticker: l.code }} className="block p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{l.title}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {l.code} · {l.sector ? t(sectorKey(l.sector)) : "BVC"}
+                  </p>
+                </div>
+                {/* La place de l'étoile est réservée dans le coin : sans cette
+                  marge, un cours à quatre chiffres passerait dessous. */}
+                <div className="shrink-0 pr-7 text-right">
+                  <p className="text-sm font-semibold tabular-nums">
+                    {l.price === null ? EMPTY : `${f.price(l.price)} MAD`}
+                  </p>
+                  <p
+                    className={`text-xs tabular-nums ${
+                      l.changePct === null
+                        ? "text-muted-foreground"
+                        : l.changePct >= 0
+                          ? "text-[var(--success)]"
+                          : "text-destructive"
+                    }`}
+                  >
+                    {l.changePct === null ? EMPTY : f.pct(l.changePct)}
+                  </p>
+                </div>
               </div>
-              <div className="shrink-0 text-right">
-                <p className="text-sm font-semibold tabular-nums">
-                  {l.price === null ? EMPTY : `${f.price(l.price)} MAD`}
-                </p>
-                <p
-                  className={`text-xs tabular-nums ${
-                    l.changePct === null
-                      ? "text-muted-foreground"
-                      : l.changePct >= 0
-                        ? "text-[var(--success)]"
-                        : "text-destructive"
-                  }`}
-                >
-                  {l.changePct === null ? EMPTY : f.pct(l.changePct)}
-                </p>
+
+              {l.covered && (
+                <span className="mt-3 inline-block rounded-full border border-primary/40 bg-accent px-2.5 py-0.5 text-[10px] font-medium text-accent-foreground">
+                  {t("bourse.liquidBadge")}
+                </span>
+              )}
+
+              <div className="-mx-1 mt-4">
+                <Sparkline values={sparkByCode?.get(l.code) ?? []} />
               </div>
-            </div>
 
-            {l.covered && (
-              <span className="mt-3 inline-block rounded-full border border-primary/40 bg-accent px-2.5 py-0.5 text-[10px] font-medium text-accent-foreground">
-                {t("bourse.liquidBadge")}
-              </span>
-            )}
-
-            <div className="-mx-1 mt-4">
-              <Sparkline values={sparkByCode?.get(l.code) ?? []} />
-            </div>
-
-            {/* La vignette ne porte plus que les ratios de valorisation : cinq
+              {/* La vignette ne porte plus que les ratios de valorisation : cinq
                 lignes au lieu de neuf. L'espacement est repris en conséquence,
                 sinon la carte se tasse en haut et laisse un vide en bas. */}
-            {l.metrics.length > 0 && (
-              <dl className="mt-5 space-y-2.5 border-t border-border/50 pt-4 text-xs">
-                {/* Seuls les indicateurs calculables sont construits : rien à
+              {l.metrics.length > 0 && (
+                <dl className="mt-5 space-y-2.5 border-t border-border/50 pt-4 text-xs">
+                  {/* Seuls les indicateurs calculables sont construits : rien à
                     masquer ici, la liste est déjà filtrée. */}
-                {l.metrics.map((m) => (
-                  <Row
-                    key={m.label}
-                    label={t(m.label)}
-                    value={formatMetric(m, f)}
-                    live={LIVE_METRICS.has(m.label)}
-                    strong={m.label === "metric.per26" || m.label === "metric.dy26"}
-                  />
-                ))}
-              </dl>
-            )}
-          </Link>
+                  {l.metrics.map((m) => (
+                    <Row
+                      key={m.label}
+                      label={t(m.label)}
+                      value={formatMetric(m, f)}
+                      live={LIVE_METRICS.has(m.label)}
+                      strong={m.label === "metric.per26" || m.label === "metric.dy26"}
+                    />
+                  ))}
+                </dl>
+              )}
+            </Link>
+
+            <FavouriteStar
+              on={favourites.codes.has(l.code)}
+              onToggle={() => favourites.toggle(l.code)}
+              name={l.title}
+              t={t}
+            />
+          </div>
         ))}
-        {sorted.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t("bourse.noMatch")}</p>
-        )}
+        {sorted.length === 0 &&
+          (onlyFavourites && favourites.codes.size === 0 ? (
+            <div className="col-span-full flex flex-col items-center gap-3 py-14 text-center">
+              <Star className="h-7 w-7 fill-brand-yellow/25 text-brand-yellow" />
+              <p className="text-sm font-medium text-foreground">{t("bourse.noFavourites")}</p>
+              <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
+                {t("bourse.noFavouritesHint")}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("bourse.noMatch")}</p>
+          ))}
       </div>
 
       {limit < sorted.length && (
@@ -404,6 +449,55 @@ function BoursePage() {
 
       <p className="text-xs leading-relaxed text-muted-foreground">{t("bourse.footnote")}</p>
     </div>
+  );
+}
+
+/**
+ * L'étoile des favoris.
+ *
+ * Éteinte, elle n'est qu'un contour gris : la carte ne doit pas être bariolée
+ * d'or avant qu'on ait rien choisi. Allumée, elle se remplit du jaune de la
+ * marque, et la transition CSS porte à la fois la couleur et le remplissage
+ * pour que le passage se voie sans être appuyé.
+ *
+ * `stopPropagation` est ceinture et bretelles : le bouton n'est pas dans le
+ * lien, donc aucun clic ne peut déjà remonter jusqu'à lui. La ligne reste au
+ * cas où la vignette redeviendrait un jour cliquable dans son ensemble.
+ */
+function FavouriteStar({
+  on,
+  onToggle,
+  name,
+  t,
+}: {
+  on: boolean;
+  onToggle: () => void;
+  name: string;
+  t: Translate;
+}) {
+  const label = `${t(on ? "bourse.removeFavourite" : "bourse.addFavourite")} — ${name}`;
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      aria-pressed={on}
+      aria-label={label}
+      title={label}
+      className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+    >
+      <Star
+        className={`h-4 w-4 transition-[fill,color,transform] duration-300 ${
+          on
+            ? "scale-110 fill-brand-yellow text-brand-yellow"
+            : "fill-transparent text-muted-foreground hover:text-brand-yellow"
+        }`}
+        strokeWidth={1.75}
+      />
+    </button>
   );
 }
 

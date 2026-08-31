@@ -201,8 +201,8 @@ export const en: Record<keyof typeof fr, string> = {
   "dash.q2Text": "Allocation and diversification",
   "dash.q3": "Academy",
   "dash.q3Text": "Lessons, quizzes and badges",
-  "dash.q4": "Budget",
-  "dash.q4Text": "Compound interest",
+  "dash.q4": "Simulators",
+  "dash.q4Text": "Investing and credit",
 
   /* --------------------------------------------------------------- market */
   "bourse.title": "Casablanca Stock Exchange",
@@ -232,6 +232,35 @@ export const en: Record<keyof typeof fr, string> = {
     "EPS and DPS 26 are forecasts, 27e are estimates. Market cap, P/E, yield, P/B, P/S and P/FCF are recomputed at today's price. Educational tool, this is not investment advice.",
   "bourse.gainersToday": "{n} up",
   "bourse.losersToday": "{n} down",
+  "bourse.favourites": "Favourites",
+  "bourse.addFavourite": "Add to favourites",
+  "bourse.removeFavourite": "Remove from favourites",
+  "bourse.noFavourites": "You have not added any stocks to your favourites yet.",
+  "bourse.noFavouritesHint":
+    "Tap the star at the top of a card to find it here, from one session to the next.",
+
+  /* ------------------------------------------------------------- sectors */
+  "sector.agroalimentaire": "Food",
+  "sector.assurances": "Insurance",
+  "sector.banques": "Banks",
+  "sector.batiment": "Construction and materials",
+  "sector.boissons": "Beverages",
+  "sector.chimie": "Chemicals",
+  "sector.distributeurs": "Retail and distribution",
+  "sector.electricite": "Electricity",
+  "sector.financement": "Finance companies",
+  "sector.holdings": "Holding companies",
+  "sector.immobilier": "Real estate",
+  "sector.informatique": "IT and payments",
+  "sector.ingenierie": "Engineering and equipment",
+  "sector.loisirs": "Leisure and hotels",
+  "sector.mines": "Mining",
+  "sector.papier": "Paper",
+  "sector.petrole": "Oil and gas",
+  "sector.pharmacie": "Pharmaceuticals",
+  "sector.sante": "Health care",
+  "sector.telecoms": "Telecoms",
+  "sector.transport": "Transport",
 
   /* ---------------------------------------------------------- stock sheet */
   "stock.back": "Listings",
@@ -670,9 +699,10 @@ export const en: Record<keyof typeof fr, string> = {
     "Published by the Lyamfi team. Educational tool, this is not investment advice.",
 
   /* ------------------------------------------------------- macroeconomics */
-  "macro.bannerTitle": "Macroeconomic data",
-  "macro.bannerText": "Follow inflation, GDP and policy rates in Morocco.",
-  "macro.title": "Macroeconomic indicators",
+  "macro.bannerTitle": "Macro data and international markets",
+  "macro.bannerText":
+    "Inflation, GDP and the policy rate in Morocco, then gold, oil and bitcoin live.",
+  "macro.title": "Macro data and international markets",
   "macro.intro":
     "The figures that drive the exchange. A higher policy rate makes credit dearer and weighs on valuations; inflation eats into real returns; growth decides the earnings to come.",
   "macro.back": "Back to the news",
@@ -687,6 +717,26 @@ export const en: Record<keyof typeof fr, string> = {
   "macro.unemploymentText": "Share of the labour force without a job.",
   "macro.employment": "Employment rate",
   "macro.employmentText": "Share of the working-age population in work.",
+  "macro.moroccoHeading": "Morocco's macroeconomic indicators",
+  "macro.worldHeading": "International markets",
+  "macro.worldIntro":
+    "The prices that drive costs here without being quoted here. Energy and metals feed into what listed companies pay to produce; bitcoin is a thermometer for risk appetite.",
+  "macro.gold": "Gold",
+  "macro.goldText":
+    "The ounce in dollars. The reference safe haven, and the counterweight to real rates.",
+  "macro.silver": "Silver",
+  "macro.silverText":
+    "The ounce in dollars. Precious and industrial at once, so livelier than gold.",
+  "macro.oil": "Crude oil",
+  "macro.oilText":
+    "The barrel in dollars. It weighs on the country's energy bill and on industrial margins alike.",
+  "macro.gas": "Natural gas",
+  "macro.gasText": "Per MMBtu in dollars. The second energy line, more seasonal than oil.",
+  "macro.bitcoin": "Bitcoin",
+  "macro.bitcoinText":
+    "In dollars. No direct link to the Casablanca exchange, but a good read on global risk appetite.",
+  "macro.worldSource":
+    "Live prices from TradingView, delayed or real time depending on the venue. These instruments are not tradable on Lyamfi: they are a reference, not an order book.",
   "macro.asOf": "in {year}",
   "macro.handMaintained":
     "The IMF is temporarily unreachable: this is the backup series, hand-kept and verified through {date}.",

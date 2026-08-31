@@ -1,8 +1,10 @@
 # Lyamfi: Codebase Handoff
 
-_Written 2026-08-18, last revised 2026-08-29. Everything below was read from the source and, where marked ✅, executed._
+_Written 2026-08-18, last revised 2026-08-31. Everything below was read from the source and, where marked ✅, executed._
 
-> **Latest change (2026-08-29):** Actualités **rebuilt** as a searchable feed of horizontal cards leading to a full reading page, a **macroeconomic dashboard** at `/macroeconomie`, **Budget renamed Simulateurs** with a new **credit simulator**, **auto-login**, a **15 % capital-gains tax** on sales, and fixes for the **missing quotes** and the **frozen leaderboard**. One migration to apply: see §12.
+> **Latest change (2026-08-31):** a **favourites system** on `/bourse` (star per card, Favoris filter, kept in `localStorage`), a **complete sector table** for all 80 listings replacing the 20-row `stocks` seed the filter used to read, the **MASI 20 TradingView link** fixed to `CSEMA:MSI20`, the dashboard's **top movers made clickable**, the quick-access **Budget tile renamed Simulateurs**, and a **Marchés internationaux** block (gold, silver, oil, gas, bitcoin) on the renamed _Données macro et marchés internationaux_ page. **No SQL to run this round:** see §12.
+>
+> _2026-08-29:_ Actualités **rebuilt** as a searchable feed of horizontal cards leading to a full reading page, a **macroeconomic dashboard** at `/macroeconomie`, **Budget renamed Simulateurs** with a new **credit simulator**, **auto-login**, a **15 % capital-gains tax** on sales, and fixes for the **missing quotes** and the **frozen leaderboard**.
 >
 > _2026-08-27:_ the Actualités section itself, leaner `/bourse` cards with two new sorts, order execution tied to the real trading session, and the MASI / MASI 20 pair on the dashboard.
 
@@ -16,23 +18,23 @@ A French-language financial-education platform for the **Bourse de Casablanca (B
 
 Eight surfaces:
 
-| Surface | Route | What it does |
-|---|---|---|
-| Landing | `/` | Value prop, 4 module teasers, sign-up CTA |
-| Dashboard | `/dashboard` | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress |
-| Bourse | `/bourse`, `/bourse/$ticker` | 80 listed companies, live prices, charts, fundamentals |
-| Portefeuille | `/portefeuille` | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve |
-| Classement | `/classement` | Leaderboard by portfolio value, cash / invested split |
-| Académie | `/academie`, `/academie/$slug` | 14 lessons in 3 gated levels, quiz + badge per lesson |
-| Actualités | `/actualites`, `/actualites/$id` | Searchable news feed, full reading page, admin CRUD |
-| Macroéconomie | `/macroeconomie` | 5 TradingView charts on the Moroccan economy |
-| Simulateurs | `/simulateurs` | Compound interest (3 risk profiles) and a credit simulator |
+| Surface       | Route                            | What it does                                                                                   |
+| ------------- | -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Landing       | `/`                              | Value prop, 4 module teasers, sign-up CTA                                                      |
+| Dashboard     | `/dashboard`                     | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress                 |
+| Bourse        | `/bourse`, `/bourse/$ticker`     | 80 listed companies, live prices, charts, fundamentals                                         |
+| Portefeuille  | `/portefeuille`                  | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve |
+| Classement    | `/classement`                    | Leaderboard by portfolio value, cash / invested split                                          |
+| Académie      | `/academie`, `/academie/$slug`   | 14 lessons in 3 gated levels, quiz + badge per lesson                                          |
+| Actualités    | `/actualites`, `/actualites/$id` | Searchable news feed, full reading page, admin CRUD                                            |
+| Macroéconomie | `/macroeconomie`                 | 5 TradingView charts on the Moroccan economy                                                   |
+| Simulateurs   | `/simulateurs`                   | Compound interest (3 risk profiles) and a credit simulator                                     |
 
 Nav order is fixed in `components/AppShell.tsx`: Actualités sits between Académie and Simulateurs. `/macroeconomie` is reached from the banner atop `/actualites`, not from the nav. `/budget` still resolves: it redirects to `/simulateurs` so old links keep working.
 
 **Origin:** built with [Lovable](https://lovable.dev). 93 commits, 2026-07-31 → 2026-08-18. The repo syncs bidirectionally with the Lovable editor: see `AGENTS.md`: **never force-push, rebase, amend, or squash already-pushed commits**, it corrupts project history on Lovable's side.
 
-> ⚠️ **`README.md` is not documentation.** It is the original Lovable *prompt*: the product spec that generated the app. Read it for design intent, not for how anything works. Some of it was never built (sector-concentration scoring, diversification score, allocation pie chart) and some of it was superseded (the portfolio became a real paper-trading engine rather than the "% weighting" simulator described).
+> ⚠️ **`README.md` is not documentation.** It is the original Lovable _prompt_: the product spec that generated the app. Read it for design intent, not for how anything works. Some of it was never built (sector-concentration scoring, diversification score, allocation pie chart) and some of it was superseded (the portfolio became a real paper-trading engine rather than the "% weighting" simulator described).
 
 ---
 
@@ -40,13 +42,14 @@ Nav order is fixed in `components/AppShell.tsx`: Actualités sits between Acadé
 
 I ran these in a clean checkout:
 
-| Check | Result |
-|---|---|
-| `npx tsc --noEmit` | ✅ **Clean.** Zero type errors, under a genuinely strict config (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`). Re-run 2026-08-27. |
-| `npm run build` | ✅ **Succeeds** in a few seconds. Emits a Cloudflare Workers bundle (`.output/`, auto-generated `wrangler.json`, `nodejs_compat`). Re-run 2026-08-27. |
-| `npm run lint` | ❌ **~590 problems**: but **584 are Prettier formatting** and auto-fixable, and the other 6 are benign `react-refresh` warnings inside vendored shadcn/ui files. **Zero real code-quality errors.** `npm run format` clears it. Every file touched since is formatted and lint-clean. |
-| `supabase/setup.sql` | ✅ **Applied twice in a row** against a throwaway PostgreSQL 16 with stand-ins for the `auth` and `storage` schemas and Supabase's default privileges, last on 2026-08-29. Clean both times, so it is genuinely re-runnable. |
-| Tests | **No test runner and no CI.** The pure logic added since 2026-08-27 was nonetheless checked by throwaway scripts run under `node --experimental-strip-types`: session hours, order fills, the PER/yield sorts, the capital-gains tax, the credit amortisation and APR, the excerpt stripper, and both macro parsers. Those scripts were not kept; a real suite is still §11 item 9. |
+| Check                     | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx tsc --noEmit`        | ✅ **Clean.** Zero type errors, under a genuinely strict config (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`). Re-run 2026-08-27.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `npm run build`           | ✅ **Succeeds** in a few seconds. Emits a Cloudflare Workers bundle (`.output/`, auto-generated `wrangler.json`, `nodejs_compat`). Re-run 2026-08-27.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `npm run lint`            | ❌ **~590 problems**: but **584 are Prettier formatting** and auto-fixable, and the other 6 are benign `react-refresh` warnings inside vendored shadcn/ui files. **Zero real code-quality errors.** `npm run format` clears it. Every file touched since is formatted and lint-clean.                                                                                                                                                                                                                                                                                                                                                                                              |
+| `supabase/setup.sql`      | ✅ **Applied twice in a row** against a throwaway PostgreSQL 16 with stand-ins for the `auth` and `storage` schemas and Supabase's default privileges, last on 2026-08-29. Clean both times, so it is genuinely re-runnable.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Tests                     | **No test runner and no CI.** The pure logic added since 2026-08-27 was nonetheless checked by throwaway scripts run under `node --experimental-strip-types`: session hours, order fills, the PER/yield sorts, the capital-gains tax, the credit amortisation and APR, the excerpt stripper, both macro parsers, and the favourites store. Those scripts were not kept; a real suite is still §11 item 10.                                                                                                                                                                                                                                                                         |
+| Browser run 2026-08-31 ✅ | The 2026-08-31 batch was driven in **headless Chromium against `vite dev`**, with Supabase and the server functions stubbed at the network layer (both are unreachable from the audit environment). Confirmed on screen: 80 listings with their sector, Agroalimentaire returning 6 and Banques 7, the star toggling without navigating, `lyamfi.favourites` written and re-read after a reload, the empty-favourites message, the MASI 20 link resolving to `CSEMA-MSI20`, all ten top-mover rows linking to `/bourse/<CODE>` (a click landed on `/bourse/ATW`), the Simulateurs tile, the five international cards with their symbols, and zero JavaScript errors on every page. |
 
 The codebase is in good mechanical health. The lint number looks alarming and isn't.
 
@@ -62,7 +65,7 @@ The codebase is in good mechanical health. The lint number looks alarming and is
 europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/...
 ```
 
-Ten entries are pinned this way: every `@supabase/*` package, the `@lovable.dev/*` plugins, and `iceberg-js`. From anywhere else they return **403**, and `bun install --registry=...` does *not* override them because the lockfile stores resolved URLs.
+Ten entries are pinned this way: every `@supabase/*` package, the `@lovable.dev/*` plugins, and `iceberg-js`. From anywhere else they return **403**, and `bun install --registry=...` does _not_ override them because the lockfile stores resolved URLs.
 
 Every one of those packages **is** on public npm. Two ways through:
 
@@ -85,7 +88,7 @@ SUPABASE_PROJECT_ID / VITE_SUPABASE_PROJECT_ID
 
 Supabase project id: `pwbrjfdxkcpndowwtjea` (`supabase/config.toml`).
 
-> ⚠️ **`.env` is committed to git and is not in `.gitignore`.** Nothing secret is exposed *today*, it holds only the project URL, id, and the publishable (anon) key, all of which ship in the client bundle by design. The risk is forward-looking: `src/integrations/supabase/client.server.ts` already expects a `SUPABASE_SERVICE_ROLE_KEY`, and the moment anyone adds it to that file it gets committed to a repo that syncs to Lovable. **Add `.env` to `.gitignore` now.**
+> ⚠️ **`.env` is committed to git and is not in `.gitignore`.** Nothing secret is exposed _today_, it holds only the project URL, id, and the publishable (anon) key, all of which ship in the client bundle by design. The risk is forward-looking: `src/integrations/supabase/client.server.ts` already expects a `SUPABASE_SERVICE_ROLE_KEY`, and the moment anyone adds it to that file it gets committed to a repo that syncs to Lovable. **Add `.env` to `.gitignore` now.**
 
 ### Commands
 
@@ -123,12 +126,13 @@ npm run format   # prettier --write .
 
 **This is the single most important section.** Stock data comes from **four** sources that are joined at runtime by ticker, and they disagree with each other.
 
-| # | Source | Size | Freshness | Used for |
-|---|---|---|---|---|
-| 1 | **`CSE_SYMBOLS`**: hardcoded array in `src/lib/cse-symbols.ts` | 81 entries (80 companies + MASI) | Manual | **The master list.** Decides what appears on `/bourse` at all, and drives the ticker tape. |
-| 2 | **TradingView scanner**: `getLiveQuotes()` server fn | ~live universe | Live, 60s refetch | Every price and % change shown anywhere in the app. |
-| 3 | **`stock_metrics`** table | 80 rows | The fundamentals workbook, seeded 2026-08-25 | Everything price-independent (share count, BPA, DPA, book value…). Market cap, PER, yield, P/B, P/S and P/FCF are *derived at render time* against the live price. The older `stock_fundamentals` (37 rows) is no longer read by the market pages. |
-| 4 | **`stocks`** table | 20 rows | Seeded 2026-07-31, **stale** | Sector filter, company description, the `/bourse/$ticker` detail page, and its PER/BPA/PEG/target-price block. |
+| #   | Source                                                         | Size                             | Freshness                                    | Used for                                                                                                                                                                                                                                           |
+| --- | -------------------------------------------------------------- | -------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **`CSE_SYMBOLS`**: hardcoded array in `src/lib/cse-symbols.ts` | 81 entries (80 companies + MASI) | Manual                                       | **The master list.** Decides what appears on `/bourse` at all, and drives the ticker tape.                                                                                                                                                         |
+| 2   | **TradingView scanner**: `getLiveQuotes()` server fn           | ~live universe                   | Live, 60s refetch                            | Every price and % change shown anywhere in the app.                                                                                                                                                                                                |
+| 3   | **`stock_metrics`** table                                      | 80 rows                          | The fundamentals workbook, seeded 2026-08-25 | Everything price-independent (share count, BPA, DPA, book value…). Market cap, PER, yield, P/B, P/S and P/FCF are _derived at render time_ against the live price. The older `stock_fundamentals` (37 rows) is no longer read by the market pages. |
+| 4   | **`SECTOR_BY_CODE`**: hardcoded map in `src/lib/sectors.ts`    | 80 entries, 21 sectors           | Manual, added 2026-08-31                     | **The sector of every listing**, and the only source the `/bourse` filter reads.                                                                                                                                                                   |
+| 5   | **`stocks`** table                                             | 20 rows                          | Seeded 2026-07-31, **stale**                 | Company description and the `/bourse/$ticker` detail page's PER/BPA/PEG/target-price block. **No longer the sector filter** (see below).                                                                                                           |
 
 ### The ticker is a join key, and a wrong one fails silently
 
@@ -149,26 +153,33 @@ Anything TradingView returns that `CSE_SYMBOLS` does not carry is the other half
 DB tickers and TradingView tickers don't always match, so `cse-symbols.ts` keeps an alias map:
 
 ```ts
-const TV_ALIASES = { DIS: "DWY", LFA: "LHM", CIM: "CMA", AFG: "GAZ" };
+const TV_ALIASES = { DIS: "DWY", LFA: "LHM", CIM: "CMA", AFG: "GAZ", MASI20: "MSI20" };
 ```
+
+The last entry is not a legacy DB ticker but an index: the product files the MASI 20 under `MASI20` (`MASI20_TICKER`), TradingView quotes it `MSI20`, and until 2026-08-31 the dashboard card linked to a symbol that does not exist. `tvSymbol()` is the one place the source's spelling is written.
 
 Everything funnels through `tvSymbol(ticker)` → `"CSEMA:XXX"`. I verified all 20 `stocks` rows and all 37 `stock_fundamentals` rows resolve cleanly into `CSE_SYMBOLS`: **no orphans today**, but adding a row with a mismatched ticker will silently produce a card with no price.
 
-### What this means on screen (`/bourse`): exact numbers ✅
+### Sectors: why they are in code and not in the database
 
-Of the **81** company cards:
+Until 2026-08-31 the sector filter read `stocks.sector`. That table holds **20 demonstration rows**, so the filter was wrong by construction: Agroalimentaire returned Cosumar and the Boissons du Maroc and nothing else, and the sixty listings absent from the table belonged to no sector at all. It was never a filtering bug; the data simply was not there.
 
-- **37 are "covered"**, they have a `stock_fundamentals` row, get a *"Valeur liquide · fondamentaux suivis"* badge, sort first, and show real BPA/DPA/PER/yield.
-- **44 show "NR"** (non renseigné) for every fundamental.
-- **Only 20 are clickable** through to a detail page: precisely those with a row in the `stocks` table. The other 61 are dead-end cards.
-- Of the 20 clickable: **16 are also covered**, 4 are clickable but show NR.
-- **21 cards are covered but not clickable**: full fundamentals, no detail page.
+`src/lib/sectors.ts` now carries all **80 listings across 21 sectors**, keyed by the exchange's code (post-alias, so Disway is `DWY`), with the company name in a comment on every line. It sits beside `CSE_SYMBOLS` because it is the same kind of thing: a constant of the product that moves by a few lines a year, not something to administer. `sectorKey()` returns a `Key`, so a sector added without its French _and_ English label fails to compile.
 
-That asymmetry is the biggest content gap in the product. Closing it means backfilling the `stocks` table (sector + description + id) for the other 61 listings.
+> ⚠️ **The grouping follows the Bourse de Casablanca's own classification**, which separates banks from finance companies, beverages from food, and holdings from their holdings' businesses. It is **not** the spreadsheet the 31/08 brief linked to — `docs.google.com` is blocked from the audit environment, so that sheet was never read. If it disagrees, one line per company in `SECTOR_BY_CODE` is the whole edit. The likeliest disagreement is Agroalimentaire, which here has six members (Cartier Saada, Cosumar, Dari Couspate, Lesieur Cristal, Mutandis, Unimer) with Oulmès and the Boissons du Maroc filed under Boissons.
+
+Two consequences worth knowing:
+
+- `/bourse` **no longer queries the `stocks` table at all**. The detail page still does, for the description block.
+- The chips are sorted by their **translated** label, so their order changes with the language.
+
+### The other content gap
+
+**Every one of the 80 listings has a detail page** (§9d) and a sector. What the 20-row `stocks` table still gates is the **company description** and the PER/BPA/PEG/target-price block on `/bourse/$ticker`; the other 60 detail pages open with the chart and the fundamentals but no prose. Backfilling `stocks` is what closes that.
 
 ### Stale-data caveat
 
-`stocks.price` and `stocks.change_pct` are July-2026 seed values. They're only used as a **fallback** on the detail page when the live quote is missing (`bourse.$ticker.tsx:62-63`): so a detail page can silently render a months-old price. The detail page's PER/BPA/PEG/target-price come *entirely* from that stale seed, unlike the list page which recomputes against live prices. **The same stock can show different PERs on the list and the detail page.**
+`stocks.price` and `stocks.change_pct` are July-2026 seed values. They're only used as a **fallback** on the detail page when the live quote is missing (`bourse.$ticker.tsx:62-63`): so a detail page can silently render a months-old price. The detail page's PER/BPA/PEG/target-price come _entirely_ from that stale seed, unlike the list page which recomputes against live prices. **The same stock can show different PERs on the list and the detail page.**
 
 Also unused: `stock_fundamentals.per_2025`, `per_2026e`, `dy_2025`, `dy_2026e` are stored but **never read**: the UI always recomputes them from the live price. Keep them in sync or drop them.
 
@@ -195,7 +206,7 @@ Consequences worth knowing:
 - Sign-up honours email confirmation: if `signUp` returns no session, the user is told to check their inbox.
 - `/auth?mode=signup` toggles the form; validated with a small Zod schema (email, 6–72 char password).
 
-**UX snag:** the landing page's secondary CTA *"Explorer les valeurs"* links to `/bourse`, which is behind the auth gate: an anonymous visitor is bounced straight to `/auth`. Either make a public read-only bourse view or relabel the button.
+**UX snag:** the landing page's secondary CTA _"Explorer les valeurs"_ links to `/bourse`, which is behind the auth gate: an anonymous visitor is bounced straight to `/auth`. Either make a public read-only bourse view or relabel the button.
 
 ---
 
@@ -203,29 +214,30 @@ Consequences worth knowing:
 
 Five migrations in `supabase/migrations/`. **Every table has RLS enabled** and the policies are correct: user-owned tables scope by `auth.uid()`, and child tables (`portfolio_*`) check ownership through an `EXISTS` subquery on `portfolios`.
 
-| Table | Rows seeded | Access |
-|---|---|---|
-| `profiles` | N/A | own row only; auto-created by an `on_auth_user_created` trigger |
-| `stocks` | 20 | public read |
-| `stock_prices` | 12 months × 20 | public read |
-| `stock_fundamentals` | 37 | public read |
-| `lessons` | 6 | public read |
-| `lesson_progress` | N/A | own rows |
-| `portfolios` | N/A | own rows (`cash` numeric, default 100000) |
-| `portfolio_holdings` | N/A | own, via portfolio |
-| `portfolio_trades` | N/A | own, via portfolio |
-| `portfolio_snapshots` | N/A | own, via portfolio; unique on `(portfolio_id, date)` |
-| `portfolio_orders` | N/A | own, via portfolio; `pending`/`filled`/`cancelled`, `order_type` `market`/`limit`, `updated_at` trigger |
-| `stock_quotes_daily` | grows | public read; one real close per stock per session |
-| `stock_metrics` | 80 | public read; the fundamentals workbook |
-| `user_roles` | N/A | read own (admins read all); written only through `admin_set_role` |
-| `news_posts` | N/A | **read** for `authenticated`; **no write grant at all**, see §9f |
+| Table                 | Rows seeded    | Access                                                                                                  |
+| --------------------- | -------------- | ------------------------------------------------------------------------------------------------------- |
+| `profiles`            | N/A            | own row only; auto-created by an `on_auth_user_created` trigger                                         |
+| `stocks`              | 20             | public read                                                                                             |
+| `stock_prices`        | 12 months × 20 | public read                                                                                             |
+| `stock_fundamentals`  | 37             | public read                                                                                             |
+| `lessons`             | 6              | public read                                                                                             |
+| `lesson_progress`     | N/A            | own rows                                                                                                |
+| `portfolios`          | N/A            | own rows (`cash` numeric, default 100000)                                                               |
+| `portfolio_holdings`  | N/A            | own, via portfolio                                                                                      |
+| `portfolio_trades`    | N/A            | own, via portfolio                                                                                      |
+| `portfolio_snapshots` | N/A            | own, via portfolio; unique on `(portfolio_id, date)`                                                    |
+| `portfolio_orders`    | N/A            | own, via portfolio; `pending`/`filled`/`cancelled`, `order_type` `market`/`limit`, `updated_at` trigger |
+| `stock_quotes_daily`  | grows          | public read; one real close per stock per session                                                       |
+| `stock_metrics`       | 80             | public read; the fundamentals workbook                                                                  |
+| `user_roles`          | N/A            | read own (admins read all); written only through `admin_set_role`                                       |
+| `news_posts`          | N/A            | **read** for `authenticated`; **no write grant at all**, see §9f                                        |
 
 Nice touches: the `handle_new_user()` trigger is `SECURITY DEFINER` with a pinned `search_path`, and migration #2 exists solely to `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on it, that's a deliberate hardening pass.
 
 `supabase/setup.sql` is the whole schema in one re-runnable file, generated by `scripts/build-setup-sql.py`. **Never edit it by hand: add a migration and regenerate.**
 
 **Orphaned schema (v1 leftovers, safe to drop):**
+
 - `portfolio_positions` table: the original "% weighting" model, fully replaced by `portfolio_holdings`. Nothing reads it.
 - `portfolios.capital` column: replaced by `cash`. Nothing reads it.
 
@@ -241,8 +253,8 @@ The most complex module. Starts every user at **100 000 MAD**, auto-creating a p
 
 - **Market orders, session open:** execute immediately at the live price, as before.
 - **Market orders, session closed:** persist to `portfolio_orders` with `order_type = 'market'` and `limit_price = NULL`, and go out at the next open, oldest first.
-- **Limit orders** persist the same way with `order_type = 'limit'`, and fill when `price ≤ limit` (buy) or `price ≥ limit` (sell), at the *current* price rather than the limit: a realistic favourable fill. They too are frozen outside the session, so a Saturday order can no longer fill on Friday's close.
-- The execution loop **runs only while `marketOpen`**, one order per pass (see §10), and the badge above the order form says which of the two is happening: green *Séance ouverte*, amber *Marché fermé, ordre mis en attente*.
+- **Limit orders** persist the same way with `order_type = 'limit'`, and fill when `price ≤ limit` (buy) or `price ≥ limit` (sell), at the _current_ price rather than the limit: a realistic favourable fill. They too are frozen outside the session, so a Saturday order can no longer fill on Friday's close.
+- The execution loop **runs only while `marketOpen`**, one order per pass (see §10), and the badge above the order form says which of the two is happening: green _Séance ouverte_, amber _Marché fermé, ordre mis en attente_.
 - **A sale that realises a gain is taxed 15 %**, Morocco's rate on disposals of listed securities. The maths is `lib/tax.ts`: the tax falls on the gain alone, never on the sale amount, and a loss is neither taxed nor credited. It is withheld at the moment of sale, so `portfolios.cash` receives the NET proceeds; the trade row still records the gross price, because `portfolio_trades` has no tax column and the portfolio's value is derived from cash and holdings, not from the trade log. The order form previews the tax before you sell, the confirmation restates it, and the bottom of the page explains it.
 - All `portfolio_orders` access is isolated in **`lib/orders.ts`** (`listPendingOrders`, `placeOrder`, `markOrderFilled`, `cancelOrder`, `fillsAt`), because the generated Supabase types do not know `order_type` yet.
 - `applyTrade()` does the whole thing client-side: recompute weighted average cost, upsert the holding, adjust `portfolios.cash`, insert a `portfolio_trades` row.
@@ -253,16 +265,19 @@ P&L baseline is the hardcoded `START_CAPITAL` constant, not the portfolio's actu
 
 ### Académie
 
-6 lessons, 2 per level (Débutant / Intermédiaire / Avancé). `buildLevelProgress()` in `lib/market.ts` implements **strict sequential gating**: a level unlocks only when *every* module of the previous level is complete. The lock is enforced both on the index grid and inside the lesson route.
+6 lessons, 2 per level (Débutant / Intermédiaire / Avancé). `buildLevelProgress()` in `lib/market.ts` implements **strict sequential gating**: a level unlocks only when _every_ module of the previous level is complete. The lock is enforced both on the index grid and inside the lesson route.
 
 > **The quizzes are effectively all-or-nothing.** `PASS_SCORE = 80`, but the seeded quizzes have only **2 or 3 questions** (14 total across all 6 lessons). At 3 questions, 2/3 = 67% → fail. At 2 questions, 1/2 = 50% → fail. So every module requires a **perfect score**, and one wrong answer blocks an entire level. This is almost certainly not intended: either lower `PASS_SCORE` or (better) write more questions.
 
 Related copy bugs:
+
 - `academie.index.tsx` meta description advertises **"15 modules"**: there are 6.
 - `academie.$slug.tsx` meta advertises a **"quiz de 10 questions"**, they're 2–3.
 - Lesson bodies strip `**` markers rather than rendering bold (`content.split("\n\n")` + `.replace(/\*\*/g, "")`), so the seeded Markdown emphasis is discarded.
 
-### Budget
+### Simulateurs (ex-Budget)
+
+See §9g: the page moved to `/simulateurs` on 2026-08-29 and the dashboard's quick-access tile followed on 2026-08-31 (_Simulateurs_ / « Investissement et crédit »; `/budget` is still a redirect stub). What follows describes the compound-interest half.
 
 Self-contained, no backend. Monthly-compounded loop over 1–40 years at 3.5% / 6.5% / 9.5%, charting compounded growth against flat savings. Correctly framed as pedagogical hypotheses, with the `<Disclaimer />` component displayed. Nothing to watch out for here.
 
@@ -283,15 +298,15 @@ All tokens are in `src/styles.css` as **OKLCH** CSS variables under Tailwind v4'
 
 The palette has never changed. What was added on top of it, to stop pages reading as flat rectangles on black:
 
-| Utility | What it does |
-|---|---|
-| `surface-raised` | card with a top-lit gradient instead of a flat fill; replaced `surface-card` everywhere |
-| `card-hover` | lift plus a gold-tinted border and shadow, self-contained (no `hover:` variant needed at the call site) |
-| `aurora` | diffuse gold radial glow behind page headers |
-| `grid-lines` | faint masked grid, gives the background texture without drawing the eye |
-| `eyebrow` | uppercase tracked gold section label |
-| `hairline` | thin gold-to-transparent rule |
-| `rise`, `sheen` | entrance animation and a slow gradient drift on the hero headline |
+| Utility          | What it does                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `surface-raised` | card with a top-lit gradient instead of a flat fill; replaced `surface-card` everywhere                 |
+| `card-hover`     | lift plus a gold-tinted border and shadow, self-contained (no `hover:` variant needed at the call site) |
+| `aurora`         | diffuse gold radial glow behind page headers                                                            |
+| `grid-lines`     | faint masked grid, gives the background texture without drawing the eye                                 |
+| `eyebrow`        | uppercase tracked gold section label                                                                    |
+| `hairline`       | thin gold-to-transparent rule                                                                           |
+| `rise`, `sheen`  | entrance animation and a slow gradient drift on the hero headline                                       |
 
 Every animation is disabled under `prefers-reduced-motion`.
 
@@ -308,14 +323,14 @@ Two decisions worth knowing:
 
 The whole interface switches language from a control in the header, on the landing page, the auth pages and inside the app. The choice is stored in `localStorage` under `lyamfi.lang` and applied to `<html lang>`.
 
-| File | Role |
-|---|---|
-| `lib/locales/fr.ts` | **source of truth.** `as const`, so its keys define the dictionary type |
-| `lib/locales/en.ts` | typed as `Record<keyof typeof fr, string>`, so a missing key is a compile error, never a raw key on screen |
-| `lib/i18n.ts` | context, `useI18n()`, `useT()`, `usePageTitle()`, `{token}` interpolation |
-| `components/LanguageProvider.tsx` | the provider component, kept apart so Vite fast refresh can track it |
-| `components/LanguageSwitcher.tsx` | the FR / EN toggle |
-| `lib/levels.ts` | maps the French level names stored in `lessons.level` to translation keys |
+| File                              | Role                                                                                                       |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `lib/locales/fr.ts`               | **source of truth.** `as const`, so its keys define the dictionary type                                    |
+| `lib/locales/en.ts`               | typed as `Record<keyof typeof fr, string>`, so a missing key is a compile error, never a raw key on screen |
+| `lib/i18n.ts`                     | context, `useI18n()`, `useT()`, `usePageTitle()`, `{token}` interpolation                                  |
+| `components/LanguageProvider.tsx` | the provider component, kept apart so Vite fast refresh can track it                                       |
+| `components/LanguageSwitcher.tsx` | the FR / EN toggle                                                                                         |
+| `lib/levels.ts`                   | maps the French level names stored in `lessons.level` to translation keys                                  |
 
 Two deliberate limits:
 
@@ -330,13 +345,13 @@ Adding a string: put it in `fr.ts`, then in `en.ts`. TypeScript will not compile
 
 Requested so customer support can be delegated without handing over the keys.
 
-| | Principal (`lyamcorpo@gmail.com`) | Secondary admin |
-|---|---|---|
-| See accounts and their activity | ✅ | ✅ |
-| Grant or revoke admin | ✅ | ❌ |
-| Rename an account | ✅ | ❌ |
-| Reset a password | ✅ | ❌ |
-| Delete an account | ✅ | ❌ |
+|                                 | Principal (`lyamcorpo@gmail.com`) | Secondary admin |
+| ------------------------------- | --------------------------------- | --------------- |
+| See accounts and their activity | ✅                                | ✅              |
+| Grant or revoke admin           | ✅                                | ❌              |
+| Rename an account               | ✅                                | ❌              |
+| Reset a password                | ✅                                | ❌              |
+| Delete an account               | ✅                                | ❌              |
 
 The split is enforced in the database, not the interface: every sensitive RPC opens with `is_principal_admin()`, which resolves the caller's e-mail from `auth.users`. Hiding the buttons is cosmetic.
 
@@ -380,18 +395,28 @@ Since 2026-08-27 the `/bourse` cards carry **only the valuation ratios**: market
 
 Two sorts were added next to the existing ones, sharing the same chip row: **PER 26 ascending** (a negative or zero PER is not a cheap stock but a loss-making one, so it goes to the end of the list with the uncomputable ones) and **D/Y 26 descending**. Both read `per26()` and `dy26()`, exported from `lib/metrics.ts` so the sort gets numbers rather than formatted labels.
 
+### Favourites (2026-08-31)
+
+A star in the top-right corner of every card, and a **Favoris** chip at the end of the sort row that narrows the list to the starred ones. Empty and starred are one component apart: outline grey against the card, filled brand gold when on, with the fill and colour transitioned together.
+
+Three decisions are worth keeping in mind before touching it:
+
+- **The star is a sibling of the link, not a child of it.** A `<button>` inside an `<a>` is invalid HTML and unreachable in a sensible tab order. The card `<div>` therefore carries `surface-raised card-hover` (so the whole thing still lifts on hover) and the `<Link>` inside it carries only the padding. The click on the star has no path to the navigation at all; `stopPropagation` is kept as a belt-and-braces line in case the card ever becomes clickable as a whole again.
+- **State lives in `localStorage`, in `src/lib/favourites.ts`.** A favourite commits nothing — no money, no progress, no ranking — so a round trip per click would buy nothing, and there is no table or RLS policy to maintain. The cost is that it does not follow the user between devices; the day that matters, only that module changes, because the page knows nothing but the `useFavourites()` hook.
+- **The first render is deliberately empty.** The page is server-rendered, where `localStorage` does not exist, so the stored list is read in an effect rather than in `useState`'s initialiser. Seeding it directly would paint stars the server's HTML does not have and trip React's hydration check. `readFavourites()` is exported apart from the storage access and tested against hand-edited junk: the key is editable from any browser console, and a malformed value must not take the page down.
+
 ### Fundamentals
 
 `stock_metrics` holds the Lyamfi fundamentals workbook, 80 stocks, seeded by `scripts/build-stock-metrics.py` from the xlsx. Regenerate rather than editing the migration by hand. Where the workbook's own ticker disagrees with the exchange, the correction goes in `TICKER_FIXES` at the top of that script, never in the generated SQL, so it survives regeneration (see §5). The parser handles what the workbook actually contains: thousands separated by non-breaking spaces (`1 000 000`), and two different blank markers, `_` and `—`.
 
 The table stores **only what does not depend on the price**: share count, EPS 26 / 27e, DPS 26 / 27e, book value, sales and free cash flow per share, and the closed-year profitability ratios. Everything price-derived is computed at render time in `lib/metrics.ts`, because storing it would be stale by the next session:
 
-| Derived live | Formula |
-|---|---|
-| Market cap | `shares × price` |
-| P/E 26, P/E 27e | `price ÷ EPS` |
-| Dividend yield 26, 27e | `DPS ÷ price × 100` |
-| P/B, P/S, P/FCF 25 | `price ÷ book value, sales per share, FCF per share` |
+| Derived live           | Formula                                              |
+| ---------------------- | ---------------------------------------------------- |
+| Market cap             | `shares × price`                                     |
+| P/E 26, P/E 27e        | `price ÷ EPS`                                        |
+| Dividend yield 26, 27e | `DPS ÷ price × 100`                                  |
+| P/B, P/S, P/FCF 25     | `price ÷ book value, sales per share, FCF per share` |
 
 The ratio columns are stored as fractions, so `0.163` renders as `16,3 %`.
 
@@ -424,12 +449,12 @@ Value comes from the most recent `portfolio_snapshots` row, which already carrie
 
 `/actualites`, between Académie and Simulateurs in the nav. Rebuilt on 2026-08-29 as a press feed rather than a card wall:
 
-- **`/actualites`** is a search box over article titles (filtered as you type, no round trip) and a vertical list of **horizontal** cards: thumbnail left, text right, stacked on mobile. Each card shows the title, the date in full (*Vendredi 28 août 2026*) and a three-line excerpt clamped by CSS. The whole card links through; the admin buttons sit outside the anchor, because a button inside a link is invalid markup and would open the article on its way to deleting it.
+- **`/actualites`** is a search box over article titles (filtered as you type, no round trip) and a vertical list of **horizontal** cards: thumbnail left, text right, stacked on mobile. Each card shows the title, the date in full (_Vendredi 28 août 2026_) and a three-line excerpt clamped by CSS. The whole card links through; the admin buttons sit outside the anchor, because a button inside a link is invalid markup and would open the article on its way to deleting it.
 - **`/actualites/$id`** is the reading page: back link, date, large title, illustration, then the body in a `max-w-4xl` column.
 - **`components/ArticleBody.tsx`** renders a small Markdown subset (`##` headings, `-` and `1.` lists, `---` rules, `**bold**`) into React elements. Never `dangerouslySetInnerHTML`: articles are written by admins, but a compromised admin account must not be able to run script in every member's browser. `lib/excerpt.ts` strips the same markup for the feed, where a stray `##` would read as a typo.
 - The admin form carries Image, **Date**, Titre and Corps. The date is optional in the database: absent, a new article is stamped now and an edited one keeps the date it had.
 
-**The split of rights lives in the database, not the interface.** `authenticated` holds `SELECT` on `news_posts` and nothing else, because the migration does `REVOKE ALL … FROM authenticated, anon` and *then* grants back the single privilege it wants. Enumerating what to remove is not enough: a Supabase project carries `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so the table is born with everything granted, and naming `INSERT, UPDATE, DELETE` leaves `TRUNCATE`, `REFERENCES` and `TRIGGER` behind (this is exactly what shipped first and had to be corrected). Publishing, editing and deleting go through `news_create`, `news_update` and `news_delete`, three `SECURITY DEFINER` functions that each open with `is_admin()`. Hiding the buttons is cosmetic, exactly as for the admin console. Both admin tiers may write: publishing an article is editorial work, not a privileged operation on an account.
+**The split of rights lives in the database, not the interface.** `authenticated` holds `SELECT` on `news_posts` and nothing else, because the migration does `REVOKE ALL … FROM authenticated, anon` and _then_ grants back the single privilege it wants. Enumerating what to remove is not enough: a Supabase project carries `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so the table is born with everything granted, and naming `INSERT, UPDATE, DELETE` leaves `TRUNCATE`, `REFERENCES` and `TRIGGER` behind (this is exactly what shipped first and had to be corrected). Publishing, editing and deleting go through `news_create`, `news_update` and `news_delete`, three `SECURITY DEFINER` functions that each open with `is_admin()`. Hiding the buttons is cosmetic, exactly as for the admin console. Both admin tiers may write: publishing an article is editorial work, not a privileged operation on an account.
 
 The database also does the validation, so it cannot be bypassed from a console: title and body are trimmed and refused when empty (200 and 20 000 characters max), and an image URL is either empty (stored `NULL`) or starts with `http://` or `https://`.
 
@@ -441,7 +466,7 @@ Client code: `lib/news.ts` (queries, RPC wrappers, upload) and `routes/_authenti
 
 ## 9g. Simulateurs (`/simulateurs`, ex-`/budget`)
 
-Two calculators on one page. The compound-interest projection is unchanged, only retitled *Investissement et intérêts composés*.
+Two calculators on one page. The compound-interest projection is unchanged, only retitled _Investissement et intérêts composés_.
 
 The **credit simulator** below it exists to make one point: the rate a bank advertises is not what the loan costs. `lib/credit.ts` runs a constant-annuity amortisation and, from the payments actually leaving the account (instalment **plus** monthly fees), solves for the APR by bisection rather than Newton, because bisection cannot diverge on an absurd input someone types out of curiosity. The APR is the effective annual rate, `(1 + monthly)¹² − 1`, so a 0.5 % monthly rate reads 6.17 % and not 6 %.
 
@@ -451,21 +476,31 @@ The maths is checked against a hand-computed reference (100 000 MAD over 10 year
 
 ---
 
-## 9h. Macroéconomie (`/macroeconomie`)
+## 9h. Données macro et marchés internationaux (`/macroeconomie`)
 
-Five indicators on the Moroccan economy, reached from the gold banner at the top of `/actualites`, deliberately not from the nav: it is context for the news, not a sixth destination.
+Two blocks on one page, reached from the gold banner at the top of `/actualites`, deliberately not from the nav: it is context for the news, not a sixth destination. **Five indicators on the Moroccan economy**, then, since 2026-08-31, **five world prices in real time**.
 
 Sources and parsing live in `src/lib/macro.functions.ts`, the page in `src/routes/_authenticated/macroeconomie.tsx`, the banner in `src/components/MacroBanner.tsx`.
 
-**It does not use TradingView widgets, and cannot.** The page shipped with five `advanced-chart` embeds on `ECONOMICS:MA…` symbols, exactly as specified. Every one of them refused to render: *« Symbole disponible uniquement sur TradingView »*. Economic series are not among what the free embeddable widgets are licensed to serve, so no amount of configuration would have fixed it.
+**It does not use TradingView widgets, and cannot.** The page shipped with five `advanced-chart` embeds on `ECONOMICS:MA…` symbols, exactly as specified. Every one of them refused to render: _« Symbole disponible uniquement sur TradingView »_. Economic series are not among what the free embeddable widgets are licensed to serve, so no amount of configuration would have fixed it.
 
 What replaced them: the **World Bank's open API** (`api.worldbank.org`, no key, no quota), charted with Recharts like everything else on the site. Same trade as §9d, where the market cards dropped their TradingView embeds for local sparklines.
 
 - The trade-off is granularity: the World Bank publishes annually, TradingView monthly or quarterly. Each card therefore keeps a link to its TradingView page for the finer series.
 - **The policy rate comes from the IMF, not the World Bank.** The World Bank publishes no Moroccan policy rate at all: `FR.INR.RINR` is the real rate, a different quantity, and it returns empty for Morocco anyway. The IMF's IFS does publish it, monthly and keyless, under `M.MA.FPOLM_PA`. It is fetched, then reduced to its decisions by `keepChanges()`: the IMF repeats the same figure every month, and a policy rate is read by its steps. The chart uses `stepAfter` for that series, because the rate holds and then jumps.
-- **`POLICY_RATE` is a safety net, not the source.** If the IMF is unreachable or stops publishing, the card falls back to a hand-kept table of Board decisions and *says so on screen*, with the date it was last verified. **Only touch that table if the warning actually appears in production** — while the IMF answers, it is never read. Both the IMF parser and the fallback are tested without network.
+- **`POLICY_RATE` is a safety net, not the source.** If the IMF is unreachable or stops publishing, the card falls back to a hand-kept table of Board decisions and _says so on screen_, with the date it was last verified. **Only touch that table if the warning actually appears in production** — while the IMF answers, it is never read. Both the IMF parser and the fallback are tested without network.
 - `parseWorldBank()` is exported apart from the fetch, as `buildHistory()` is in §9d, so the shape handling is checked without network. The trap it exists to avoid: `Number(null)` is `0`, so filtering after conversion would chart an unpublished year as zero inflation. It filters on the raw value.
 - A series that fails to load leaves its card with the explanation and the link rather than an empty frame.
+
+### Marchés internationaux
+
+Gold (`OANDA:XAUUSD`), silver (`OANDA:XAGUSD`), crude (`TVC:USOIL`), natural gas (`TVC:NATGAS`) and bitcoin (`BINANCE:BTCUSD`), each in a `WorldMarketCard` (`src/components/WorldMarketCard.tsx`) that reproduces the macro card frame exactly: same glass panel, same gold heading, same 208-px chart band, same outbound link at the foot.
+
+**These do use TradingView widgets, and that is not a contradiction of the paragraph above.** The rule is the same applied twice: `ECONOMICS:MA…` is refused by the free embeds, so those series are refetched and redrawn ourselves; gold and crude are ordinary instruments TradingView serves without restriction, in real time, which no annual series could match. Each card takes the source that will answer.
+
+`mini-symbol-overview` is the widget, wrapped in `LazyTradingView` so five iframes do not mount on load — note that all five request the **same** script URL, so the browser's cache absorbs most of the requests and counting them tells you nothing; count mounted containers instead. `largeChartUrl` is set empty on purpose: left unset, a click inside the chart leaves the site.
+
+`s3.tradingview.com` is blocked from the audit environment like every other outbound host, so the five widgets were verified to _mount_ with the script stubbed, and their symbols and links checked, but never seen to paint. If a card stays blank in production, the symbol is the first thing to check.
 
 **Verified in production** for the World Bank series (inflation, GDP, unemployment, employment render live). `dataservices.imf.org` is blocked from the audit environment, like every other outbound host, so the IMF request itself was never seen to succeed: its parser is tested against the documented SDMX-JSON shape, and the fallback exists precisely because that request could fail. If the card shows the hand-kept warning, the IMF is the thing to look at.
 
@@ -474,57 +509,72 @@ What replaced them: the **World Bank's open API** (`api.worldbank.org`, no key, 
 ## 10. Known issues, ranked
 
 ### 🔴 Trading integrity is entirely client-side
+
 Every trade rule (sufficient cash, sufficient shares, average-cost math), is enforced in the browser in `applyTrade()`. RLS grants the signed-in user full write access to their own `portfolios.cash`, `portfolio_holdings`, and `portfolio_trades`, so a single API call can set cash to any number or mint holdings from nothing.
 
 For a solo learning sandbox this is acceptable. It blocks **any** competitive feature (leaderboards, cohort challenges, shared classrooms), and should be fixed before one ships. The fix is a `SECURITY DEFINER` Postgres function that validates and executes a trade atomically, with direct writes revoked.
 
 ### 🔴 Cash update is a non-atomic read-modify-write
+
 `applyTrade` writes `cash: pf.cash - amount`, where `pf.cash` comes from the React Query cache. Two trades in quick succession, or a stale cache, silently clobber the balance. The same server-side RPC solves this.
 
 ### 🟠 Pending orders only fill while the tab is open
+
 The fill loop is a `useEffect` on the portfolio page: no open tab, no execution. That now covers market orders queued out of session as well as limit orders, so a player who queues an order on Sunday night and never opens the page on Monday stays unfilled. It also fills **at most one order per pass**, deliberately: `applyTrade()` reads cash from the React Query cache, so chaining two fills on the same cached balance would clobber it. The invalidation restarts the pass on fresh data, and the book drains one order at a time. A scheduled server job (Supabase cron + the trade RPC above) is the real fix for both halves.
 
 ### 🟠 The trading session is the browser's clock
+
 `isMarketOpen` is computed client-side from `Intl.DateTimeFormat` in the `Africa/Casablanca` zone. A user whose device clock is wrong, or who changes it, can make the app believe the session is open. Given trading is already client-side (see the 🔴 items), this adds no new exposure, but it moves server-side with them. Until then, the code fails **closed**: before the clock is read (SSR, first render) the session counts as shut, because queuing an order can be undone and executing one wrongly cannot.
 
 ### 🟠 Every table but `news_posts` grants TRUNCATE, REFERENCES and TRIGGER to `anon` and `authenticated`
-A Supabase project sets `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so every table created by a migration starts with all privileges granted, and the explicit `GRANT SELECT` / `GRANT ... TO authenticated` lines in the migrations only *add* to that. **RLS does not cover the leftovers**: it filters the rows a statement reads and writes, and has no say over `TRUNCATE`, which empties the table outright.
+
+A Supabase project sets `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so every table created by a migration starts with all privileges granted, and the explicit `GRANT SELECT` / `GRANT ... TO authenticated` lines in the migrations only _add_ to that. **RLS does not cover the leftovers**: it filters the rows a statement reads and writes, and has no say over `TRUNCATE`, which empties the table outright.
 
 Not reachable through the app as it stands: PostgREST exposes no verb that issues `TRUNCATE`, `CREATE TRIGGER` or `ALTER TABLE`, so the publishable key cannot get at any of it over HTTP. It needs a direct Postgres connection, which needs the database password. So this is a privilege model that says something other than what it means, not an open door.
 
 `news_posts` is the only table done right (`REVOKE ALL` then grant back). Fixing the other fifteen is one migration: `REVOKE ALL ON <table> FROM anon, authenticated;` followed by the grants each already documents. Worth doing next time the schema is touched.
 
 ### 🟠 Auto-login trusts a localStorage probe to decide what to paint
-`components/SessionRedirect.tsx` reads whether a `sb-*-auth-token` key exists to choose between the splash and the public page, *before* `getSession()` has answered. That key name is supabase-js's convention, not a documented API. If it ever changes, nothing breaks: the probe returns false, the public page renders, and the redirect simply happens a beat later without the splash. The redirect itself always waits for `getSession()`, so an expired token never gets anyone in.
+
+`components/SessionRedirect.tsx` reads whether a `sb-*-auth-token` key exists to choose between the splash and the public page, _before_ `getSession()` has answered. That key name is supabase-js's convention, not a documented API. If it ever changes, nothing breaks: the probe returns false, the public page renders, and the redirect simply happens a beat later without the splash. The redirect itself always waits for `getSession()`, so an expired token never gets anyone in.
 
 ### 🟠 The MASI 20 symbol is not documented
-TradingView publishes no stable code for the MASI 20. `lib/quotes.functions.ts` therefore *discovers* it: it first asks the scanner for everything typed `index` on CSEMA, then falls back to a candidate list (`MASI20`, `MSI20`, `MASI_20`), and normalises whatever comes back to the internal code `MASI20`. If none of it resolves, the dashboard card renders with *Indice indisponible* rather than disappearing, and the TradingView link still works. **This could not be verified from the audit environment: `scanner.tradingview.com` answers 403 to CONNECT there.** Check the card on the live site; if it is empty, the right code goes in `INDEX_CANDIDATES`.
+
+TradingView publishes no stable code for the MASI 20. `lib/quotes.functions.ts` therefore _discovers_ it: it first asks the scanner for everything typed `index` on CSEMA, then falls back to a candidate list (`MASI20`, `MSI20`, `MASI_20`), and normalises whatever comes back to the internal code `MASI20`. If none of it resolves, the dashboard card renders with _Indice indisponible_ rather than disappearing. **This could not be verified from the audit environment: `scanner.tradingview.com` answers 403 to CONNECT there.** Check the card on the live site; if it is empty, the right code goes in `INDEX_CANDIDATES`.
+
+The **link** half of this is settled: the chart lives at `CSEMA:MSI20`, confirmed by the owner against tradingview.com, and `TV_ALIASES` now maps `MASI20 → MSI20` so `tradingViewUrl()` builds it (§5). Only the _quote_ lookup is still a discovery.
 
 ### 🟠 The performance curve only advances when someone visits
+
 Snapshots are written client-side on page view, so the vs-MASI chart has gaps for every day the user didn't log in. The chart also needs ≥2 snapshots before it renders anything: a new user sees only explanatory text on day one.
 
 Minor related bug: the snapshot date uses `new Date().toISOString().slice(0,10)` (**UTC**), while the column default is Casablanca time. Between 23:00 and midnight local, a snapshot lands on the wrong day.
 
 ### 🟠 `record_daily_quotes` trusts the client
+
 The daily close is posted by the browser, like every trade. The RPC never overwrites a (ticker, day) it already holds, so the exposure is bounded to whoever loads a page first each morning, but that person could still write a fake close. Same threat model as the two 🔴 items above, and the same fix: move the write server-side once trading moves server-side.
 
 ### 🟠 Daily closes are now overwritten, not written once
+
 `record_daily_quotes` used to refuse a (ticker, day) it already held, which froze the leaderboard on the first quote of the morning. It now updates today's row on every call, and leaves past days alone. That is what makes the leaderboard follow the market, and it widens the client-trust window from once a morning to any time: same threat model as the 🔴 items, same fix, whenever writes move server-side.
 
 ### 🟡 `stock_prices` is synthetic and now unused by the UI
+
 A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts it any more (see §9d). Left in place because dropping a table is not worth the migration churn, but do not mistake it for market data.
 
 ### 🟡 Dead code
-- `components/LazyTradingView.tsx`: no longer imported since the market cards dropped their embed.
-- `lib/market.ts` `stocksQuery` is no longer read by the dashboard (only `/bourse` uses it).
+
+- `lib/market.ts` `stocksQuery` is now read by `/bourse/$ticker` alone; `/bourse` stopped querying it on 2026-08-31 when sectors moved into code (§5).
 - `integrations/supabase/auth-middleware.ts`: generated, never imported.
 - `integrations/supabase/client.server.ts`: the service-role admin client; no server-side admin code exists, so it's unused (and its env var is absent).
 - `cseName` and `CSE_TICKERS` exports in `cse-symbols.ts`.
 
 ### 🟡 Bundle weight
+
 ~1.4 MB client payload; the Recharts chunk alone is ~360 KB. Recharts is used on three routes. Worth code-splitting or swapping for something lighter if mobile performance on Moroccan networks matters, which, for this audience, it probably does.
 
 ### 🟢 Minor
+
 - The Moroccan holiday table in `lib/market-session.ts` ends in **2027** and will need extending.
 - `dashboard.tsx` calls `useAuth()` (a second session subscription) even though `_authenticated`'s `beforeLoad` already put `user` in the route context.
 - Dashboard gainers/losers exclude flat stocks (`changePct !== 0`) and, if fewer than 5 movers exist in a direction, the lists bleed into the opposite sign.
@@ -537,17 +587,18 @@ A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts 
 
 Roughly in order of value-per-effort:
 
-0. **Check `/macroeconomie` on the live site.** If the policy-rate card shows the « série tenue à la main » warning, the IMF request is failing and wants another source; if it does not, nothing there needs maintaining. Everything else from both batches is confirmed working in production.
-1. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature. Now that the session gates execution, that RPC should also own the clock, so the server decides what "open" means rather than the browser.
-2. **Translate the lesson content**, if English learners matter. Needs a schema change on `lessons`; see §9b. The `news_posts` rows are French-only for the same reason.
-3. **Extend the Moroccan holiday table** in `lib/market-session.ts` past 2027. It now gates order execution, not just a badge, so a missing holiday means orders filling on a closed day.
-4. **Self-host the logo.** Required before any non-Lovable deployment.
-5. **Run `npm run format`** and get lint to zero, so it's a usable signal again.
-6. **Backfill the `stocks` table** for the other 61 listings: the single biggest content gap.
-7. **Move trading to a Postgres RPC**, closing both the integrity hole and the cash race, and unlocking leaderboards.
-8. **Server-side order execution** via scheduled job: the queue now holds market orders as well, so a player who never reopens the page never gets filled.
-9. **Add a test suite**: `applyTrade`, `buildLevelProgress`, and the compound-interest loop are pure, well-isolated logic and would be cheap to cover.
-10. **Fix the stale detail page**: recompute PER/BPA/yield from live prices as the list page already does, so the two views agree.
+0. **Reconcile the sector table against the owner's spreadsheet.** `docs.google.com` is blocked from this environment, so `src/lib/sectors.ts` follows the exchange's own classification instead (§5). Paste the sheet's contents into a message and it is a one-line-per-company edit — start with Agroalimentaire, which the brief says holds seven and this table holds six.
+1. **Check `/macroeconomie` on the live site.** Two things: whether the policy-rate card shows the « série tenue à la main » warning (if it does, the IMF request is failing and wants another source), and whether the five _Marchés internationaux_ cards actually paint — they could only be verified as far as mounting from here.
+2. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature. Now that the session gates execution, that RPC should also own the clock, so the server decides what "open" means rather than the browser.
+3. **Translate the lesson content**, if English learners matter. Needs a schema change on `lessons`; see §9b. The `news_posts` rows are French-only for the same reason.
+4. **Extend the Moroccan holiday table** in `lib/market-session.ts` past 2027. It now gates order execution, not just a badge, so a missing holiday means orders filling on a closed day.
+5. **Self-host the logo.** Required before any non-Lovable deployment.
+6. **Run `npm run format`** and get lint to zero, so it's a usable signal again.
+7. **Backfill the `stocks` table** for the other 60 listings: now that sectors live in code, what is still missing there is the company description on `/bourse/$ticker`.
+8. **Move trading to a Postgres RPC**, closing both the integrity hole and the cash race, and unlocking leaderboards.
+9. **Server-side order execution** via scheduled job: the queue now holds market orders as well, so a player who never reopens the page never gets filled.
+10. **Add a test suite**: `applyTrade`, `buildLevelProgress`, and the compound-interest loop are pure, well-isolated logic and would be cheap to cover.
+11. **Fix the stale detail page**: recompute PER/BPA/yield from live prices as the list page already does, so the two views agree.
 
 ### Things that will bite you
 
@@ -568,7 +619,11 @@ The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not
 
 ## 12. What to run in the Supabase SQL editor
 
-### 2026-08-29 (current)
+### 2026-08-31 (current): nothing
+
+The 2026-08-31 batch is entirely front-end. Favourites live in the browser's `localStorage`, sectors in `src/lib/sectors.ts`, and no table, column, function or policy changed. **Do not run anything for it.**
+
+### 2026-08-29
 
 One migration, `supabase/migrations/20260829090000_live_quotes_and_news_date.sql`. It replaces three functions and creates nothing:
 
