@@ -43,9 +43,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="grid-lines h-[38rem]" aria-hidden="true" />
 
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="safe-x mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2.5 sm:gap-4 sm:py-3">
           <Link to="/dashboard" className="min-w-0">
-            <Logo />
+            <Logo compact />
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex">
@@ -96,10 +96,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </nav>
 
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center gap-1.5 lg:hidden">
             <LanguageSwitcher />
             <button
-              className="rounded-full border border-border p-2"
+              className="press grid h-10 w-10 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
               onClick={() => setOpen((o) => !o)}
               aria-label={t("nav.menu")}
               aria-expanded={open}
@@ -110,13 +110,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {open && (
-          <nav className="flex flex-col gap-1 border-t border-border px-4 py-3 lg:hidden">
+          // `rise` : le panneau se déplie au lieu d'apparaître d'un coup, ce
+          // qui rattache visuellement le menu au bouton qui vient de l'ouvrir.
+          <nav className="rise safe-x flex max-h-[70svh] flex-col gap-1 overflow-y-auto border-t border-border py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
             {NAV.map((n) => (
               <Link
                 key={n.to}
                 to={n.to}
                 onClick={() => setOpen(false)}
-                className={`rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                className={`press rounded-xl px-3 py-3 text-[15px] transition-colors ${
                   active(n.to)
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -129,7 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 to="/admin"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                className="press flex items-center gap-1.5 rounded-xl px-3 py-3 text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 <ShieldCheck className="h-4 w-4" /> {t("nav.admin")}
               </Link>
@@ -137,13 +139,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               to="/compte"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              className="press flex items-center gap-1.5 rounded-xl px-3 py-3 text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               <UserRound className="h-4 w-4" /> {t("nav.account")}
             </Link>
             <button
               onClick={signOut}
-              className="rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground"
+              className="press rounded-xl px-3 py-3 text-left text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               {t("nav.signOutLong")}
             </button>
@@ -151,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </header>
 
-      <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">{children}</main>
+      <main className="safe-x relative mx-auto w-full max-w-7xl py-6 sm:py-12">{children}</main>
     </div>
   );
 }

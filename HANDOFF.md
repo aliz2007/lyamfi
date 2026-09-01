@@ -1,8 +1,10 @@
 # Lyamfi: Codebase Handoff
 
-_Written 2026-08-18, last revised 2026-08-31. Everything below was read from the source and, where marked ✅, executed._
+_Written 2026-08-18, last revised 2026-09-01. Everything below was read from the source and, where marked ✅, executed._
 
-> **Latest change (2026-08-31):** a **favourites system** on `/bourse` (star per card, Favoris filter, kept in `localStorage`), a **complete sector table** for all 80 listings, transcribed from the owner's sector workbook, replacing the 20-row `stocks` seed the filter used to read, the **MASI 20 TradingView link** fixed to `CSEMA:MSI20`, the dashboard's **top movers made clickable**, the quick-access **Budget tile renamed Simulateurs**, and a **Marchés internationaux** block (gold, silver, oil, gas, bitcoin) on the renamed _Données macro et marchés internationaux_ page. **No SQL to run this round:** see §12.
+> **Latest change (2026-09-01):** a **mobile pass across the whole product** (§9i) — the login button restored to the public header, the horizontal overflow on `/bourse` traced to its real cause and fixed, filter chips moved into snap-scrolling strips, tap targets brought to 36 px, the vertical rhythm tightened, and the ticker tape taken off the critical path. Also: the sector table **re-cut from the owner's own workbook** (§5), and the natural-gas card moved off a symbol TradingView does not serve (§9h). **No SQL:** see §12.
+>
+> _2026-08-31:_ a **favourites system** on `/bourse` (star per card, Favoris filter, kept in `localStorage`), a **complete sector table** for all 80 listings, transcribed from the owner's sector workbook, replacing the 20-row `stocks` seed the filter used to read, the **MASI 20 TradingView link** fixed to `CSEMA:MSI20`, the dashboard's **top movers made clickable**, the quick-access **Budget tile renamed Simulateurs**, and a **Marchés internationaux** block (gold, silver, oil, gas, bitcoin) on the renamed _Données macro et marchés internationaux_ page. **No SQL to run this round:** see §12.
 >
 > _2026-08-29:_ Actualités **rebuilt** as a searchable feed of horizontal cards leading to a full reading page, a **macroeconomic dashboard** at `/macroeconomie`, **Budget renamed Simulateurs** with a new **credit simulator**, **auto-login**, a **15 % capital-gains tax** on sales, and fixes for the **missing quotes** and the **frozen leaderboard**.
 >
@@ -46,9 +48,10 @@ I ran these in a clean checkout:
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npx tsc --noEmit`        | ✅ **Clean.** Zero type errors, under a genuinely strict config (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`). Re-run 2026-08-27.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run build`           | ✅ **Succeeds** in a few seconds. Emits a Cloudflare Workers bundle (`.output/`, auto-generated `wrangler.json`, `nodejs_compat`). Re-run 2026-08-27.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `npm run lint`            | ❌ **~590 problems**: but **584 are Prettier formatting** and auto-fixable, and the other 6 are benign `react-refresh` warnings inside vendored shadcn/ui files. **Zero real code-quality errors.** `npm run format` clears it. Every file touched since is formatted and lint-clean.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `npm run lint`            | ✅ **Zero errors** since 2026-09-01, when `prettier --write src` was finally run across the tree (including the generated `integrations/supabase/types.ts`). What remains is **6 `react-refresh` warnings** inside vendored shadcn/ui files, which are noise by design. The signal is usable again: a new error means a new problem.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `supabase/setup.sql`      | ✅ **Applied twice in a row** against a throwaway PostgreSQL 16 with stand-ins for the `auth` and `storage` schemas and Supabase's default privileges, last on 2026-08-29. Clean both times, so it is genuinely re-runnable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Tests                     | **No test runner and no CI.** The pure logic added since 2026-08-27 was nonetheless checked by throwaway scripts run under `node --experimental-strip-types`: session hours, order fills, the PER/yield sorts, the capital-gains tax, the credit amortisation and APR, the excerpt stripper, both macro parsers, and the favourites store. Those scripts were not kept; a real suite is still §11 item 10.                                                                                                                                                                                                                                                                                                                                           |
+| Mobile run 2026-09-01 ✅  | Every route driven at **iPhone-13 size (390 px)** with realistic data — a funded portfolio, holdings carrying the longest names on the exchange, lessons, articles. **No page exceeds the viewport and no JavaScript errors anywhere.** An auditor script walks each route's DOM and reports elements past the viewport edge, tap targets under 32 px, and text clipped by an undeclared overflow; it now reports nothing on any of the twelve routes. The public header was additionally checked at 390, 360 and 320 px.                                                                                                                                                                                                                            |
 | Browser run 2026-08-31 ✅ | The 2026-08-31 batch was driven in **headless Chromium against `vite dev`**, with Supabase and the server functions stubbed at the network layer (both are unreachable from the audit environment). Confirmed on screen: 80 listings with their sector, **all 15 sector counts matching the owner's workbook** (Agro-alimentaire 7, Industrie et BTP 9, Autres 13…), the star toggling without navigating, `lyamfi.favourites` written and re-read after a reload, the empty-favourites message, the MASI 20 link resolving to `CSEMA-MSI20`, all ten top-mover rows linking to `/bourse/<CODE>` (a click landed on `/bourse/ATW`), the Simulateurs tile, the five international cards with their symbols, and zero JavaScript errors on every page. |
 
 The codebase is in good mechanical health. The lint number looks alarming and isn't.
@@ -170,6 +173,7 @@ Until 2026-08-31 the sector filter read `stocks.sector`. That table holds **20 d
 
 Three things about the transcription, all deliberate:
 
+- The workbook arrived as a PDF export (`Secteur Action Lyamfi`), read with the same extractor used for the briefs. A script re-reads it and compares it against `sectors.ts` line by line, matching on the company name each entry carries in a comment; it is the check to re-run after any edit.
 - **The workbook has 81 rows, the listing has 80 companies, and neither set contains the other.** `Lydec` and `Timar` are in the workbook but not in `CSE_SYMBOLS`, so they have no card to file; `S2M` is on the listing but absent from the workbook.
 - **`S2M` was placed in Technologies**, the only judgement call in the file and flagged as such in a comment there: the Société Maghrébine de Monétique writes payment software, HPS's exact business, and the workbook files HPS under Technologies. Move it if Lyamfi wants it elsewhere.
 - Those two facts are the whole reason the per-sector counts differ from the workbook, and they differ in exactly two places: **Technologies 4 → 5** (S2M added) and **Autres 15 → 13** (Lydec and Timar dropped). Every other sector matches to the unit, checked in the browser against the workbook's own figures.
@@ -500,15 +504,50 @@ What replaced them: the **World Bank's open API** (`api.worldbank.org`, no key, 
 
 ### Marchés internationaux
 
-Gold (`OANDA:XAUUSD`), silver (`OANDA:XAGUSD`), crude (`TVC:USOIL`), natural gas (`TVC:NATGAS`) and bitcoin (`BINANCE:BTCUSD`), each in a `WorldMarketCard` (`src/components/WorldMarketCard.tsx`) that reproduces the macro card frame exactly: same glass panel, same gold heading, same 208-px chart band, same outbound link at the foot.
+Gold (`OANDA:XAUUSD`), silver (`OANDA:XAGUSD`), crude (`TVC:USOIL`), natural gas (`OANDA:NATGASUSD`) and bitcoin (`BINANCE:BTCUSD`), each in a `WorldMarketCard` (`src/components/WorldMarketCard.tsx`) that reproduces the macro card frame exactly: same glass panel, same gold heading, same 208-px chart band, same outbound link at the foot.
 
 **These do use TradingView widgets, and that is not a contradiction of the paragraph above.** The rule is the same applied twice: `ECONOMICS:MA…` is refused by the free embeds, so those series are refetched and redrawn ourselves; gold and crude are ordinary instruments TradingView serves without restriction, in real time, which no annual series could match. Each card takes the source that will answer.
 
 `mini-symbol-overview` is the widget, wrapped in `LazyTradingView` so five iframes do not mount on load — note that all five request the **same** script URL, so the browser's cache absorbs most of the requests and counting them tells you nothing; count mounted containers instead. `largeChartUrl` is set empty on purpose: left unset, a click inside the chart leaves the site.
 
+> ⚠️ **`TVC:NATGAS` does not exist.** The 31/08 brief specified it and the card came up blank: TradingView's `TVC` family covers gold, silver, WTI, Brent and the indices, not gas. It now reads `OANDA:NATGASUSD`, the same provider as the gold and silver cards. If that card is _still_ blank in production, the other spellings TradingView serves are `NYMEX:NG1!` and `CAPITALCOM:NATURALGAS` — one line in `WORLD_MARKETS`, and nowhere else.
+
 `s3.tradingview.com` is blocked from the audit environment like every other outbound host, so the five widgets were verified to _mount_ with the script stubbed, and their symbols and links checked, but never seen to paint. If a card stays blank in production, the symbol is the first thing to check.
 
 **Verified in production** for the World Bank series (inflation, GDP, unemployment, employment render live). `dataservices.imf.org` is blocked from the audit environment, like every other outbound host, so the IMF request itself was never seen to succeed: its parser is tested against the documented SDMX-JSON shape, and the fallback exists precisely because that request could fail. If the card shows the hand-kept warning, the IMF is the thing to look at.
+
+---
+
+## 9i. The mobile pass (2026-09-01)
+
+The reported symptoms were three: no way to log in from the public page on a phone, `/bourse` wider than the screen so you had to pinch out to read a card, and financial figures cut off on the right. All three are fixed, and the fixes generalise.
+
+### The overflow had one cause, and it was not CSS sloppiness
+
+`/bourse` measured **584 px inside a 390 px viewport**. The chain, worth understanding because it will recur:
+
+1. The card title carries `truncate`, which is `white-space: nowrap`.
+2. The **min-content width of a `nowrap` element is the entire string** — for « Banque Marocaine pour le Commerce et l'Industrie », 568 px.
+3. A grid item defaults to `min-width: auto`, so it never shrinks below its min-content.
+4. A grid track sizes to the largest min-content among its items.
+
+So one long company name set the width of the single mobile column, and the whole page scrolled sideways. Not the chips, not the padding — those were symptoms of looking at the widest thing on screen.
+
+The fix is `min-width: 0` on grid items. It is applied twice on purpose: explicitly on the Bourse card, where the comment records the defect, and as a base rule, `:where(.grid) > * { min-width: 0 }`, because no grid in this codebase wants a card wider than its track and the browser default is simply wrong here. `:where()` carries no specificity, so any explicit `min-w-*` still wins.
+
+`html, body { overflow-x: clip }` is a **guard, not the fix**: it stops one bad component from dragging the whole page sideways again. `clip` and not `hidden` — `hidden` creates a scroll container, which would break every `position: sticky` header in the app.
+
+### What else changed
+
+- **The public header shows « Se connecter ».** It was `hidden … sm:block`: invisible on exactly the screens where it matters, with no menu to find it behind. To make room, the language toggle moves to the footer below `sm` and the logo shrinks a notch. Checked at 390, 360 and 320 px.
+- **Filter chips scroll instead of wrapping.** Fifteen sectors, four capitalisations and seven sorts wrapped onto four lines and pushed the actual stocks off-screen. `chip-row` in `styles.css` gives each family its own snap-scrolling strip that cannot widen the page, and reverts to plain wrapping from `sm` up, where the room exists.
+- **Tap targets are 36 px minimum** (`min-h-9`), from the language buttons to the "back" links to the filter chips. Several were 16–20 px tall.
+- **Touch feedback.** A finger hovers over nothing, so `card-hover` never fired on a phone: `@media (hover: none)` maps it to a press. The `press` utility does the same for buttons. Both honour `prefers-reduced-motion`.
+- **Density.** The dashboard's three portfolio figures and the portfolio's four KPIs were one-per-row blocks; they are now label/value rows and a 2×2 grid. The dashboard lost ~400 px of height, the portfolio ~300 px.
+- **Search inputs are `text-base` on mobile.** Below 16 px, Safari iOS zooms into the field on focus and never zooms back out — the most common cause of a page that "goes crooked" after typing.
+- **The ticker tape waits for `requestIdleCallback`.** It is a third-party iframe at the very top of every page; mounting it immediately competed with first paint. Its height is reserved so nothing jumps.
+
+> ⚠️ **Trap worth remembering.** `<LanguageSwitcher className="hidden sm:inline-flex" />` did nothing: the component already applies `inline-flex`, and Tailwind emits `.inline-flex` _after_ `.hidden`, so the component's own class won the cascade. Responsive display on a component that sets its own `display` belongs on a wrapper, not in `className`.
 
 ---
 
@@ -594,12 +633,12 @@ A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts 
 Roughly in order of value-per-effort:
 
 0. **Say where `S2M` belongs.** It is the one listing the sector workbook does not cover, and it sits in Technologies by inference (§5). One line in `SECTOR_BY_CODE`.
-1. **Check `/macroeconomie` on the live site.** Two things: whether the policy-rate card shows the « série tenue à la main » warning (if it does, the IMF request is failing and wants another source), and whether the five _Marchés internationaux_ cards actually paint — they could only be verified as far as mounting from here.
+1. **Check `/macroeconomie` on the live site.** Three things: whether the policy-rate card shows the « série tenue à la main » warning (if it does, the IMF request is failing and wants another source), whether the five _Marchés internationaux_ cards paint at all, and specifically whether **natural gas** does — `TVC:NATGAS` was wrong and its replacement could not be confirmed from here (§9h).
 2. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature. Now that the session gates execution, that RPC should also own the clock, so the server decides what "open" means rather than the browser.
 3. **Translate the lesson content**, if English learners matter. Needs a schema change on `lessons`; see §9b. The `news_posts` rows are French-only for the same reason.
 4. **Extend the Moroccan holiday table** in `lib/market-session.ts` past 2027. It now gates order execution, not just a badge, so a missing holiday means orders filling on a closed day.
 5. **Self-host the logo.** Required before any non-Lovable deployment.
-6. **Run `npm run format`** and get lint to zero, so it's a usable signal again.
+6. ~~Run `npm run format`~~ — **done 2026-09-01.** `npx eslint src` now reports **zero errors**, only the six pre-existing `react-refresh` warnings inside vendored shadcn/ui files. It is a usable signal again; keep it that way.
 7. **Backfill the `stocks` table** for the other 60 listings: now that sectors live in code, what is still missing there is the company description on `/bourse/$ticker`.
 8. **Move trading to a Postgres RPC**, closing both the integrity hole and the cash race, and unlocking leaderboards.
 9. **Server-side order execution** via scheduled job: the queue now holds market orders as well, so a player who never reopens the page never gets filled.

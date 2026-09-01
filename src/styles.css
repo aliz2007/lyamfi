@@ -289,6 +289,31 @@
     text-wrap: balance;
   }
 
+  /*
+   * Un élément de grille vaut `min-width: auto` : sa piste se dimensionne sur
+   * son min-content, et le min-content d'un texte en `truncate`
+   * (`white-space: nowrap`) est la chaîne ENTIÈRE. Une seule raison sociale un
+   * peu longue suffisait donc à pousser la colonne à 568 px sur un écran de
+   * 390. Ici, aucune grille n'attend d'une carte qu'elle dépasse sa piste :
+   * la valeur par défaut est simplement mauvaise, on la corrige une fois.
+   *
+   * `:where()` ne pèse rien en spécificité : un `min-w-*` explicite reprend
+   * toujours la main.
+   */
+  :where(.grid) > * {
+    min-width: 0;
+  }
+
+  /* Le français a des mots longs — « pédagogiques », « Capitalisation » — et un
+     titre en 30 px sur un écran de 390 px n'a pas toujours la place de les
+     poser en entier. Sans cette ligne, le mot dépassait sa boîte et se faisait
+     rogner ; avec elle il passe à la ligne, en dernier recours seulement. */
+  h1,
+  h2,
+  h3 {
+    overflow-wrap: break-word;
+  }
+
   ::selection {
     background-color: oklch(0.82 0.15 88 / 0.28);
   }
@@ -330,4 +355,143 @@
 
 @utility text-brand-yellow {
   color: var(--brand-yellow);
+}
+
+/* ------------------------------------------------------------------ mobile */
+
+/*
+ * Ce qu'il faut savoir avant de toucher à ce bloc.
+ *
+ * DÉBORDEMENT HORIZONTAL. Un seul composant trop large suffisait à faire
+ * glisser toute la page de côté sur téléphone, et l'utilisateur devait
+ * dézoomer pour lire une carte. `overflow-x: clip` coupe ce qui dépasse SANS
+ * créer de conteneur de défilement : c'est la différence avec `hidden`, qui en
+ * crée un et casserait alors tous les en-têtes `position: sticky`. C'est un
+ * garde-fou, pas un correctif : la vraie cause se répare là où elle est (voir
+ * `min-w-0` sur les vignettes de la cote), sinon le contenu est simplement
+ * rogné au lieu de déborder.
+ */
+@layer base {
+  html {
+    /* iOS grossit le texte des blocs larges en mode portrait sans cette ligne. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  /* Le halo bleu au tap et le délai de 300 ms des navigateurs mobiles n'ont
+     plus lieu d'être : la mise en page est déjà à la bonne échelle. */
+  a,
+  button,
+  [role="button"],
+  summary {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}
+
+/*
+ * Rangée de filtres défilante.
+ *
+ * Vingt-deux pastilles de secteur empilées sur quatre lignes poussaient les
+ * cartes hors de l'écran et noyaient le contenu. Elles glissent désormais
+ * horizontalement DANS leur bande, sans élargir la page, et s'arrêtent sur une
+ * pastille plutôt qu'entre deux. Au-delà du mobile la bande redevient un
+ * simple retour à la ligne : il y a la place, et tout voir d'un coup vaut
+ * mieux que devoir faire défiler.
+ */
+@utility chip-row {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  /* Le rebond ne doit pas se propager à la page ni déclencher un retour
+     arrière par balayage. */
+  overscroll-behavior-x: contain;
+  /* La bande touche les bords de l'écran, mais son contenu garde la marge du
+     reste de la page : une pastille collée au bord se lit comme coupée. */
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  scroll-padding-inline: 1rem;
+
+  & > * {
+    scroll-snap-align: start;
+    flex: none;
+  }
+
+  @media (width >= 40rem) {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
+/* La barre de défilement d'une bande de filtres n'apprend rien : les pastilles
+   coupées au bord disent déjà qu'il y a une suite. */
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * Retour tactile.
+ *
+ * Un doigt ne survole rien : sans état actif, rien ne confirme l'appui avant
+ * que la page suivante n'arrive. L'enfoncement est court et léger, et
+ * disparaît si l'utilisateur refuse les animations.
+ */
+@utility press {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press {
+    transition: none;
+  }
+
+  .press:active {
+    transform: none;
+  }
+}
+
+/*
+ * Sur un écran tactile, l'effet de survol des cartes ne se déclenche jamais :
+ * il est remplacé par le même enfoncement que les boutons, sinon appuyer sur
+ * une vignette ne produit aucun retour.
+ */
+@media (hover: none) {
+  .card-hover:active {
+    transform: scale(0.985);
+    transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+/*
+ * Marge horizontale de page, encoches comprises.
+ *
+ * Remplace `px-4 sm:px-6` sur les conteneurs de premier niveau : mêmes
+ * valeurs, mais un téléphone à encoche tenu en paysage ne fait plus passer le
+ * texte sous la barre incurvée.
+ */
+@utility safe-x {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+
+  @media (width >= 40rem) {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+  }
 }

@@ -34,7 +34,9 @@ export function LazyTradingView({
 
   return (
     <div ref={ref} className={className}>
-      {visible ? children : (placeholder ?? <div className="h-full w-full animate-pulse rounded-xl bg-muted/30" />)}
+      {visible
+        ? children
+        : (placeholder ?? <div className="h-full w-full animate-pulse rounded-xl bg-muted/30" />)}
     </div>
   );
 }

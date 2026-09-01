@@ -116,7 +116,7 @@ function NewsPage() {
   }, [posts, search]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* La macroéconomie avant la cote : ce qui cadre l'actualité passe en
           tête, au-dessus même de la recherche. */}
       <MacroBanner />
@@ -417,7 +417,7 @@ function Editor({
               <button
                 type="button"
                 onClick={() => set("imageUrl", "")}
-                className="text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline"
+                className="press -mx-2 inline-flex min-h-9 items-center px-2 text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline"
               >
                 {t("news.removeImage")}
               </button>

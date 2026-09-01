@@ -47,7 +47,7 @@ function LeaderboardPage() {
   const you = rows.find((r) => r.is_self) ?? null;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <header className="rise">
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-[var(--brand-yellow)]" />

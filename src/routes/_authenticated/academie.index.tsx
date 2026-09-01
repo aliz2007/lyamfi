@@ -33,7 +33,7 @@ function Academy() {
   const { levels, doneIds, done, total, ratio } = buildLevelProgress(lessons, progress);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-7 sm:space-y-10">
       <header className="rise grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
         <div className="min-w-0">
           <h1 className="text-3xl font-bold sm:text-4xl">{t("acad.title")}</h1>

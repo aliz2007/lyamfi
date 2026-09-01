@@ -144,30 +144,38 @@ function Dashboard() {
   const masi20 = quoteMap.get(MASI20_TICKER);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-7 sm:space-y-10">
       <header className="rise">
         <p className="eyebrow">{t("dash.hello")}</p>
         <h1 className="mt-2 text-3xl font-bold sm:text-4xl">{name}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{t("dash.subtitle")}</p>
       </header>
 
-      <section className="surface-raised relative overflow-hidden p-6 sm:p-7">
+      <section className="surface-raised relative overflow-hidden p-5 sm:p-7">
         <div className="aurora" aria-hidden="true" />
-        <div className="relative flex flex-wrap items-start justify-between gap-3">
-          <div>
+        {/* Le libellé et l'action tiennent la même ligne, le montant occupe la
+            suivante. À l'inverse, le bouton passait à la ligne derrière un
+            nombre de 250 px et se retrouvait posé seul sous le total, sans
+            plus rien à quoi se rattacher. */}
+        <div className="relative">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">{t("dash.portfolioLive")}</p>
-            <p className="mt-2 text-4xl font-bold text-gradient-gold">
-              {portfolio ? f.mad(portfolio.value, 0) : "…"}
-            </p>
+            <Link
+              to="/portefeuille"
+              className="press inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-border px-4 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+            >
+              {t("dash.manage")}
+            </Link>
           </div>
-          <Link
-            to="/portefeuille"
-            className="rounded-full border border-border px-4 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-          >
-            {t("dash.manage")}
-          </Link>
+          <p className="mt-2 text-[32px] font-bold leading-tight tabular-nums text-gradient-gold sm:text-4xl">
+            {portfolio ? f.mad(portfolio.value, 0) : "…"}
+          </p>
         </div>
-        <div className="relative mt-7 grid gap-5 sm:grid-cols-3">
+        {/* Sur téléphone les trois chiffres se lisent en lignes libellé /
+            valeur, comme une fiche : empilés en blocs, ils occupaient à eux
+            seuls la moitié de l'écran avant qu'on ait vu quoi que ce soit
+            d'autre. La colonne revient dès qu'il y a la largeur. */}
+        <div className="relative mt-6 grid gap-2 sm:mt-7 sm:gap-5 sm:grid-cols-3">
           <Metric label={t("dash.cash")} value={portfolio ? f.mad(portfolio.cash, 0) : "…"} />
           <Metric
             label={t("dash.holdings", { count: portfolio?.count ?? 0 })}
@@ -256,18 +264,20 @@ function Dashboard() {
         ))}
       </section>
 
-      <section className="surface-raised p-6 sm:p-7">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
+      <section className="surface-raised p-5 sm:p-7">
+        <div>
+          <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">{t("dash.progressTitle")}</p>
-            <p className="mt-2 text-4xl font-bold text-gradient-gold">{ratio}%</p>
+            <Link
+              to="/academie"
+              className="press inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-border px-4 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+            >
+              {t("dash.seeModules")}
+            </Link>
           </div>
-          <Link
-            to="/academie"
-            className="rounded-full border border-border px-4 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-          >
-            {t("dash.seeModules")}
-          </Link>
+          <p className="mt-2 text-[32px] font-bold leading-tight tabular-nums text-gradient-gold sm:text-4xl">
+            {ratio}%
+          </p>
         </div>
         <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
@@ -303,17 +313,19 @@ function Dashboard() {
 
       <section>
         <h2 className="text-lg font-semibold">{t("dash.quickAccess")}</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Deux tuiles par ligne sur téléphone : quatre raccourcis empilés
+            faisaient de la fin du tableau de bord un couloir. */}
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {QUICK.map((c) => (
-            <Link key={c.to} to={c.to} className="surface-raised card-hover group p-6">
+            <Link key={c.to} to={c.to} className="surface-raised card-hover group p-4 sm:p-6">
               <div className="flex items-start justify-between">
                 <span className="grid h-10 w-10 place-items-center rounded-xl border border-primary/25 bg-accent">
                   <c.icon className="h-4 w-4 text-primary" />
                 </span>
                 <ArrowUpRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </div>
-              <p className="mt-5 font-medium">{t(c.label)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{t(c.text)}</p>
+              <p className="mt-4 text-[15px] font-medium sm:mt-5 sm:text-base">{t(c.label)}</p>
+              <p className="mt-1 text-xs leading-snug text-muted-foreground">{t(c.text)}</p>
             </Link>
           ))}
         </div>
@@ -388,10 +400,10 @@ function IndexCard({
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: "up" | "down" }) {
   return (
-    <div>
+    <div className="flex items-baseline justify-between gap-3 border-b border-border/40 pb-2 last:border-0 last:pb-0 sm:block sm:border-0 sm:pb-0">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p
-        className={`mt-1.5 text-sm font-semibold tabular-nums ${
+        className={`shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums sm:mt-1.5 ${
           tone === "up" ? "text-[var(--success)]" : tone === "down" ? "text-destructive" : ""
         }`}
       >

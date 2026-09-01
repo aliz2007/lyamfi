@@ -102,7 +102,7 @@ function LessonPage() {
     <div className="mx-auto max-w-3xl space-y-8">
       <Link
         to="/academie"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="press -mx-2 inline-flex min-h-9 items-center gap-1.5 px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> {t("lesson.breadcrumb")}
       </Link>

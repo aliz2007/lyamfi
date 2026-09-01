@@ -72,21 +72,44 @@ function Landing() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/*
+        L'en-tête doit loger quatre choses sur 390 px : la marque, le choix de
+        la langue, « Se connecter » et « Commencer ». « Se connecter » était
+        auparavant masqué sous `sm:` — donc invisible sur téléphone, là où il
+        est justement le plus attendu — et il n'y avait aucun menu pour aller
+        le chercher. Il est désormais toujours affiché ; ce sont les autres
+        éléments qui se resserrent : logo plus petit, libellés en 13 px,
+        espacements réduits, et la même mise en page reprend ses aises dès la
+        largeur tablette.
+      */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 sm:px-6">
-          <Logo />
-          <div className="flex items-center gap-2 sm:gap-3">
-            <LanguageSwitcher />
+        <div className="safe-x mx-auto grid max-w-6xl grid-cols-[minmax(0,auto)_1fr] items-center gap-2 py-2.5 sm:gap-4 sm:py-3">
+          <Logo className="min-w-0" compact />
+          <div className="flex items-center justify-end gap-1 sm:gap-3">
+            {/* Sur téléphone, l'en-tête loge la marque et les deux actions, et
+                rien d'autre : à 390 px le sélecteur de langue en plus rognait
+                le mot-symbole en « L. ». Il descend donc dans le pied de page,
+                où il reste trouvable — et il revient ici dès qu'il y a la
+                place. La langue est de toute façon déduite du navigateur au
+                premier chargement ; c'est un réglage, pas une action. */}
+            {/* ⚠️ L'affichage responsive est porté par cette enveloppe, pas
+                par `className` sur le composant : `LanguageSwitcher` applique
+                déjà `inline-flex`, et Tailwind émet `.inline-flex` APRÈS
+                `.hidden`. Passé en classe, `hidden` perdait donc en cascade et
+                ne masquait rien du tout. */}
+            <div className="hidden sm:block">
+              <LanguageSwitcher />
+            </div>
             <Link
               to="/auth"
-              className="hidden rounded-full px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:block"
+              className="press whitespace-nowrap rounded-full px-2 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-4 sm:text-sm"
             >
               {t("landing.signIn")}
             </Link>
             <Link
               to="/auth"
               search={{ mode: "signup" }}
-              className="rounded-full bg-gradient-gold px-4 py-2 text-sm font-semibold text-primary-foreground"
+              className="press whitespace-nowrap rounded-full bg-gradient-gold px-3 py-2 text-[13px] font-semibold text-primary-foreground shadow-[0_6px_20px_-8px_oklch(0.82_0.15_88/0.8)] sm:px-4 sm:text-sm"
             >
               {t("landing.start")}
             </Link>
@@ -96,18 +119,23 @@ function Landing() {
 
       {/* ------------------------------------------------------------- héros */}
       <section className="relative overflow-hidden">
+        {/* Image la plus grande de la page et premier repère visuel : on dit au
+            navigateur de la chercher tout de suite, et de la décoder sans
+            bloquer le reste. */}
         <img
           src={heroImg}
           alt=""
           width={1600}
           height={1000}
+          fetchPriority="high"
+          decoding="async"
           className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/88 to-background" />
         <div className="aurora" aria-hidden="true" />
         <div className="grid-lines" aria-hidden="true" />
 
-        <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-28">
+        <div className="safe-x relative mx-auto max-w-6xl pb-16 pt-16 sm:pb-20 sm:pt-28">
           <div className="rise max-w-3xl">
             <h1 className="text-4xl font-extrabold leading-[1.04] sm:text-6xl md:text-7xl">
               {t("landing.heroLine1")}
@@ -122,7 +150,7 @@ function Landing() {
               <Link
                 to="/auth"
                 search={{ mode: "signup" }}
-                className="glow-gold inline-flex items-center gap-2 rounded-full bg-gradient-gold px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+                className="glow-gold press inline-flex items-center gap-2 rounded-full bg-gradient-gold px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
               >
                 {t("landing.ctaPrimary")} <ArrowRight className="h-4 w-4" />
               </Link>
@@ -147,7 +175,7 @@ function Landing() {
       </section>
 
       {/* ----------------------------------------------------------- modules */}
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+      <section className="safe-x mx-auto max-w-6xl py-14 sm:py-20">
         <p className="eyebrow">
           <span className="h-px w-6 bg-primary/60" aria-hidden="true" />
           {t("landing.modulesEyebrow")}
@@ -170,7 +198,7 @@ function Landing() {
 
       {/* ------------------------------------------------------------ étapes */}
       <section className="relative overflow-hidden border-y border-border/60 bg-card/25">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+        <div className="safe-x mx-auto max-w-6xl py-14 sm:py-20">
           <p className="eyebrow">
             <span className="h-px w-6 bg-primary/60" aria-hidden="true" />
             {t("landing.stepsEyebrow")}
@@ -200,7 +228,7 @@ function Landing() {
       </section>
 
       {/* ---------------------------------------------------- appel à l'action */}
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+      <section className="safe-x mx-auto max-w-6xl py-14 sm:py-20">
         <div className="surface-raised relative overflow-hidden p-8 sm:p-14">
           <div className="aurora" aria-hidden="true" />
           <div className="relative flex flex-wrap items-end justify-between gap-8">
@@ -214,7 +242,7 @@ function Landing() {
             <Link
               to="/auth"
               search={{ mode: "signup" }}
-              className="glow-gold inline-flex items-center gap-2 rounded-full bg-gradient-gold px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+              className="glow-gold press inline-flex items-center gap-2 rounded-full bg-gradient-gold px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
               {t("landing.ctaPrimary")} <ArrowRight className="h-4 w-4" />
             </Link>
@@ -223,7 +251,7 @@ function Landing() {
       </section>
 
       {/* ------------------------------------------------------------ contact */}
-      <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+      <section className="safe-x mx-auto max-w-6xl pb-20">
         <div className="surface-raised flex flex-wrap items-center justify-between gap-6 p-7 sm:p-9">
           <div>
             <h2 className="text-lg font-semibold">{t("landing.contactTitle")}</h2>
@@ -231,7 +259,7 @@ function Landing() {
           </div>
           <a
             href={`mailto:${CONTACT_EMAIL}`}
-            className="inline-flex items-center gap-2.5 rounded-full border border-primary/40 bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-colors hover:border-primary/70"
+            className="press inline-flex items-center gap-2.5 rounded-full border border-primary/40 bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-colors hover:border-primary/70"
           >
             <Mail className="h-4 w-4" />
             {t("landing.contact")}
@@ -241,14 +269,18 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-10 text-xs text-muted-foreground sm:px-6">
+        <div className="safe-x mx-auto flex max-w-6xl flex-col gap-5 py-10 text-xs text-muted-foreground">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Logo className="opacity-80" />
+            {/* Le pendant du sélecteur retiré de l'en-tête sur téléphone. */}
+            <div className="sm:hidden">
+              <LanguageSwitcher />
+            </div>
             <a
               href={`mailto:${CONTACT_EMAIL}`}
-              className="inline-flex items-center gap-2 transition-colors hover:text-foreground"
+              className="press -mx-2 inline-flex min-h-9 items-center gap-2 break-all px-2 transition-colors hover:text-foreground"
             >
-              <Mail className="h-3.5 w-3.5" /> {CONTACT_EMAIL}
+              <Mail className="h-3.5 w-3.5 shrink-0" /> {CONTACT_EMAIL}
             </a>
           </div>
           <p className="max-w-2xl leading-relaxed">{t("landing.footerNote")}</p>

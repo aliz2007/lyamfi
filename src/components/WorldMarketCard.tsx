@@ -68,7 +68,7 @@ export function WorldMarketCard({
         href={`https://www.tradingview.com/symbols/${symbol.replace(":", "-")}/`}
         target="_blank"
         rel="noreferrer noopener"
-        className="mt-4 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-brand-yellow"
+        className="press -mx-2 mt-3 inline-flex min-h-9 items-center gap-1 px-2 text-[11px] text-muted-foreground transition-colors hover:text-brand-yellow"
       >
         {symbol}
         <ExternalLink className="h-3 w-3" />

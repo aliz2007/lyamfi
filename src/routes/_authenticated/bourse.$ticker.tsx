@@ -81,7 +81,7 @@ function StockPage() {
   const groups = detailGroups(metrics, price);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <Back t={t} />
 
       <header className="rise flex flex-wrap items-end justify-between gap-4">
@@ -209,7 +209,7 @@ function Back({ t }: { t: Translate }) {
   return (
     <Link
       to="/bourse"
-      className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      className="press -mx-2 inline-flex min-h-9 items-center gap-1.5 px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
       <ArrowLeft className="h-4 w-4" /> {t("stock.back")}
     </Link>

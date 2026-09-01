@@ -96,7 +96,7 @@ function Console({
   const confirmed = users.filter((u) => u.email_confirmed).length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <header className="rise">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />

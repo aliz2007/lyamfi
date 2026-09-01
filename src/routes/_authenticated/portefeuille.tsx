@@ -424,7 +424,7 @@ function PortfolioPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <header className="rise">
         <h1 className="text-3xl font-bold sm:text-4xl">{t("pf.title")}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
@@ -434,7 +434,10 @@ function PortfolioPage() {
 
       <Disclaimer />
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Deux par ligne sur téléphone. Empilés, ces quatre chiffres — quatre
+          lignes de texte au total — occupaient quatre écrans avant qu'on
+          atteigne les positions, qui sont la raison d'être de la page. */}
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label={t("pf.totalValue")} value={f.mad(totalValue, 0)} />
         <Kpi label={t("pf.cash")} value={f.mad(cash, 0)} />
         <Kpi label={t("pf.invested")} value={f.mad(invested, 0)} />
@@ -517,7 +520,7 @@ function PortfolioPage() {
           <h2 className="text-sm font-semibold">{t("pf.positions")}</h2>
           <button
             onClick={() => reset.mutate()}
-            className="text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline"
+            className="press -mx-2 inline-flex min-h-9 items-center px-2 text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline"
           >
             {t("pf.reset")}
           </button>
@@ -950,10 +953,12 @@ function Kpi({
   positive?: boolean;
 }) {
   return (
-    <div className="surface-raised p-6">
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="surface-raised p-4 sm:p-6">
+      <p className="text-xs leading-snug text-muted-foreground">{label}</p>
       <p
-        className={`mt-3 text-2xl font-bold sm:text-3xl ${
+        // 18 px sur téléphone : à 20 px, « -17 925 MAD » passait à la ligne et
+        // désalignait la tuile voisine.
+        className={`mt-2 whitespace-nowrap text-lg font-bold tabular-nums sm:mt-3 sm:text-3xl ${
           positive === undefined
             ? "text-gradient-gold"
             : positive

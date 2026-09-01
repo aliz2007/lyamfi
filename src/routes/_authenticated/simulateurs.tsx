@@ -74,7 +74,7 @@ function SimulatorsPage() {
   const versed = last.plain;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <header className="rise">
         <h1 className="text-3xl font-bold sm:text-4xl">{t("sim.title")}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">

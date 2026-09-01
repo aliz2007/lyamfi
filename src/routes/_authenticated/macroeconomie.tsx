@@ -44,7 +44,14 @@ const WORLD_MARKETS: { symbol: string; label: Key; text: Key }[] = [
   { symbol: "OANDA:XAUUSD", label: "macro.gold", text: "macro.goldText" },
   { symbol: "OANDA:XAGUSD", label: "macro.silver", text: "macro.silverText" },
   { symbol: "TVC:USOIL", label: "macro.oil", text: "macro.oilText" },
-  { symbol: "TVC:NATGAS", label: "macro.gas", text: "macro.gasText" },
+  // ⚠️ PAS `TVC:NATGAS` : le brief le demandait, mais ce symbole n'existe pas
+  // chez TradingView (leur famille TVC couvre l'or, l'argent, le WTI, le Brent
+  // et les indices, pas le gaz) et la carte restait vide. OANDA cote le Henry
+  // Hub en CFD, du même fournisseur que l'or et l'argent ci-dessus.
+  // Si la carte reste blanche en production, les autres graphies servies par
+  // TradingView sont `NYMEX:NG1!` et `CAPITALCOM:NATURALGAS` : une ligne à
+  // changer, ici et nulle part ailleurs.
+  { symbol: "OANDA:NATGASUSD", label: "macro.gas", text: "macro.gasText" },
   { symbol: "BINANCE:BTCUSD", label: "macro.bitcoin", text: "macro.bitcoinText" },
 ];
 
@@ -78,10 +85,10 @@ function MacroPage() {
   const byId = new Map(series.map((s) => [s.id, s]));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <Link
         to="/actualites"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-brand-yellow"
+        className="press -mx-2 inline-flex min-h-9 items-center gap-1.5 px-2 text-sm text-muted-foreground transition-colors hover:text-brand-yellow"
       >
         <ArrowLeft className="h-4 w-4" /> {t("macro.back")}
       </Link>
@@ -273,7 +280,7 @@ function IndicatorCard({
         href={href}
         target="_blank"
         rel="noreferrer noopener"
-        className="mt-4 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-brand-yellow"
+        className="press -mx-2 mt-3 inline-flex min-h-9 items-center gap-1 px-2 text-[11px] text-muted-foreground transition-colors hover:text-brand-yellow"
       >
         {t("macro.monthlyOnTradingView")}
         <ExternalLink className="h-3 w-3" />

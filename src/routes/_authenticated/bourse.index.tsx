@@ -277,7 +277,7 @@ function BoursePage() {
   const down = filtered.filter((l) => (l.changePct ?? 0) < 0).length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <header className="rise">
         <h1 className="text-3xl font-bold sm:text-4xl">{t("bourse.title")}</h1>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
@@ -301,11 +301,21 @@ function BoursePage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t("bourse.searchPlaceholder")}
-            className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-primary"
+            // ⚠️ `text-base` sur mobile : en dessous de 16 px, Safari iOS zoome
+            // sur le champ au moment de la saisie et ne dézoome jamais. C'est
+            // la cause la plus courante d'une page « qui part de travers »
+            // après une recherche.
+            className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-base outline-none transition-colors focus:border-primary sm:text-sm"
           />
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        {/* Quinze secteurs, quatre capitalisations, sept tris : empilés, ils
+            occupaient quatre lignes et repoussaient les cartes sous la ligne
+            de flottaison du téléphone. Chaque famille glisse maintenant dans
+            sa propre bande, qui ne peut plus élargir la page (cf. `chip-row`
+            dans styles.css), et redevient un simple retour à la ligne dès la
+            tablette. */}
+        <div className="chip-row scrollbar-hide">
           <Chip active={sector === "all"} onClick={() => setSector("all")}>
             {t("bourse.allSectors")}
           </Chip>
@@ -316,7 +326,7 @@ function BoursePage() {
           ))}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="chip-row scrollbar-hide">
           {CAPS.map((c) => (
             <Chip key={c.id} active={cap === c.id} onClick={() => setCap(c.id)}>
               {t(c.label)}
@@ -324,8 +334,10 @@ function BoursePage() {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
-          <span className="text-xs text-muted-foreground">{t("bourse.sortBy")}</span>
+        <div className="chip-row scrollbar-hide items-center border-t border-border/60 pt-3">
+          <span className="self-center whitespace-nowrap text-xs text-muted-foreground">
+            {t("bourse.sortBy")}
+          </span>
           {SORTS.map((s) => (
             <Chip key={s} active={sort === s} onClick={() => setSort(s)}>
               <span className="inline-flex items-center gap-1.5">
@@ -362,8 +374,17 @@ function BoursePage() {
           // atteindre l'un sans l'autre. La carte porte donc le relief et
           // l'effet de survol, le lien n'en garde que la surface cliquable —
           // ainsi le clic sur l'étoile n'a aucun chemin vers la navigation.
-          <div key={l.symbol} className="surface-raised card-hover relative">
-            <Link to="/bourse/$ticker" params={{ ticker: l.code }} className="block p-5 sm:p-6">
+          // ⚠️ `min-w-0` N'EST PAS DÉCORATIF. Le titre porte `truncate`, donc
+          // `white-space: nowrap`, dont la largeur minimale est la chaîne
+          // entière : « Banque Marocaine pour le Commerce et l'Industrie »
+          // mesurait 568 px. Une piste de grille se dimensionne sur le
+          // min-content de ses éléments, et un élément de grille vaut
+          // `min-width: auto` par défaut : la colonne prenait donc 568 px dans
+          // un écran de 390, et TOUTE la page glissait de côté. C'est la cause
+          // du défaut signalé ; le `overflow-x: clip` global n'en est que le
+          // garde-fou.
+          <div key={l.symbol} className="surface-raised card-hover relative min-w-0">
+            <Link to="/bourse/$ticker" params={{ ticker: l.code }} className="block p-4 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{l.title}</p>
@@ -374,7 +395,7 @@ function BoursePage() {
                 {/* La place de l'étoile est réservée dans le coin : sans cette
                   marge, un cours à quatre chiffres passerait dessous. */}
                 <div className="shrink-0 pr-7 text-right">
-                  <p className="text-sm font-semibold tabular-nums">
+                  <p className="whitespace-nowrap text-sm font-semibold tabular-nums">
                     {l.price === null ? EMPTY : `${f.price(l.price)} MAD`}
                   </p>
                   <p
@@ -447,7 +468,7 @@ function BoursePage() {
         <div className="flex justify-center">
           <button
             onClick={() => setLimit((l) => l + PAGE)}
-            className="rounded-full border border-border px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+            className="press rounded-full border border-border px-6 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
           >
             {t("bourse.showMore", { rest: sorted.length - limit })}
           </button>
@@ -520,9 +541,12 @@ function Row({
   live?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
-      <dt className="flex items-center gap-1.5 text-muted-foreground">
-        {label}
+    // `min-w-0` sur le libellé, `whitespace-nowrap` sur la valeur : quand la
+    // place manque c'est le libellé qui se rogne, jamais le chiffre. Un
+    // « 1 234,5 » coupé à « 1 23 » se lit comme une autre valeur.
+    <div className="flex items-baseline justify-between gap-2 border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
+      <dt className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+        <span className="truncate">{label}</span>
         {live && (
           <span
             aria-hidden="true"
@@ -530,7 +554,13 @@ function Row({
           />
         )}
       </dt>
-      <dd className={`tabular-nums ${strong ? "font-semibold" : "font-medium"}`}>{value}</dd>
+      <dd
+        className={`shrink-0 whitespace-nowrap tabular-nums ${
+          strong ? "font-semibold" : "font-medium"
+        }`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
@@ -548,7 +578,9 @@ function Chip({
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
+      // 36 px de haut : en dessous, la pastille se rate au doigt une fois sur
+      // trois. Elle retrouve sa taille de bureau dès qu'il y a un pointeur.
+      className={`press flex min-h-9 items-center whitespace-nowrap rounded-full border px-3.5 text-xs transition-colors sm:min-h-0 sm:py-1.5 ${
         active
           ? "border-primary/60 bg-accent text-accent-foreground"
           : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
