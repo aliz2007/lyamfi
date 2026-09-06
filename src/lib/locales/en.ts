@@ -222,6 +222,10 @@ export const en: Record<keyof typeof fr, string> = {
   "bourse.sortCapDesc": "Market cap, high to low",
   "bourse.sortPerAsc": "P/E 26, low to high",
   "bourse.sortDyDesc": "Dividend yield 26, high to low",
+  "bourse.sortYtdDesc": "YTD performance, high to low",
+  "bourse.allQuotations": "All quotation modes",
+  "bourse.ytdSuffix": "YTD",
+  "bourse.ytdLabel": "Performance since 1 January",
   "bourse.liquidBadge": "Fundamentals tracked",
   "bourse.noMatch": "No stock matches these filters.",
   "bourse.showMore": "Show more ({rest} remaining)",
@@ -255,6 +259,10 @@ export const en: Record<keyof typeof fr, string> = {
   "sector.financiers": "Financial services",
   "sector.technologies": "Technology",
   "sector.autres": "Other",
+
+  /* ----------------------------------------------------- quotation modes */
+  "quotation.continu": "Continuous",
+  "quotation.fixing": "Fixing",
 
   /* ---------------------------------------------------------- stock sheet */
   "stock.back": "Listings",
@@ -659,7 +667,8 @@ export const en: Record<keyof typeof fr, string> = {
   "news.fieldTitle": "Title",
   "news.fieldBody": "Body",
   "news.titlePlaceholder": "The MASI passes 18,000 points",
-  "news.bodyPlaceholder": "Write the article. Line breaks are preserved on screen.",
+  "news.bodyPlaceholder":
+    "Write the article. The layout reproduces exactly what you type: line breaks, dashes, spacing.",
   "news.imageOptional": "Optional: paste a URL or upload a file.",
   "news.removeImage": "Remove the image",
   "news.upload": "Upload a file",
@@ -685,8 +694,6 @@ export const en: Record<keyof typeof fr, string> = {
   "news.readMore": "Read the article",
   "news.back": "Back to the news",
   "news.fieldDate": "Publication date",
-  "news.bodyFormatting":
-    "Formatting: « ## » for a subheading, « - » for a list, « 1. » for a numbered list, « --- » for a separator, « **bold** » for emphasis.",
   "news.notFound": "This article could not be found.",
   "news.notFoundHint": "It may have been removed since the link was shared.",
   "news.articleFooter":

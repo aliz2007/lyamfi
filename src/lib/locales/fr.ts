@@ -225,6 +225,10 @@ export const fr = {
   "bourse.sortCapDesc": "Capitalisation décroissante",
   "bourse.sortPerAsc": "PER 26 croissant",
   "bourse.sortDyDesc": "Rendement 26 décroissant",
+  "bourse.sortYtdDesc": "Performance YTD décroissante",
+  "bourse.allQuotations": "Tous modes de cotation",
+  "bourse.ytdSuffix": "YTD",
+  "bourse.ytdLabel": "Performance depuis le 1ᵉʳ janvier",
   "bourse.liquidBadge": "Fondamentaux suivis",
   "bourse.noMatch": "Aucune valeur ne correspond aux filtres.",
   "bourse.showMore": "Afficher plus ({rest} restantes)",
@@ -259,6 +263,10 @@ export const fr = {
   "sector.financiers": "Services Financiers",
   "sector.technologies": "Technologies",
   "sector.autres": "Autres",
+
+  /* ------------------------------------------------- modes de cotation */
+  "quotation.continu": "Continu",
+  "quotation.fixing": "Fixing",
 
   /* --------------------------------------------------------- fiche valeur */
   "stock.back": "Valeurs",
@@ -667,7 +675,8 @@ export const fr = {
   "news.fieldTitle": "Titre",
   "news.fieldBody": "Texte",
   "news.titlePlaceholder": "Le MASI franchit les 18 000 points",
-  "news.bodyPlaceholder": "Rédige l'actualité. Les sauts de ligne sont conservés à l'affichage.",
+  "news.bodyPlaceholder":
+    "Rédige l'actualité. La mise en page reprend exactement ce qui est tapé : sauts de ligne, tirets, espacements.",
   "news.imageOptional": "Facultative : colle une URL ou dépose un fichier.",
   "news.removeImage": "Retirer l'image",
   "news.upload": "Déposer un fichier",
@@ -694,8 +703,6 @@ export const fr = {
   "news.readMore": "Lire l'article",
   "news.back": "Retour aux actualités",
   "news.fieldDate": "Date de publication",
-  "news.bodyFormatting":
-    "Mise en forme : « ## » pour un sous-titre, « - » pour une liste, « 1. » pour une liste numérotée, « --- » pour un séparateur, « **gras** » pour l'emphase.",
   "news.notFound": "Cette actualité est introuvable.",
   "news.notFoundHint": "Elle a peut-être été retirée depuis que le lien a été partagé.",
   "news.articleFooter":

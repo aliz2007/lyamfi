@@ -7,22 +7,17 @@
  */
 
 /**
- * Les premières lignes d'un article, pour la vignette du flux.
+ * Les premières lignes d'un article, mises à plat pour la vignette du flux.
  *
- * Le balisage est retiré plutôt que rendu : un `##` ou un `-` au milieu d'un
- * extrait de trois lignes se lit comme une coquille. La coupure elle-même est
- * laissée au CSS (`line-clamp`), qui sait où tombe le texte à l'écran.
+ * Cette fonction retirait le balisage markdown, qui n'existe plus : le corps
+ * d'un article s'affiche désormais tel qu'il est tapé (cf. `ArticleBody`). Il
+ * lui reste un travail, et un seul : la vignette est une bande de trois lignes
+ * coupée par `line-clamp`, et le texte doit donc arriver sur une seule ligne.
+ * Sans cet aplatissement, un article de trois paragraphes remplit les trois
+ * lignes avec ses deux premiers retours chariot et la carte paraît vide.
+ *
+ * La coupure elle-même reste au CSS, qui sait où tombe le texte à l'écran.
  */
 export function plainExcerpt(content: string): string {
-  return content
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l && !/^-{3,}$|^\*{3,}$/.test(l))
-    .map((l) =>
-      l
-        .replace(/^#{2,3}\s+/, "")
-        .replace(/^[-*]\s+/, "")
-        .replace(/\*\*/g, ""),
-    )
-    .join(" ");
+  return content.replace(/\s+/g, " ").trim();
 }

@@ -470,9 +470,6 @@ function Editor({
             placeholder={t("news.bodyPlaceholder")}
             className={`mt-1.5 resize-y leading-relaxed ${field}`}
           />
-          <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
-            {t("news.bodyFormatting")}
-          </p>
         </div>
       </div>
 
