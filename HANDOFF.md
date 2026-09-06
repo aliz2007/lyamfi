@@ -1,8 +1,10 @@
 # Lyamfi: Codebase Handoff
 
-_Written 2026-08-18, last revised 2026-09-01. Everything below was read from the source and, where marked ✅, executed._
+_Written 2026-08-18, last revised 2026-09-06. Everything below was read from the source and, where marked ✅, executed._
 
-> **Latest change (2026-09-01):** a **mobile pass across the whole product** (§9i) — the login button restored to the public header, the horizontal overflow on `/bourse` traced to its real cause and fixed, filter chips moved into snap-scrolling strips, tap targets brought to 36 px, the vertical rhythm tightened, and the ticker tape taken off the critical path. Also: the sector table **re-cut from the owner's own workbook** (§5), and the natural-gas card moved off a symbol TradingView does not serve (§9h). **No SQL:** see §12.
+> **Latest change (2026-09-06):** three things from the owner's 05/09 brief. **Ligues privées** (§9j): closed contests, each with its own dates, its own funding and its own ranking, played through a **second virtual portfolio** the Classement page opens for you and the Portefeuille page lets you switch to. **Perf YTD and the quotation mode** (§5, §9k): the sector workbook gained a 31/12 close and a Continu/Fixing column, so every card, the two index cards on the dashboard and the detail page now carry the year alongside the day, and `/bourse` filters and sorts on both. **Articles are printed as typed** (§9f): the markdown dialect is gone — a dash is a dash, a blank line is a blank line. **One migration to run:** see §12.
+>
+> _2026-09-01:_ a **mobile pass across the whole product** (§9i) — the login button restored to the public header, the horizontal overflow on `/bourse` traced to its real cause and fixed, filter chips moved into snap-scrolling strips, tap targets brought to 36 px, the vertical rhythm tightened, and the ticker tape taken off the critical path. Also: the sector table **re-cut from the owner's own workbook** (§5), and the natural-gas card moved off a symbol TradingView does not serve (§9h). **No SQL:** see §12.
 >
 > _2026-08-31:_ a **favourites system** on `/bourse` (star per card, Favoris filter, kept in `localStorage`), a **complete sector table** for all 80 listings, transcribed from the owner's sector workbook, replacing the 20-row `stocks` seed the filter used to read, the **MASI 20 TradingView link** fixed to `CSEMA:MSI20`, the dashboard's **top movers made clickable**, the quick-access **Budget tile renamed Simulateurs**, and a **Marchés internationaux** block (gold, silver, oil, gas, bitcoin) on the renamed _Données macro et marchés internationaux_ page. **No SQL to run this round:** see §12.
 >
@@ -24,9 +26,9 @@ Eight surfaces:
 | ------------- | -------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Landing       | `/`                              | Value prop, 4 module teasers, sign-up CTA                                                      |
 | Dashboard     | `/dashboard`                     | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress                 |
-| Bourse        | `/bourse`, `/bourse/$ticker`     | 80 listed companies, live prices, charts, fundamentals                                         |
-| Portefeuille  | `/portefeuille`                  | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve |
-| Classement    | `/classement`                    | Leaderboard by portfolio value, cash / invested split                                          |
+| Bourse        | `/bourse`, `/bourse/$ticker`     | 80 listed companies, live prices, YTD, charts, fundamentals, sector / cap / quotation filters   |
+| Portefeuille  | `/portefeuille`                  | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve, one wallet per league |
+| Classement    | `/classement`                    | Classement Général by portfolio value, cash / invested split, plus the private leagues (§9j)   |
 | Académie      | `/academie`, `/academie/$slug`   | 14 lessons in 3 gated levels, quiz + badge per lesson                                          |
 | Actualités    | `/actualites`, `/actualites/$id` | Searchable news feed, full reading page, admin CRUD                                            |
 | Macroéconomie | `/macroeconomie`                 | 5 TradingView charts on the Moroccan economy                                                   |
@@ -127,7 +129,7 @@ npm run format   # prettier --write .
 
 ## 5. The data model: understand this before touching anything
 
-**This is the single most important section.** Stock data comes from **four** sources that are joined at runtime by ticker, and they disagree with each other.
+**This is the single most important section.** Stock data comes from **six** sources that are joined at runtime by ticker, and they disagree with each other.
 
 | #   | Source                                                         | Size                             | Freshness                                          | Used for                                                                                                                                                                                                                                           |
 | --- | -------------------------------------------------------------- | -------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -136,6 +138,7 @@ npm run format   # prettier --write .
 | 3   | **`stock_metrics`** table                                      | 80 rows                          | The fundamentals workbook, seeded 2026-08-25       | Everything price-independent (share count, BPA, DPA, book value…). Market cap, PER, yield, P/B, P/S and P/FCF are _derived at render time_ against the live price. The older `stock_fundamentals` (37 rows) is no longer read by the market pages. |
 | 4   | **`SECTOR_BY_CODE`**: hardcoded map in `src/lib/sectors.ts`    | 80 entries, 15 sectors           | The Lyamfi sector workbook, transcribed 2026-08-31 | **The sector of every listing**, and the only source the `/bourse` filter reads.                                                                                                                                                                   |
 | 5   | **`stocks`** table                                             | 20 rows                          | Seeded 2026-07-31, **stale**                       | Company description and the `/bourse/$ticker` detail page's PER/BPA/PEG/target-price block. **No longer the sector filter** (see below).                                                                                                           |
+| 6   | **`LISTING_BY_CODE`**: hardcoded map in `src/lib/quotation.ts` | 79 entries                       | The same Lyamfi workbook, transcribed 2026-09-06   | The **quotation mode** (Continu / Fixing) that the `/bourse` chips filter on, and the **31 December close** that the YTD performance is measured from. Both module-private except through `quotationOf()` and `ytdOf()`; see §9k.                  |
 
 ### The ticker is a join key, and a wrong one fails silently
 
@@ -232,7 +235,7 @@ Five migrations in `supabase/migrations/`. **Every table has RLS enabled** and t
 | `stock_fundamentals`  | 37             | public read                                                                                             |
 | `lessons`             | 6              | public read                                                                                             |
 | `lesson_progress`     | N/A            | own rows                                                                                                |
-| `portfolios`          | N/A            | own rows (`cash` numeric, default 100000)                                                               |
+| `portfolios`          | N/A            | own rows; since 2026-09-06 the writes are **column-level**: `INSERT (user_id, cash)`, `UPDATE (cash)`, **no DELETE**. Carries `league_id` (NULL = the main wallet) and `start_capital`, neither writable from the browser. See §9j. |
 | `portfolio_holdings`  | N/A            | own, via portfolio                                                                                      |
 | `portfolio_trades`    | N/A            | own, via portfolio                                                                                      |
 | `portfolio_snapshots` | N/A            | own, via portfolio; unique on `(portfolio_id, date)`                                                    |
@@ -241,6 +244,7 @@ Five migrations in `supabase/migrations/`. **Every table has RLS enabled** and t
 | `stock_metrics`       | 80             | public read; the fundamentals workbook                                                                  |
 | `user_roles`          | N/A            | read own (admins read all); written only through `admin_set_role`                                       |
 | `news_posts`          | N/A            | **read** for `authenticated`; **no write grant at all**, see §9f                                        |
+| `leagues`             | N/A            | **read** for `authenticated`; written only through `league_create`, see §9j                            |
 
 Nice touches: the `handle_new_user()` trigger is `SECURITY DEFINER` with a pinned `search_path`, and migration #2 exists solely to `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on it, that's a deliberate hardening pass.
 
@@ -271,7 +275,9 @@ The most complex module. Starts every user at **100 000 MAD**, auto-creating a p
 - **Performance vs MASI** is rebased to 100 from the first snapshot that carries a MASI value.
 - **Reset** wipes holdings, trades, snapshots, and orders, and restores cash to 100 000.
 
-P&L baseline is the hardcoded `START_CAPITAL` constant, not the portfolio's actual initial funding: correct only because reset always restores exactly 100 000.
+P&L baseline is **`portfolios.start_capital`**, written on the row itself since 2026-09-06. It used to be a hardcoded constant, which was correct only by accident — reset happened to restore exactly 100 000 — and a league funded with 10 000 MAD made it wrong outright. `MAIN_START_CAPITAL` in `lib/portfolios.ts` is now only the fallback for a database that has not run the migration yet.
+
+**A user can have more than one portfolio** since leagues shipped (§9j), and every read of "the user's portfolio" therefore goes through `lib/portfolios.ts`. Do not reintroduce `.eq("user_id", uid).order("created_at").limit(1)` anywhere: it silently returns a league wallet for anyone who joined a league before first opening this page.
 
 ### Académie
 
@@ -438,7 +444,7 @@ A group with no computable indicator is dropped too, so the detail page never sh
 
 ## 9e. Leaderboard
 
-`/classement`, sitting between Portefeuille and Académie in the nav.
+`/classement`, sitting between Portefeuille and Académie in the nav. Since 2026-09-06 the page carries two things: the **Classement Général** described here, and the **Ligues** below it (§9j). The heading was renamed for exactly that reason — with a second ranking on the page, "Classement" alone no longer said which one.
 
 Ranked by portfolio value, highest first, broken down into cash and invested, with the return against the 100 000 MAD starting capital beside it. Cash plus invested always equals the value, so the row adds up on screen. Gold for the top three, and `components/GoldenGoat.tsx` puts the golden goat next to number one.
 
@@ -461,7 +467,9 @@ Value comes from the most recent `portfolio_snapshots` row, which already carrie
 
 - **`/actualites`** is a search box over article titles (filtered as you type, no round trip) and a vertical list of **horizontal** cards: thumbnail left, text right, stacked on mobile. Each card shows the title, the date in full (_Vendredi 28 août 2026_) and a three-line excerpt clamped by CSS. The whole card links through; the admin buttons sit outside the anchor, because a button inside a link is invalid markup and would open the article on its way to deleting it.
 - **`/actualites/$id`** is the reading page: back link, date, large title, illustration, then the body in a `max-w-4xl` column.
-- **`components/ArticleBody.tsx`** renders a small Markdown subset (`##` headings, `-` and `1.` lists, `---` rules, `**bold**`) into React elements. Never `dangerouslySetInnerHTML`: articles are written by admins, but a compromised admin account must not be able to run script in every member's browser. `lib/excerpt.ts` strips the same markup for the feed, where a stray `##` would read as a typo.
+- **`components/ArticleBody.tsx` prints the body as typed** (2026-09-06). It used to read a small Markdown subset — `##` a subheading, `-` a bullet, `1.` a numbered list, `---` a rule, `**bold**` an emphasis — and the owner asked for it to go: it was a language to learn to publish six lines, and one that _ate_ what was typed, a leading dash disappearing into a bullet and a lone newline being glued back onto the paragraph above. Now a blank line separates paragraphs and everything inside one is carried through untouched by `whitespace-pre-wrap`. **Articles published under the old syntax show their marks literally**; erasing them silently would restore exactly the invisible rule that was removed, and they are fixed from the form. Still never `dangerouslySetInnerHTML`: articles are written by admins, but a compromised admin account must not be able to run script in every member's browser. `lib/excerpt.ts` no longer strips markup — it flattens whitespace, because the feed card is a three-line clamp and a body has to arrive on one line.
+  - ⚠️ One promise the component cannot keep alone: `news_clean_text` applies `btrim()` before storing, and `btrim` strips **spaces** at both ends. The indentation of the very first line is therefore lost on write. Line breaks, dashes and indentation _inside_ the text all survive.
+  - ⚠️ `components/LessonContent.tsx` still parses Markdown, deliberately: the lessons are seeded Markdown content, not something an admin types into a form.
 - The admin form carries Image, **Date**, Titre and Corps. The date is optional in the database: absent, a new article is stamped now and an edited one keeps the date it had.
 
 **The split of rights lives in the database, not the interface.** `authenticated` holds `SELECT` on `news_posts` and nothing else, because the migration does `REVOKE ALL … FROM authenticated, anon` and _then_ grants back the single privilege it wants. Enumerating what to remove is not enough: a Supabase project carries `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so the table is born with everything granted, and naming `INSERT, UPDATE, DELETE` leaves `TRUNCATE`, `REFERENCES` and `TRIGGER` behind (this is exactly what shipped first and had to be corrected). Publishing, editing and deleting go through `news_create`, `news_update` and `news_delete`, three `SECURITY DEFINER` functions that each open with `is_admin()`. Hiding the buttons is cosmetic, exactly as for the admin console. Both admin tiers may write: publishing an article is editorial work, not a privileged operation on an account.
@@ -551,6 +559,67 @@ The fix is `min-width: 0` on grid items. It is applied twice on purpose: explici
 
 ---
 
+## 9j. Ligues privées (2026-09-06)
+
+Closed contests, meant for partnerships with university clubs and creators: an admin opens a league with a name, a window of dates and a starting capital; a member joins it and receives a **second virtual portfolio** funded with that capital, tradable only between the two dates, and ranked against that league's members alone. The platform's own leaderboard does not move.
+
+**Membership is the wallet.** There is no join table: holding a `portfolios` row that carries a `league_id` is what being a member means, so the two can never disagree — no member without a wallet, no wallet without a member. A partial unique index (`WHERE league_id IS NOT NULL`) gives one wallet per league per account; partial because a plain `UNIQUE (user_id, league_id)` constrains nothing where `league_id` is NULL, NULL being distinct from NULL in SQL.
+
+### The trap, and it is worth reading twice
+
+Every reader in the codebase picked "the user's portfolio" with `ORDER BY created_at LIMIT 1`. That is correct only while an account has one. **Someone who joins a league before ever opening `/portefeuille` has their league wallet as the oldest**, so that query hands it back as their main portfolio — and the dashboard, the general leaderboard and the admin console would then be showing league money, with the league's funding as its baseline, and nothing on screen to say so.
+
+The predicate `league_id IS NULL` is therefore added in five places, three in SQL and two in the client:
+
+| Where                                       | What it protects                                                     |
+| ------------------------------------------- | -------------------------------------------------------------------- |
+| `leaderboard()`                             | the general ranking, and the 100 000 MAD it measures against          |
+| `admin_list_users()`                        | the cash column **and** the holdings / trades counters, which had no `LIMIT` at all and aggregated every wallet |
+| `admin_user_activity()`                     | the whole account sheet, which hangs off one `pf_id` chosen up front  |
+| `lib/portfolios.ts` (`loadWallet`)          | the Portefeuille page                                                 |
+| `lib/portfolios.ts` (`ensureMainWallet`)    | the dashboard, and the first-visit creation                           |
+
+All portfolio resolution goes through `src/lib/portfolios.ts` now. **Do not reintroduce the raw query anywhere.**
+
+### What the database enforces, and what it does not
+
+- `league_create` opens on `is_admin()` and validates name, window and capital itself, so a console cannot bypass the form.
+- `league_join` is `SECURITY DEFINER` because the credited amount must be the admin's, not the caller's. It is idempotent (a second call returns the existing wallet and credits nothing), refuses a league that has ended, and **refuses the principal admin** — which is what keeps a card's entrant count and its table's row count equal, since `league_leaderboard` excludes them by the same rule as §9e.
+- Writes on `portfolios` are now **column-level**: `INSERT (user_id, cash)`, `UPDATE (cash)`, and no `DELETE`. Without that, one API call could have opened a league wallet at a million, rewritten `start_capital` to a dirham for a seven-figure return, or deleted a losing wallet and rejoined at full funding. `REVOKE ALL` comes first, so `TRUNCATE`, `REFERENCES` and `TRIGGER` go with it: one of the fifteen tables in §10 is now done right.
+- **The date window is a UI guard, not enforcement.** Like every other trade rule (§10 🔴), it is evaluated in the browser; a direct API call can still trade a closed league. Same exposure as today's, and it dies with the same fix — the `SECURITY DEFINER` trade RPC of §11, which should own the session clock and the league window together.
+
+### Client notes
+
+- `?ligue=<id>` on `/portefeuille` selects the wallet. In the URL rather than in state so « Accéder » lands on the right one and the back button still means something. An unknown or unjoined id falls back to the main wallet instead of erroring, and **never creates a league wallet**.
+- The query key is `["vportfolio", ligue ?? "main"]`. The second element matters: existing invalidations target the `["vportfolio"]` prefix and keep working. **Do not add `placeholderData`** — serving the previous wallet's data under the new key would run the old order book against the new portfolio.
+- The trading gate **fails closed twice**: a league whose list has not loaded yet counts as outside its window, and so does one whose dates will not parse. `Date.parse("")` is `NaN` and every comparison with `NaN` is false, so the obvious two-line version answered "running" for a league with no dates and opened order entry — and `toLeague` produces exactly those empty strings when the database is a version behind the client. The main portfolio never goes near that clock.
+- **Reset is hidden on a league wallet.** A contestant who can restore their funding erases their losses and the ranking stops measuring anything.
+- Both rankings share `Standings` and `normaliseLeaderboard(rows, base)`, differing only in the capital they measure against.
+- `lib/leagues.ts` holds the RPC wrappers and the status/window logic; `lib/portfolios.ts` holds the wallet resolution and the isolated cast, because the generated Supabase types know neither `league_id` nor `start_capital`.
+
+### Verified
+
+Applied to a throwaway PostgreSQL 16 with Supabase's default privileges in place, twice, then exercised: a member cannot create a league; a blank name, an inverted window and a zero capital are refused; joining twice returns the same wallet and credits nothing; a finished league is refused; the principal admin is refused; a second wallet in one league is refused. Alice's 48 000 MAD of league stock stays out of the general leaderboard. **Carole — who joined a league and never opened the Portefeuille page, so her only wallet is a league one** — appears in the general ranking at the platform capital, shows no figures in the admin console, and still ranks first in her league at +80 %. The admin RPCs were checked to keep `anon` and `PUBLIC` off their `EXECUTE` after the generator's `DROP FUNCTION`. The window logic (including the unparseable-dates case) was checked under `node --experimental-strip-types`.
+
+Not built, and not asked for: **there is no way to edit or delete a league.** A typo in a name, a date or a capital is permanent. `leagues.updated_at` and its trigger exist for the `league_update` that would fix that; see §11.
+
+---
+
+## 9k. Perf YTD and the quotation mode (2026-09-06)
+
+The sector workbook came back with two more columns — the **quotation mode** (Continu or Fixing) and the **close on 31 December** — and they live in `src/lib/quotation.ts`, beside `lib/sectors.ts`, for the same reason: same workbook, same key, a constant of the product rather than something to administer. Its sectors were checked against `sectors.ts` line by line and agree on all 79 entries.
+
+- **YTD = ((live price − 31/12 close) / 31/12 close) × 100**, rounded to two decimals, shown under the day's change on the `/bourse` card, on `/bourse/$ticker`, and on the MASI and MASI 20 cards on the dashboard (closes 18 846 and 1 485, from the brief). Smaller and uncoloured: it is a bearing, not the measurement the card came to give.
+- **The 31/12 close is never displayed, and now cannot be.** `LISTING_BY_CODE`, `INDEX_CLOSE_2025` and `close2025Of` are module-private; the public surface is `quotationOf`, `ytdOf`, `ytdPct`, `QUOTATION_MODES` and `quotationKey`. "It is never shown" was a comment, which is a promise a one-line import can break.
+- **A missing figure renders nothing**, per §9. `ytdPct` treats a non-positive price as an absence on both sides: an unquoted stock arrives at `0`, and `0 ÷ 34,03` is a perfectly finite −100 % that would read as a collapse. The YTD sort sends listings without one to the very end.
+- On `/bourse/$ticker` the YTD is computed on the **live quote only**, never on the `stocks.price` seed the page falls back to for the price itself (§5). A year measured from a July-2026 price would be a wrong number presented as a measurement.
+- **Three absences, all the workbook's own.** `DIA` and `DLM` carry a mode but a dash instead of a close, so they filter normally and show no YTD. `S2M` is not in the workbook at all, so it has neither — and therefore **appears under neither mode chip**, only under « Tous modes de cotation », which is the default. Note this is the _opposite_ decision to `sectors.ts`, which inferred a sector for S2M and said so: the brief here says to use only the file, and a quotation procedure is read rather than reasoned. One line from the owner closes it (§11).
+- The Continu / Fixing chips share the capitalisations' strip rather than opening a fourth row: fifteen sectors, four capitalisations and eight sorts already hold three strips on a phone (§9i).
+
+> ⚠️ **The zero guard lives in `lib/format.ts`, not here.** `pct()` decided the sign before rounding and printed the digits after, so a stock down 0.001 % on the session read « -0,00 % » in red and an unrealised gain of +0.004 % read « +0,00 % » in green. It now rounds first: what displays as zero reads as zero, on the day's change, the year's performance and the portfolio P/L alike.
+
+---
+
 ## 10. Known issues, ranked
 
 ### 🔴 Trading integrity is entirely client-side
@@ -571,13 +640,21 @@ The fill loop is a `useEffect` on the portfolio page: no open tab, no execution.
 
 `isMarketOpen` is computed client-side from `Intl.DateTimeFormat` in the `Africa/Casablanca` zone. A user whose device clock is wrong, or who changes it, can make the app believe the session is open. Given trading is already client-side (see the 🔴 items), this adds no new exposure, but it moves server-side with them. Until then, the code fails **closed**: before the clock is read (SSR, first render) the session counts as shut, because queuing an order can be undone and executing one wrongly cannot.
 
-### 🟠 Every table but `news_posts` grants TRUNCATE, REFERENCES and TRIGGER to `anon` and `authenticated`
+### 🟠 Every table but `news_posts`, `leagues` and `portfolios` grants TRUNCATE, REFERENCES and TRIGGER to `anon` and `authenticated`
 
 A Supabase project sets `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so every table created by a migration starts with all privileges granted, and the explicit `GRANT SELECT` / `GRANT ... TO authenticated` lines in the migrations only _add_ to that. **RLS does not cover the leftovers**: it filters the rows a statement reads and writes, and has no say over `TRUNCATE`, which empties the table outright.
 
 Not reachable through the app as it stands: PostgREST exposes no verb that issues `TRUNCATE`, `CREATE TRIGGER` or `ALTER TABLE`, so the publishable key cannot get at any of it over HTTP. It needs a direct Postgres connection, which needs the database password. So this is a privilege model that says something other than what it means, not an open door.
 
-`news_posts` is the only table done right (`REVOKE ALL` then grant back). Fixing the other fifteen is one migration: `REVOKE ALL ON <table> FROM anon, authenticated;` followed by the grants each already documents. Worth doing next time the schema is touched.
+`news_posts`, and since 2026-09-06 `leagues` and `portfolios`, are the tables done right (`REVOKE ALL` then grant back). `portfolios` went further and took **column-level** write grants, because leagues made the difference matter (§9j). Fixing the remaining thirteen is one migration: `REVOKE ALL ON <table> FROM anon, authenticated;` followed by the grants each already documents. Worth doing next time the schema is touched.
+
+### 🟠 A league can be created but never corrected
+
+There is no `league_update` and no `league_delete`. A wrong name, a wrong window or a wrong capital is permanent, on a form whose `datetime-local` fields are read in the browser's timezone — the input most likely to be entered wrong. `leagues.updated_at` and its trigger exist for the update that would fix it. Not asked for in the brief, so not built; see §11.
+
+### 🟠 A league contest is only as honest as the client
+
+Leagues are a competitive feature, and the two 🔴 items above say competitive features are what client-side trading integrity blocks. Joining, funding and ranking are all server-side, and the browser can no longer write `league_id`, `start_capital` or delete a wallet — but it can still write `cash`, so a determined participant can still mint money into a league portfolio with one API call. Nothing about leagues makes this worse than it was; it just makes it matter. The trade RPC of §11 is the fix, and it should own the league window at the same time.
 
 ### 🟠 Auto-login trusts a localStorage probe to decide what to paint
 
@@ -632,7 +709,8 @@ A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts 
 
 Roughly in order of value-per-effort:
 
-0. **Say where `S2M` belongs.** It is the one listing the sector workbook does not cover, and it sits in Technologies by inference (§5). One line in `SECTOR_BY_CODE`.
+0. **Say how `S2M` is quoted.** It is the one listing the workbook does not cover. Its sector was inferred (Technologies, §5); its **quotation mode was not**, so it shows under neither the Continu nor the Fixing chip (§9k). One line in `LISTING_BY_CODE` — and, if Lyamfi publishes its 31 December close, a YTD with it.
+0b. **Let an admin fix a league.** `league_update(id, name, starts_at, ends_at)`, `SECURITY DEFINER` on `is_admin()`, plus an edit state on the card. Deliberately not `start_capital`: it is already credited into every participant's `cash`, so moving it would rewrite everyone's performance retroactively. A `league_delete` guarded on having no participants would go with it (§10).
 1. **Check `/macroeconomie` on the live site.** Three things: whether the policy-rate card shows the « série tenue à la main » warning (if it does, the IMF request is failing and wants another source), whether the five _Marchés internationaux_ cards paint at all, and specifically whether **natural gas** does — `TVC:NATGAS` was wrong and its replacement could not be confirmed from here (§9h).
 2. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature. Now that the session gates execution, that RPC should also own the clock, so the server decides what "open" means rather than the browser.
 3. **Translate the lesson content**, if English learners matter. Needs a schema change on `lessons`; see §9b. The `news_posts` rows are French-only for the same reason.
@@ -664,7 +742,47 @@ The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not
 
 ## 12. What to run in the Supabase SQL editor
 
-### 2026-08-31 (current): nothing
+### 2026-09-06 (current): one migration
+
+`supabase/migrations/20260906090000_leagues.sql`. Paste that file, or the whole of `supabase/setup.sql`, which folds every migration in. Both are re-runnable, and both were applied twice to a throwaway PostgreSQL 16 before shipping.
+
+It creates the `leagues` table, adds `league_id` and `start_capital` to `portfolios` with a partial unique index, **narrows the write grants on `portfolios` to `INSERT (user_id, cash)` and `UPDATE (cash)` with no `DELETE`**, adds `league_create`, `league_join`, `league_list` and `league_leaderboard`, and replaces `leaderboard()`, `admin_list_users()` and `admin_user_activity()` so none of the three can pick up a league wallet (§9j).
+
+Nothing else in the 06/09 batch touches the database: the YTD data and the article rendering are entirely front-end.
+
+Checking it landed:
+
+```sql
+select 1 as n, 'table des ligues' as verification,
+       (select count(*)::text from information_schema.tables
+         where table_schema = 'public' and table_name = 'leagues') as resultat,
+       '1' as attendu
+union all
+select 2, 'colonnes de portefeuille',
+       (select count(*)::text from information_schema.columns
+         where table_name = 'portfolios' and column_name in ('league_id', 'start_capital')), '2'
+union all
+select 3, 'droits de table des membres sur les portefeuilles',
+       (select coalesce(string_agg(distinct privilege_type, ','), 'aucun')
+          from information_schema.role_table_grants
+         where table_name = 'portfolios' and grantee = 'authenticated'), 'SELECT'
+union all
+select 4, 'colonnes écrivables par les membres',
+       (select coalesce(string_agg(distinct column_name, ','order by column_name), 'aucune')
+          from information_schema.column_privileges
+         where table_name = 'portfolios' and grantee = 'authenticated'
+           and privilege_type in ('INSERT','UPDATE')), 'cash,user_id'
+union all
+select 5, 'fonctions des ligues',
+       (select count(*)::text from information_schema.routines
+         where routine_schema = 'public'
+           and routine_name in ('league_create','league_join','league_list','league_leaderboard')), '4'
+order by n;
+```
+
+Row 3 must say `SELECT` and nothing else: the writes are column-level now, so they do not appear as table grants. Row 4 is the pair that replaced them.
+
+### 2026-08-31: nothing
 
 The 2026-08-31 batch is entirely front-end. Favourites live in the browser's `localStorage`, sectors in `src/lib/sectors.ts`, and no table, column, function or policy changed. **Do not run anything for it.**
 
