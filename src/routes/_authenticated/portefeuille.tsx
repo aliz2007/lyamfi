@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
@@ -30,10 +30,33 @@ import {
   type OrderType,
 } from "@/lib/orders";
 import { CAPITAL_GAINS_RATE, saleBreakdown } from "@/lib/tax";
+import { ensureMainWallet, loadWallet, MAIN_START_CAPITAL } from "@/lib/portfolios";
+import {
+  leagueStatus,
+  leagueTradingOpen,
+  leaguesQuery,
+  type League,
+  type LeagueStatus,
+} from "@/lib/leagues";
 import { EMPTY, useFormat, type Formatter } from "@/lib/format";
 import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/portefeuille")({
+  /**
+   * `?ligue=<id>` désigne le portefeuille affiché.
+   *
+   * Dans l'URL et non dans un état local, pour que « Accéder » depuis la page
+   * Classement arrive directement sur le bon portefeuille, et que le retour
+   * arrière du navigateur reste cohérent.
+   *
+   * ⚠️ Le paramètre absent doit rendre `{}` et non `{ ligue: undefined }` :
+   * `exactOptionalPropertyTypes` distingue les deux, et le second ne satisfait
+   * pas `{ ligue?: string }`.
+   */
+  validateSearch: (search: Record<string, unknown>): { ligue?: string } => {
+    const raw = search["ligue"];
+    return typeof raw === "string" && raw !== "" ? { ligue: raw } : {};
+  },
   head: () => ({
     meta: [
       { title: "Portefeuille virtuel BVC en temps réel | Lyamfi" },
@@ -52,14 +75,16 @@ export const Route = createFileRoute("/_authenticated/portefeuille")({
   component: PortfolioPage,
 });
 
-const START_CAPITAL = 100000;
-
 type Holding = { id: string; ticker: string; quantity: number; avg_price: number };
 
 function PortfolioPage() {
   const { t } = useI18n();
   const f = useFormat();
   usePageTitle("pf.title");
+
+  const { ligue } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const { data: leagues = [] } = useQuery(leaguesQuery);
 
   // Séance de la Bourse de Casablanca. Tant que l'horloge n'a pas été lue
   // (rendu serveur, tout premier rendu), la séance est tenue pour fermée :
@@ -85,29 +110,24 @@ function PortfolioPage() {
 
   const masi = quoteMap.get("MASI")?.price ?? null;
 
+  // ⚠️ La clé porte le portefeuille demandé, en SECOND élément : les
+  // invalidations existantes visent le préfixe `["vportfolio"]` et continuent
+  // donc de rafraîchir celui qui est affiché, quel qu'il soit. Et surtout, pas
+  // de `placeholderData` ici : servir les données du portefeuille précédent
+  // sous la clé du nouveau ferait exécuter l'ancien carnet d'ordres sur le
+  // nouveau portefeuille.
   const { data: pf } = useQuery({
-    queryKey: ["vportfolio"],
+    queryKey: ["vportfolio", ligue ?? "main"],
     queryFn: async () => {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth.user?.id;
       if (!uid) throw new Error(t("pf.errSession"));
 
-      let { data: p } = await supabase
-        .from("portfolios")
-        .select("id, cash")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (!p) {
-        const { data: created, error } = await supabase
-          .from("portfolios")
-          .insert({ user_id: uid, cash: START_CAPITAL })
-          .select("id, cash")
-          .single();
-        if (error) throw error;
-        p = created;
-      }
+      // Une ligue demandée mais introuvable — lien périmé, adhésion retirée,
+      // base pas encore migrée — ramène au portefeuille principal plutôt qu'à
+      // une page en erreur. `loadWallet` ne CRÉE jamais un portefeuille de
+      // ligue : seule `league_join` connaît la dotation à créditer.
+      const p = (ligue ? await loadWallet(uid, ligue) : null) ?? (await ensureMainWallet(uid));
 
       const [{ data: holdings }, { data: trades }, { data: snaps }, orders] = await Promise.all([
         supabase
@@ -130,7 +150,9 @@ function PortfolioPage() {
 
       return {
         id: p.id,
-        cash: Number(p.cash),
+        cash: p.cash,
+        leagueId: p.leagueId,
+        startCapital: p.startCapital,
         holdings: (holdings ?? [])
           .map((h) => ({
             id: h.id,
@@ -167,11 +189,36 @@ function PortfolioPage() {
     };
   });
 
+  // La performance se mesure contre la dotation DE CE portefeuille, plus
+  // contre une constante : une ligue à 10 000 MAD ne se juge pas sur 100 000.
+  // La base la porte désormais sur la ligne elle-même (`start_capital`).
+  const startCapital = pf?.startCapital ?? MAIN_START_CAPITAL;
+
   const invested = rows.reduce((a, r) => a + r.value, 0);
-  const cash = pf?.cash ?? START_CAPITAL;
+  const cash = pf?.cash ?? startCapital;
   const totalValue = invested + cash;
-  const totalPnl = totalValue - START_CAPITAL;
-  const totalPnlPct = (totalPnl / START_CAPITAL) * 100;
+  const totalPnl = totalValue - startCapital;
+  const totalPnlPct = startCapital > 0 ? (totalPnl / startCapital) * 100 : 0;
+
+  /** Les ligues rejointes : ce que le sélecteur propose, en plus du principal. */
+  const joinedLeagues = useMemo(() => leagues.filter((l) => l.joined), [leagues]);
+
+  /** La ligue du portefeuille affiché, `null` pour le principal. */
+  const activeLeague = useMemo<League | null>(
+    () => (pf?.leagueId ? (leagues.find((l) => l.id === pf.leagueId) ?? null) : null),
+    [pf?.leagueId, leagues],
+  );
+
+  /**
+   * Les dates de la ligue laissent-elles passer un ordre ?
+   *
+   * ⚠️ ÉCHOUE FERMÉ. Tant que la liste des ligues n'est pas chargée, un
+   * portefeuille de ligue est tenu pour hors fenêtre. C'est le même principe
+   * que pour la séance : mettre un ordre en attente se défait, l'exécuter à
+   * tort ne se défait pas.
+   */
+  const leagueOpen =
+    pf?.leagueId == null ? true : activeLeague !== null && leagueTradingOpen(activeLeague);
 
   // Enregistre un point de performance par jour (valeur du portefeuille + MASI).
   useEffect(() => {
@@ -194,10 +241,10 @@ function PortfolioPage() {
     const baseMasi = snaps.find((s) => s.masi)?.masi ?? null;
     return snaps.map((s) => ({
       date: s.date.slice(5),
-      portefeuille: Number(((s.value / START_CAPITAL) * 100).toFixed(2)),
+      portefeuille: Number(((s.value / startCapital) * 100).toFixed(2)),
       masi: baseMasi && s.masi ? Number(((s.masi / baseMasi) * 100).toFixed(2)) : null,
     }));
-  }, [pf?.snapshots]);
+  }, [pf?.snapshots, startCapital]);
 
   /** Exécute réellement un ordre (marché ou limite déclenchée) sur le portefeuille. */
   const applyTrade = async ({
@@ -213,6 +260,9 @@ function PortfolioPage() {
   }) => {
     if (!pf?.id) throw new Error(t("pf.errNoPortfolio"));
     if (!(quantity > 0)) throw new Error(t("pf.errQty"));
+    // Dernier verrou avant l'écriture : la fenêtre de la ligue vaut pour une
+    // exécution immédiate comme pour un ordre du carnet qui se déclenche.
+    if (!leagueOpen) throw new Error(t("pf.errLeagueWindow"));
     const amount = quantity * price;
     const existing = pf.holdings.find((h) => h.ticker === ticker);
     /** Impôt retenu sur cette vente, nul pour un achat comme pour une perte. */
@@ -294,6 +344,10 @@ function PortfolioPage() {
     }) => {
       if (!pf?.id) throw new Error(t("pf.errNoPortfolio"));
       if (!(v.quantity > 0)) throw new Error(t("pf.errQty"));
+      // Hors des dates de la ligue on ne met pas non plus en attente : un ordre
+      // déposé après la clôture du concours n'aurait aucune ouverture devant
+      // lui, il resterait au carnet pour toujours.
+      if (!leagueOpen) throw new Error(t("pf.errLeagueWindow"));
       if (v.type === "limit" && !(Number(v.limitPrice) > 0)) throw new Error(t("pf.errLimit"));
       await insertPendingOrder({ portfolioId: pf.id, ...v });
     },
@@ -366,7 +420,8 @@ function PortfolioPage() {
   const [filling, setFilling] = useState(false);
   useEffect(() => {
     const orders = pf?.orders ?? [];
-    if (!pf?.id || !marketOpen || filling || orders.length === 0 || quotes.length === 0) return;
+    if (!pf?.id || !marketOpen || !leagueOpen || filling || orders.length === 0) return;
+    if (quotes.length === 0) return;
 
     // Le plus ancien d'abord : le carnet se sert dans l'ordre d'arrivée.
     const queue = [...orders].reverse();
@@ -405,7 +460,7 @@ function PortfolioPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pf?.orders, quoteMap, filling, marketOpen]);
+  }, [pf?.orders, quoteMap, filling, marketOpen, leagueOpen]);
 
   const reset = useMutation({
     mutationFn: async () => {
@@ -415,7 +470,7 @@ function PortfolioPage() {
       await supabase.from("portfolio_snapshots").delete().eq("portfolio_id", pf.id);
       await supabase.from("portfolio_orders").delete().eq("portfolio_id", pf.id);
 
-      await supabase.from("portfolios").update({ cash: START_CAPITAL }).eq("id", pf.id);
+      await supabase.from("portfolios").update({ cash: pf.startCapital }).eq("id", pf.id);
     },
     onSuccess: () => {
       toast.success(t("pf.okReset"));
@@ -428,9 +483,30 @@ function PortfolioPage() {
       <header className="rise">
         <h1 className="text-3xl font-bold sm:text-4xl">{t("pf.title")}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          {t("pf.intro")}
+          {/* Le portefeuille principal démarre à 100 000 MAD, une ligue à ce
+              que l'administrateur a fixé. Annoncer la mauvaise somme juste
+              au-dessus d'une rangée de chiffres calculés sur l'autre était le
+              genre de détail qui fait douter de tout le reste. */}
+          {activeLeague === null
+            ? t("pf.intro")
+            : t("pf.introLeague", { capital: f.mad(activeLeague.startCapital, 0) })}
         </p>
       </header>
+
+      {/* Le sélecteur ne s'affiche qu'à qui a une ligue : une liste déroulante
+          à une seule entrée n'est pas un choix, c'est un ornement. */}
+      {joinedLeagues.length > 0 && (
+        <WalletPicker
+          leagues={joinedLeagues}
+          activeLeague={activeLeague}
+          leagueId={pf?.leagueId ?? null}
+          onSelect={(id) =>
+            void navigate({ search: id === null ? {} : { ligue: id }, replace: true })
+          }
+          t={t}
+          f={f}
+        />
+      )}
 
       <Disclaimer />
 
@@ -457,6 +533,8 @@ function PortfolioPage() {
         cash={cash}
         holdings={pf?.holdings ?? []}
         marketOpen={marketOpen}
+        leagueOpen={leagueOpen}
+        leagueName={activeLeague?.name ?? null}
         onTrade={submitMarketOrder}
         onPlaceOrder={(v) => placeOrder.mutate({ ...v, type: "limit", limitPrice: v.limitPrice })}
         pending={trade.isPending || placeOrder.isPending}
@@ -518,12 +596,19 @@ function PortfolioPage() {
       <section className="surface-raised overflow-hidden">
         <div className="flex items-center justify-between p-5 sm:p-7 sm:pb-4">
           <h2 className="text-sm font-semibold">{t("pf.positions")}</h2>
-          <button
-            onClick={() => reset.mutate()}
-            className="press -mx-2 inline-flex min-h-9 items-center px-2 text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline"
-          >
-            {t("pf.reset")}
-          </button>
+          {/* Pas de remise à zéro sur un portefeuille de ligue. Un concurrent
+              qui peut rétablir sa dotation d'un clic efface ses pertes, et le
+              classement ne mesure plus rien. La condition se lit sur le
+              portefeuille lui-même et non sur la ligue chargée, sinon le bouton
+              clignote le temps que la liste arrive. */}
+          {pf?.leagueId == null && (
+            <button
+              onClick={() => reset.mutate()}
+              className="press -mx-2 inline-flex min-h-9 items-center px-2 text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline"
+            >
+              {t("pf.reset")}
+            </button>
+          )}
         </div>
 
         {rows.length === 0 ? (
@@ -689,6 +774,8 @@ function TradePanel({
   cash,
   holdings,
   marketOpen,
+  leagueOpen,
+  leagueName,
   onTrade,
   onPlaceOrder,
   pending,
@@ -700,6 +787,9 @@ function TradePanel({
   cash: number;
   holdings: Holding[];
   marketOpen: boolean;
+  /** Faux quand le portefeuille affiché est celui d'une ligue hors de ses dates. */
+  leagueOpen: boolean;
+  leagueName: string | null;
   onTrade: (v: { ticker: string; side: OrderSide; quantity: number; price: number }) => void;
   onPlaceOrder: (v: {
     ticker: string;
@@ -755,6 +845,17 @@ function TradePanel({
       {/* Le passage d'ordre reste ouvert 24 h sur 24 : ce bandeau dit ce qu'il
           adviendra de l'ordre, exécution immédiate ou mise en attente. */}
       <MarketSessionBadge variant="order" className="mt-4" />
+
+      {/* Hors des dates de la ligue, la séance de la Bourse ne décide plus de
+          rien : le concours est fermé, et le dire ici évite de chercher
+          pourquoi les deux boutons du bas sont éteints. */}
+      {!leagueOpen && (
+        <p className="mt-3 rounded-xl border border-[var(--warning)]/40 bg-[var(--warning)]/5 px-4 py-3 text-xs leading-relaxed text-[var(--warning)]">
+          {leagueName === null
+            ? t("pf.leagueClosedTrading")
+            : t("pf.leagueClosedTradingNamed", { name: leagueName })}
+        </p>
+      )}
 
       <div className="relative mt-4">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -885,7 +986,9 @@ function TradePanel({
 
           <div className="mt-4 flex gap-3">
             <button
-              disabled={pending || (orderType === "market" ? amount > cash : !validLimit)}
+              disabled={
+                pending || !leagueOpen || (orderType === "market" ? amount > cash : !validLimit)
+              }
               onClick={() =>
                 orderType === "market"
                   ? onTrade({
@@ -908,7 +1011,9 @@ function TradePanel({
               )}
             </button>
             <button
-              disabled={pending || held < qty || (orderType === "limit" && !validLimit)}
+              disabled={
+                pending || !leagueOpen || held < qty || (orderType === "limit" && !validLimit)
+              }
               onClick={() =>
                 orderType === "market"
                   ? onTrade({
@@ -936,6 +1041,93 @@ function TradePanel({
             </button>
           </div>
         </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Le sélecteur de portefeuille.
+ *
+ * L'interface qu'il commande est RIGOUREUSEMENT LA MÊME d'un portefeuille à
+ * l'autre : mêmes chiffres, mêmes positions, même carnet, même courbe. Seule la
+ * source change. C'est la raison pour laquelle il n'y a pas de « page ligue » :
+ * on n'apprend pas deux fois à lire le même écran.
+ *
+ * Une liste déroulante native, et non un menu dessiné : sur téléphone elle
+ * ouvre le sélecteur du système, qui reste le plus rapide à manœuvrer au pouce,
+ * et elle est accessible au clavier sans qu'on ait à s'en occuper.
+ */
+function WalletPicker({
+  leagues,
+  activeLeague,
+  leagueId,
+  onSelect,
+  t,
+  f,
+}: {
+  leagues: League[];
+  activeLeague: League | null;
+  leagueId: string | null;
+  onSelect: (id: string | null) => void;
+  t: Translate;
+  f: Formatter;
+}) {
+  const status: LeagueStatus | null = activeLeague ? leagueStatus(activeLeague) : null;
+
+  return (
+    <section className="surface-raised p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="text-xs text-muted-foreground" htmlFor="wallet">
+          {t("pf.wallet")}
+        </label>
+        <select
+          id="wallet"
+          value={leagueId ?? "main"}
+          onChange={(e) => onSelect(e.target.value === "main" ? null : e.target.value)}
+          // `text-base` sur téléphone : en dessous de 16 px, Safari iOS zoome
+          // sur le champ et ne dézoome jamais (cf. §9i du HANDOFF).
+          className="min-h-9 min-w-0 flex-1 rounded-xl border border-input bg-background px-3 py-2 text-base outline-none transition-colors focus:border-primary sm:max-w-xs sm:text-sm"
+        >
+          <option value="main">{t("pf.mainWallet")}</option>
+          {leagues.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {activeLeague && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span
+            className={
+              status === "open"
+                ? "text-[var(--success)]"
+                : status === "upcoming"
+                  ? "text-brand-yellow"
+                  : "text-muted-foreground"
+            }
+          >
+            {t(
+              status === "open"
+                ? "league.statusOpen"
+                : status === "upcoming"
+                  ? "league.statusUpcoming"
+                  : "league.statusClosed",
+            )}
+          </span>
+          <span>
+            {f.shortDate(activeLeague.startsAt)} → {f.shortDate(activeLeague.endsAt)}
+          </span>
+          <span>{t("pf.leagueCapital", { capital: f.mad(activeLeague.startCapital, 0) })}</span>
+          <Link
+            to="/classement"
+            className="underline-offset-4 hover:text-foreground hover:underline"
+          >
+            {t("pf.leagueStandings")}
+          </Link>
+        </p>
       )}
     </section>
   );

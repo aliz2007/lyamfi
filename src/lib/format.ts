@@ -55,8 +55,25 @@ export const mad = (v: number | null | undefined, digits = 2, locale: Locale = D
   return locale === "en-GB" ? `MAD ${n}` : `${n} MAD`;
 };
 
-export const pct = (v: number | null | undefined, digits = 2, locale: Locale = DEFAULT) =>
-  finite(v) ? `${v > 0 ? "+" : ""}${format(v, digits, locale)} %` : EMPTY;
+/**
+ * Un pourcentage signé.
+ *
+ * ⚠️ LE ZÉRO EST RENORMALISÉ, ET C'EST LE POINT DÉLICAT. Le signe est décidé
+ * avant l'arrondi, l'affichage après : une variation de −0,001 % s'écrivait
+ * donc « -0,00 % » en rouge, et +0,004 % « +0,00 % » en vert. Une baisse et une
+ * hausse qui n'ont pas eu lieu, sur des cours en direct où le bruit sous le
+ * centime est la règle plutôt que l'exception.
+ *
+ * On arrondit d'abord, on regarde ensuite : ce qui s'affiche « 0,00 » se lit
+ * donc « 0,00 », sans signe et sans couleur trompeuse. Le garde vit ici parce
+ * que c'est le chemin commun — variation du jour, performance annuelle,
+ * plus-value latente du portefeuille passent tous par cette fonction.
+ */
+export const pct = (v: number | null | undefined, digits = 2, locale: Locale = DEFAULT) => {
+  if (!finite(v)) return EMPTY;
+  const shown = Number(v.toFixed(digits)) === 0 ? 0 : v;
+  return `${shown > 0 ? "+" : ""}${format(shown, digits, locale)} %`;
+};
 
 export const compact = (v: number | null | undefined, locale: Locale = DEFAULT) => {
   if (!finite(v)) return EMPTY;

@@ -11,6 +11,7 @@ import { EMPTY, useFormat, type Formatter } from "@/lib/format";
 import { Disclaimer } from "@/components/Disclaimer";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
+import { ytdOf } from "@/lib/quotation";
 import { useI18n, type Key, type Translate } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/bourse/$ticker")({
@@ -68,6 +69,12 @@ function StockPage() {
   const name = NAME_BY_CODE.get(code) ?? metrics?.company ?? stock?.name ?? code;
   const price = live?.price ?? (stock ? Number(stock.price) : null);
   const changePct = live?.changePct ?? (stock ? Number(stock.change_pct) : null);
+  // ⚠️ La performance annuelle se calcule sur le cours EN DIRECT, jamais sur le
+  // repli `stocks.price` que les deux lignes au-dessus acceptent : cette
+  // colonne est une graine de juillet 2026 (cf. §5 du HANDOFF), et un écart
+  // mesuré depuis le 31/12 contre un cours vieux de deux mois serait un chiffre
+  // faux présenté comme une mesure. Sans cotation du jour, pas de ligne.
+  const ytd = ytdOf(code, live?.price);
 
   if (!listed && !stock) {
     return (
@@ -103,6 +110,19 @@ function StockPage() {
           >
             {changePct === null ? EMPTY : f.pct(changePct)}
           </p>
+          {/* Le même repère que sur la vignette de la cote, au même endroit et
+              avec la même discrétion : trier la liste par performance annuelle
+              puis ouvrir la fiche ne doit pas faire disparaître le chiffre qui
+              a servi au classement. */}
+          {ytd !== null && (
+            <p
+              title={t("bourse.ytdLabel")}
+              aria-label={t("bourse.ytdLabel")}
+              className="mt-0.5 whitespace-nowrap text-[11px] tabular-nums text-muted-foreground"
+            >
+              {f.pct(ytd)} {t("bourse.ytdSuffix")}
+            </p>
+          )}
         </div>
       </header>
 

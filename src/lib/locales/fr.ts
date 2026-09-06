@@ -237,7 +237,7 @@ export const fr = {
   "bourse.tvNote":
     "Données de marché fournies par TradingView, différées ou temps réel selon la source.",
   "bourse.footnote":
-    "BPA et DPA 26 sont des prévisions, 27e des estimations. Capitalisation, PER, rendement, P/B, P/S et P/FCF sont recalculés au cours du jour. Outil pédagogique, ne constitue pas un conseil en investissement.",
+    "BPA et DPA 26 sont des prévisions, 27e des estimations. Capitalisation, PER, rendement, P/B, P/S et P/FCF sont recalculés au cours du jour. La performance YTD se mesure depuis la clôture du 31 décembre. Outil pédagogique, ne constitue pas un conseil en investissement.",
   "bourse.gainersToday": "{n} en hausse",
   "bourse.losersToday": "{n} en baisse",
   "bourse.favourites": "Favoris",
@@ -279,6 +279,8 @@ export const fr = {
   "pf.title": "Portefeuille virtuel",
   "pf.intro":
     "Tu démarres avec 100 000 MAD fictifs. Les ordres sont exécutés au dernier cours connu de la Bourse de Casablanca (TradingView), rafraîchi chaque minute.",
+  "pf.introLeague":
+    "Tu démarres avec {capital} pour cette ligue. Les ordres sont exécutés au dernier cours connu de la Bourse de Casablanca (TradingView), rafraîchi chaque minute.",
   "pf.totalValue": "Valeur totale",
   "pf.cash": "Liquidités",
   "pf.invested": "Investi (valorisé)",
@@ -316,6 +318,14 @@ export const fr = {
   "pf.currentPrice": "Cours : {price}",
   "pf.positions": "Mes positions",
   "pf.reset": "Réinitialiser",
+  "pf.wallet": "Portefeuille",
+  "pf.mainWallet": "Portefeuille principal",
+  "pf.leagueCapital": "Dotation {capital}",
+  "pf.leagueStandings": "Voir le classement",
+  "pf.leagueClosedTrading": "Le trading n'est pas autorisé en dehors des dates de la ligue.",
+  "pf.leagueClosedTradingNamed":
+    "Le trading n'est pas autorisé en dehors des dates de la ligue « {name} ».",
+  "pf.errLeagueWindow": "Le trading n'est pas autorisé en dehors des dates de la ligue.",
   "pf.noPositions": "Aucune position. Passe un premier ordre d'achat ci-dessus.",
   "pf.colStock": "Valeur",
   "pf.colQty": "Qté",
@@ -600,6 +610,44 @@ export const fr = {
   "lb.goat": "Premier du classement",
   "lb.yourRank": "Ton rang",
   "lb.participants": "Classés",
+
+  "lb.generalTitle": "Classement Général",
+
+  /* --------------------------------------------------------------- ligues */
+  "league.title": "Ligues",
+  "league.intro":
+    "Des classements privés, chacun avec sa dotation et ses dates. Rejoins-en une et tu reçois un portefeuille dédié : le tien reste intact, et tu n'es classé qu'entre participants.",
+  "league.loading": "Chargement des ligues…",
+  "league.error": "Impossible de charger les ligues : {reason}",
+  "league.empty": "Aucune ligue pour le moment.",
+  "league.emptyHint": "Les ligues ouvertes par l'équipe Lyamfi apparaîtront ici.",
+  "league.emptyAdmin": "Crée la première avec le formulaire ci-dessus.",
+  "league.window": "Dates",
+  "league.capital": "Dotation",
+  "league.members": "Participants",
+  "league.statusUpcoming": "À venir",
+  "league.statusOpen": "En cours",
+  "league.statusClosed": "Terminée",
+  "league.join": "Rejoindre la ligue",
+  "league.joining": "Inscription…",
+  "league.joined": "Tu as rejoint {name}.",
+  "league.enter": "Accéder",
+  "league.standings": "Classement",
+  "league.hideStandings": "Masquer",
+  "league.closed": "Ligue terminée",
+  "league.rankingOf": "Classement — {name}",
+  "league.rankingHint": "Performance mesurée contre la dotation de la ligue ({capital}).",
+  "league.noMembers": "Personne n'a encore rejoint cette ligue.",
+  "league.adminTitle": "Créer une ligue",
+  "league.adminHint":
+    "Visible par tous les membres dès la création. Seuls les administrateurs voient ce formulaire.",
+  "league.fieldName": "Nom de la ligue",
+  "league.fieldStart": "Début",
+  "league.fieldEnd": "Fin",
+  "league.fieldCapital": "Portefeuille virtuel initial (MAD)",
+  "league.namePlaceholder": "Challenge ENCG Casablanca",
+  "league.create": "Créer la ligue",
+  "league.created": "Ligue créée.",
 
   /* ------------------------------------------------- fondamentaux (metrics) */
   "metric.valuation": "Valorisation",

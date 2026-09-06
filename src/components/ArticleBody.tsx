@@ -18,6 +18,15 @@ import { useMemo } from "react";
  * sautée reste une ligne sautée. Il n'y a plus de balisage, donc plus rien à
  * apprendre ni à échapper.
  *
+ * ⚠️ UNE EXCEPTION, ET ELLE VIENT DE LA BASE. `news_clean_text` applique
+ * `btrim()` au corps avant de l'enregistrer, et `btrim` retire les ESPACES aux
+ * deux bouts (pas les tabulations). L'indentation de la toute première ligne
+ * est donc perdue à l'écriture, avant que ce composant ne voie quoi que ce
+ * soit. Tout le reste passe : les retours à la ligne, les tirets, et
+ * l'indentation à l'intérieur du texte. La promesse tenue est celle-là, et
+ * rétablir la première ligne coûterait une migration pour un cas que personne
+ * n'a signalé.
+ *
  * ⚠️ CONSÉQUENCE ASSUMÉE : les articles déjà publiés avec l'ancienne syntaxe
  * affichent désormais leurs marques telles quelles. C'est le prix de la
  * fidélité demandée — les effacer en silence rétablirait exactement la règle
@@ -33,16 +42,28 @@ import { useMemo } from "react";
 /**
  * Découpe le corps en paragraphes sur les lignes vides.
  *
- * Le reste est laissé intact : les sauts de ligne simples et les espaces de
- * tête sont conservés à l'affichage par `whitespace-pre-wrap`, pas reconstruits
- * ici. Une ligne vide vaut donc un vrai changement de paragraphe (avec le
- * rythme vertical qui va avec), et un saut de ligne simple vaut un retour à la
- * ligne, ce qui est précisément ce qu'on lit dans le champ de saisie.
+ * Le reste est laissé intact : les sauts de ligne simples et l'indentation sont
+ * conservés à l'affichage par `whitespace-pre-wrap`, pas reconstruits ici. Une
+ * ligne vide vaut donc un vrai changement de paragraphe (avec le rythme
+ * vertical qui va avec), et un saut de ligne simple vaut un retour à la ligne,
+ * ce qui est précisément ce qu'on lit dans le champ de saisie.
+ *
+ * ⚠️ LA SÉPARATION SE RÉPÈTE : `\n(?:[ \t]*\n)+` et non `\n[ \t]*\n+`. Le
+ * second ne tolère des espaces que sur UNE ligne de séparation — après le
+ * premier `\n[ \t]*\n`, le `+` ne peut plus avaler que des sauts de ligne nus.
+ * Deux lignes « vides » portant chacune une espace laissaient donc le bloc
+ * suivant commencer par une ligne blanche, que `whitespace-pre-wrap` peint en
+ * plus de l'écart entre paragraphes : un trou de deux fois la hauteur, causé
+ * par des espaces invisibles dans le champ de saisie.
+ *
+ * Ne pas céder à `(?:\n[ \t]*){2,}`, qui semble équivalent : sa dernière
+ * itération mange les espaces de tête de la ligne suivante, et supprime donc
+ * l'indentation qui est désormais du contenu.
  */
 function paragraphs(content: string): string[] {
   return content
     .replace(/\r\n?/g, "\n")
-    .split(/\n[ \t]*\n+/)
+    .split(/\n(?:[ \t]*\n)+/)
     .map((block) => block.replace(/\s+$/, ""))
     .filter((block) => block.trim() !== "");
 }

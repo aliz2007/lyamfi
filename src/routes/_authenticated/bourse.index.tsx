@@ -468,6 +468,7 @@ function BoursePage() {
                   {l.ytd !== null && (
                     <p
                       title={t("bourse.ytdLabel")}
+                      aria-label={t("bourse.ytdLabel")}
                       className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground"
                     >
                       {f.pct(l.ytd)} {t("bourse.ytdSuffix")}

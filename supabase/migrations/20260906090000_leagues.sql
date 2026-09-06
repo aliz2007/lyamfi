@@ -234,6 +234,19 @@ BEGIN
     RAISE EXCEPTION 'not authenticated' USING ERRCODE = '42501';
   END IF;
 
+  -- L'administrateur principal ne concourt pas. C'est la règle du classement
+  -- général (cf. §9e du HANDOFF), et la faire respecter DÈS L'ADHÉSION est ce
+  -- qui garde les deux comptages d'accord : `league_list.members` compte les
+  -- portefeuilles de la ligue, `league_leaderboard` écarte l'administrateur.
+  -- S'il pouvait rejoindre, la vignette annoncerait un participant de plus que
+  -- le tableau n'en montre, et lui-même ouvrirait un classement où il ne
+  -- figure pas.
+  IF lower((SELECT u.email FROM auth.users u WHERE u.id = uid))
+     = public.principal_admin_email() THEN
+    RAISE EXCEPTION 'L''administrateur principal ne participe pas aux ligues'
+      USING ERRCODE = '42501';
+  END IF;
+
   SELECT * INTO lg FROM public.leagues WHERE id = p_league_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'ligue introuvable' USING ERRCODE = '22023';

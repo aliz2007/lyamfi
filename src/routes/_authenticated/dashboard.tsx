@@ -402,6 +402,7 @@ function IndexCard({
           {ytd !== null && (
             <span
               title={t("bourse.ytdLabel")}
+              aria-label={t("bourse.ytdLabel")}
               className="block whitespace-nowrap text-[11px] tabular-nums text-muted-foreground"
             >
               {f.pct(ytd)} {t("bourse.ytdSuffix")}

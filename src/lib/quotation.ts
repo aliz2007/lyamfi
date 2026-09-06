@@ -20,15 +20,26 @@ import { MASI20_TICKER, MASI_TICKER } from "@/lib/cse-symbols";
  *
  * TROIS ABSENCES, TOUTES VOLONTAIRES
  *
- *   * `S2M` ne figure pas dans le classeur — la seule valeur de la cote qui n'y
- *     soit pas, exactement comme pour les secteurs (cf. `lib/sectors.ts`). Elle
- *     n'a donc ni mode ni cours de référence.
- *   * `DIA` et `DLM` y figurent avec un mode mais un tiret à la place du cours :
- *     le classeur ne publie pas leur clôture. `close2025` vaut `null`, et la
- *     performance annuelle ne s'affiche pas pour elles.
- *   * Rien n'est déduit, rien n'est complété : une valeur absente du classeur
- *     reste absente. C'est la consigne, et c'est aussi ce qui rend la
- *     comparaison ligne à ligne avec le classeur possible.
+ *   * `DIA` et `DLM` figurent au classeur avec un mode mais un tiret à la place
+ *     du cours : il ne publie pas leur clôture. `close2025` vaut `null`, et la
+ *     performance annuelle ne s'affiche pas pour elles. Elles restent
+ *     filtrables par mode, et le tri par performance les renvoie en fin de
+ *     liste.
+ *   * `S2M` ne figure pas au classeur du tout — la seule valeur de la cote dans
+ *     ce cas. Elle n'a donc ni mode ni cours de référence.
+ *
+ * ⚠️ ET CE N'EST PAS CE QU'A FAIT `lib/sectors.ts`. Là-bas, S2M a reçu un
+ * secteur PAR DÉDUCTION (« technologies », le métier de HPS), avec un
+ * commentaire qui l'assume. Ici, non : la consigne du brief est de ne se baser
+ * que sur le fichier fourni, et un mode de cotation inventé affirmerait sur la
+ * Bourse un fait qu'on ne tient de nulle part — un secteur se raisonne, une
+ * procédure de cotation se lit.
+ *
+ * La conséquence est visible et il faut la connaître : S2M n'apparaît sous
+ * AUCUNE des deux pastilles de mode, ni « Continu » ni « Fixing ». Elle reste
+ * dans « Tous modes de cotation », qui est le réglage par défaut. Une ligne
+ * dans le classeur la ferait rentrer dans le rang ; c'est la seule chose qui
+ * manque, et elle appartient au propriétaire du classeur.
  */
 
 /** Les deux modes de cotation de la Bourse de Casablanca. */
@@ -57,7 +68,7 @@ type Listing = {
  * commentaire reprend le libellé du classeur pour que la relecture à l'œil
  * reste faisable. L'ordre est celui du classeur, secteur par secteur.
  */
-export const LISTING_BY_CODE: Readonly<Record<string, Listing>> = {
+const LISTING_BY_CODE: Readonly<Record<string, Listing>> = {
   /* ---------------------------------------------------- agro-alimentaire (7) */
   CRS: { mode: "continu", close2025: 34.03 }, // Cartier Saada
   CSR: { mode: "continu", close2025: 206.87 }, // Cosumar
@@ -175,7 +186,7 @@ export const LISTING_BY_CODE: Readonly<Record<string, Listing>> = {
  * Même traitement et même affichage que pour une valeur : c'est le même
  * calcul, sur la même référence.
  */
-export const INDEX_CLOSE_2025: Readonly<Record<string, number>> = {
+const INDEX_CLOSE_2025: Readonly<Record<string, number>> = {
   [MASI_TICKER]: 18846,
   [MASI20_TICKER]: 1485,
 };
@@ -187,10 +198,16 @@ export const quotationOf = (code: string): QuotationMode | null =>
 /**
  * La clôture du 31/12 d'une valeur ou d'un indice, `null` à défaut.
  *
- * Réservée au calcul de la performance annuelle : rien de ce que cette
- * fonction renvoie n'a vocation à atteindre l'écran.
+ * ⚠️ NON EXPORTÉE, et c'est ce qui tient la règle du haut de fichier. « Le
+ * cours du 31/12 ne s'affiche jamais » était un commentaire, donc une promesse
+ * qu'un `import` d'une ligne pouvait rompre depuis n'importe quelle route.
+ * Fermer le module la rend vraie par construction : ce qui sort d'ici est un
+ * écart en pourcentage, jamais le cours qui l'a produit.
+ *
+ * Les indices sont consultés d'abord : leurs codes ne sont pas des codes de
+ * société, et l'ordre lève l'ambiguïté d'avance si l'un venait à le devenir.
  */
-export const close2025Of = (code: string): number | null => {
+const close2025Of = (code: string): number | null => {
   const key = code.toUpperCase();
   return INDEX_CLOSE_2025[key] ?? LISTING_BY_CODE[key]?.close2025 ?? null;
 };
@@ -204,10 +221,10 @@ export const close2025Of = (code: string): number | null => {
  * fini qui se lirait comme un effondrement plutôt que comme une absence de
  * cotation. Un dénominateur nul est écarté pour la même raison.
  *
- * ⚠️ Le zéro est renormalisé avant d'être rendu. `Math.round(-0,29)` vaut `-0`,
- * et `Intl.NumberFormat` écrit un `-0` « -0,00 » : une valeur revenue à un
- * millième de sa clôture afficherait « -0,00 % YTD », une baisse qui n'a pas
- * eu lieu. Le signe est une information, il ne doit pas sortir de l'arrondi.
+ * Le zéro est renormalisé : `Math.round(-0,29)` vaut `-0`, qui n'a rien à faire
+ * dans une donnée qu'on trie et qu'on compare. Le garde qui compte pour
+ * l'affichage vit ailleurs — `pct()` dans `lib/format.ts`, sur le chemin commun
+ * à la variation du jour, à cette performance-ci et à la plus-value latente.
  */
 export function ytdPct(
   price: number | null | undefined,
