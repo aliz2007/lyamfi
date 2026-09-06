@@ -13,22 +13,39 @@ import { callRpc } from "@/lib/rpc";
  * que masquer l'interface : elles ne protègent rien à elles seules.
  *
  * Deux niveaux d'administration :
- *   - administrateur principal (lyamcorpo@gmail.com) : tout, y compris
- *     accorder ou retirer le rôle, redéfinir un mot de passe et supprimer un
- *     compte. La base le reconnaît par `is_principal_admin()`.
+ *   - administrateur principal : tout, y compris accorder ou retirer le rôle,
+ *     redéfinir un mot de passe et supprimer un compte. Ils sont DEUX, désignés
+ *     par leur adresse et non par un rôle en base ; c'est
+ *     `is_principal_admin()` qui fait foi côté base.
  *   - administrateur secondaire : consultation des comptes et de leur
  *     activité, rien d'autre.
  */
 
-/** Adresse de l'administrateur principal, dupliquée côté base dans `principal_admin_email()`. */
-export const PRINCIPAL_ADMIN_EMAIL = "lyamcorpo@gmail.com";
+/**
+ * Les administrateurs principaux, en minuscules.
+ *
+ * ⚠️ CETTE LISTE EST DUPLIQUÉE EN BASE, dans `principal_admin_emails()`. Les
+ * deux doivent bouger ensemble : celle-ci décide des boutons affichés, celle de
+ * la base décide de ce qui s'exécute. Les désaccorder ne crée pas de faille — la
+ * base tranche toujours — mais donne une interface qui ment, avec des commandes
+ * visibles qui échouent, ou absentes alors qu'elles marcheraient.
+ *
+ * C'est une constante et non un rôle administrable, et c'est voulu : cette
+ * qualité est ce qui autorise à accorder les rôles, à redéfinir un mot de passe
+ * et à supprimer un compte. Rangée en base comme une simple ligne, elle
+ * pourrait être effacée — et plus personne ne pourrait la rétablir.
+ */
+export const PRINCIPAL_ADMIN_EMAILS = [
+  "lyamcorpo@gmail.com",
+  "ali.zaidane.2007@gmail.com",
+] as const;
 
 /**
- * Vrai si l'adresse est celle de l'administrateur principal.
+ * Vrai si l'adresse est celle d'un administrateur principal.
  * Sert uniquement à afficher ou masquer les commandes : la base revérifie.
  */
 export const isPrincipalAdminEmail = (email: string | null | undefined) =>
-  (email ?? "").trim().toLowerCase() === PRINCIPAL_ADMIN_EMAIL;
+  (PRINCIPAL_ADMIN_EMAILS as readonly string[]).includes((email ?? "").trim().toLowerCase());
 
 export type AdminUserRow = {
   user_id: string;

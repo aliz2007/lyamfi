@@ -2,7 +2,9 @@
 
 _Written 2026-08-18, last revised 2026-09-06. Everything below was read from the source and, where marked ✅, executed._
 
-> **Latest change (2026-09-06):** three things from the owner's 05/09 brief. **Ligues privées** (§9j): closed contests, each with its own dates, its own funding and its own ranking, played through a **second virtual portfolio** the Classement page opens for you and the Portefeuille page lets you switch to. **Perf YTD and the quotation mode** (§5, §9k): the sector workbook gained a 31/12 close and a Continu/Fixing column, so every card, the two index cards on the dashboard and the detail page now carry the year alongside the day, and `/bourse` filters and sorts on both. **Articles are printed as typed** (§9f): the markdown dialect is gone — a dash is a dash, a blank line is a blank line. **One migration to run:** see §12.
+> **Latest change (2026-09-06, later):** **a second principal administrator.** `ali.zaidane.2007@gmail.com` joins `lyamcorpo@gmail.com` at the top tier (§9c). It is a migration and not a button, on purpose. **One more migration to run:** see §12.
+>
+> _2026-09-06:_ three things from the owner's 05/09 brief. **Ligues privées** (§9j): closed contests, each with its own dates, its own funding and its own ranking, played through a **second virtual portfolio** the Classement page opens for you and the Portefeuille page lets you switch to. **Perf YTD and the quotation mode** (§5, §9k): the sector workbook gained a 31/12 close and a Continu/Fixing column, so every card, the two index cards on the dashboard and the detail page now carry the year alongside the day, and `/bourse` filters and sorts on both. **Articles are printed as typed** (§9f): the markdown dialect is gone — a dash is a dash, a blank line is a blank line. **One migration to run:** see §12.
 >
 > _2026-09-01:_ a **mobile pass across the whole product** (§9i) — the login button restored to the public header, the horizontal overflow on `/bourse` traced to its real cause and fixed, filter chips moved into snap-scrolling strips, tap targets brought to 36 px, the vertical rhythm tightened, and the ticker tape taken off the critical path. Also: the sector table **re-cut from the owner's own workbook** (§5), and the natural-gas card moved off a symbol TradingView does not serve (§9h). **No SQL:** see §12.
 >
@@ -358,6 +360,12 @@ Adding a string: put it in `fr.ts`, then in `en.ts`. TypeScript will not compile
 ---
 
 ## 9c. Two tiers of administrator
+
+> **Two accounts hold the principal tier since 2026-09-06:** `lyamcorpo@gmail.com` and `ali.zaidane.2007@gmail.com`. The list lives in `principal_admin_emails()` in the database and `PRINCIPAL_ADMIN_EMAILS` in `src/lib/admin.ts`, and **the two must be edited together** — the database decides what executes, the client decides what renders, and disagreeing gives an interface that lies rather than a hole.
+>
+> **Why an e-mail and not a role.** The principal tier is what authorises granting roles, resetting passwords and deleting accounts. Stored as a row, it could be deleted — by accident, or by whoever just obtained it — and nobody could restore it. Hardcoding costs a migration and a deploy per change, which is the point.
+>
+> ⚠️ **A principal administrator does not compete.** They are excluded from the Classement Général, excluded from every league ranking, and `league_join` refuses them (§9e, §9j). Adding an account to the list therefore removes it from the leaderboard. If a principal administrator should still play, the exclusion has to become a separate list from the powers — one clause in three functions, not a rewrite.
 
 Requested so customer support can be delegated without handing over the keys.
 
@@ -742,7 +750,26 @@ The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not
 
 ## 12. What to run in the Supabase SQL editor
 
-### 2026-09-06 (current): one migration
+### 2026-09-06 (current): two migrations, in order
+
+`supabase/migrations/20260906100000_second_principal_admin.sql` promotes `ali.zaidane.2007@gmail.com` to principal administrator alongside `lyamcorpo@gmail.com` (§9c). It replaces `principal_admin_email()` (one address) with `principal_admin_emails()` (a `text[]`), rewrites `is_principal_admin`, `leaderboard`, `league_leaderboard` and `league_join` to test membership of that array, and back-fills the `admin` role for both addresses. **`PRINCIPAL_ADMIN_EMAILS` in `src/lib/admin.ts` carries the same list and must move with it.**
+
+Run it after the leagues migration below, or just paste `supabase/setup.sql`, which folds both in and was applied twice to a throwaway PostgreSQL 16.
+
+Checking it landed:
+
+```sql
+select u.email,
+       public.is_principal_admin(u.id) as principal,
+       public.is_admin(u.id)           as admin
+from auth.users u
+where lower(u.email) = any (public.principal_admin_emails())
+order by u.email;
+```
+
+Both rows must read `t` / `t`. A principal administrator needs the `admin` role too: `is_admin()` is what opens the console, the article form and the league form, and the two notions are independent in the database.
+
+### 2026-09-06: the leagues migration
 
 `supabase/migrations/20260906090000_leagues.sql`. Paste that file, or the whole of `supabase/setup.sql`, which folds every migration in. Both are re-runnable, and both were applied twice to a throwaway PostgreSQL 16 before shipping.
 
