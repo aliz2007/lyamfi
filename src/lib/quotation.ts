@@ -203,6 +203,11 @@ export const close2025Of = (code: string): number | null => {
  * non cotée du jour arrive à zéro, et « 0 ÷ 34,03 » est un −100 % parfaitement
  * fini qui se lirait comme un effondrement plutôt que comme une absence de
  * cotation. Un dénominateur nul est écarté pour la même raison.
+ *
+ * ⚠️ Le zéro est renormalisé avant d'être rendu. `Math.round(-0,29)` vaut `-0`,
+ * et `Intl.NumberFormat` écrit un `-0` « -0,00 » : une valeur revenue à un
+ * millième de sa clôture afficherait « -0,00 % YTD », une baisse qui n'a pas
+ * eu lieu. Le signe est une information, il ne doit pas sortir de l'arrondi.
  */
 export function ytdPct(
   price: number | null | undefined,
@@ -210,7 +215,8 @@ export function ytdPct(
 ): number | null {
   if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) return null;
   if (typeof close2025 !== "number" || !Number.isFinite(close2025) || close2025 <= 0) return null;
-  return Math.round(((price - close2025) / close2025) * 10000) / 100;
+  const pct = Math.round(((price - close2025) / close2025) * 10000) / 100;
+  return pct === 0 ? 0 : pct;
 }
 
 /** La performance annuelle d'une valeur ou d'un indice à son cours du moment. */
