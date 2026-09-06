@@ -6,6 +6,7 @@ import {
   ArrowDownWideNarrow,
   ArrowUp,
   ArrowUpNarrowWide,
+  CalendarRange,
   Search,
   Star,
 } from "lucide-react";
@@ -24,6 +25,13 @@ import { EMPTY, useFormat } from "@/lib/format";
 import { Sparkline } from "@/components/Sparkline";
 import { CSE_SYMBOLS } from "@/lib/cse-symbols";
 import { CATCH_ALL_SECTOR, SECTORS, sectorKey, sectorOf, type SectorId } from "@/lib/sectors";
+import {
+  QUOTATION_MODES,
+  quotationKey,
+  quotationOf,
+  ytdOf,
+  type QuotationMode,
+} from "@/lib/quotation";
 import { useFavourites } from "@/lib/favourites";
 import { MarketSessionBadge } from "@/components/MarketSessionBadge";
 import { chartSeries, recentHistoryQuery, useRecordDailyQuotes } from "@/lib/quotes.history";
@@ -61,12 +69,15 @@ const CAPS: { id: string; label: Key }[] = [
  * plus concret de la page : voir d'un coup les plus fortes hausses ou les
  * plus fortes baisses de la séance. « perAsc » et « dyDesc » sont les deux
  * lectures classiques d'un écran de valorisation : le moins cher payé pour un
- * bénéfice, le mieux rémunéré en dividende.
+ * bénéfice, le mieux rémunéré en dividende. « ytdDesc » sort de la séance et
+ * lit l'année : c'est la question que pose un classeur de performance, et la
+ * seule des huit dont les valeurs sans donnée ferment la liste.
  */
 const SORTS = [
   "default",
   "changeDesc",
   "changeAsc",
+  "ytdDesc",
   "perAsc",
   "dyDesc",
   "capDesc",
@@ -78,6 +89,7 @@ const SORT_LABEL: Record<Sort, Key> = {
   default: "bourse.sortDefault",
   changeDesc: "bourse.sortChangeDesc",
   changeAsc: "bourse.sortChangeAsc",
+  ytdDesc: "bourse.sortYtdDesc",
   perAsc: "bourse.sortPerAsc",
   dyDesc: "bourse.sortDyDesc",
   capDesc: "bourse.sortCapDesc",
@@ -134,6 +146,7 @@ function BoursePage() {
 
   const [sector, setSector] = useState<SectorId | "all">("all");
   const [cap, setCap] = useState("all");
+  const [quotation, setQuotation] = useState<QuotationMode | "all">("all");
   const [sort, setSort] = useState<Sort>("default");
   const [onlyFavourites, setOnlyFavourites] = useState(false);
   const [q, setQ] = useState("");
@@ -179,8 +192,13 @@ function BoursePage() {
           // celle-ci n'a jamais porté que vingt sociétés de démonstration, ce
           // qui laissait soixante valeurs sans secteur et vidait les filtres.
           sector: sectorOf(code),
+          // Mode de cotation et performance annuelle viennent du même classeur
+          // que le secteur (`lib/quotation.ts`). Le cours du 31/12 qui sert au
+          // calcul reste dans ce module : seul l'écart qu'il mesure sort ici.
+          quotation: quotationOf(code),
           price,
           changePct: live?.changePct ?? null,
+          ytd: ytdOf(code, price),
           marketCap: metrics?.shares != null && price != null ? metrics.shares * price : null,
           covered: hasFundamentals(metrics),
           // Gardés à part des indicateurs mis en forme : le tri a besoin des
@@ -210,15 +228,16 @@ function BoursePage() {
               (cap === "mid" && mc >= 5e9 && mc <= 20e9) ||
               (cap === "small" && mc < 5e9)));
         const sectorOk = sector === "all" || l.sector === sector;
+        const quotationOk = quotation === "all" || l.quotation === quotation;
         const favouriteOk = !onlyFavourites || favourites.codes.has(l.code);
         const needle = q.trim().toLowerCase();
         const qOk =
           !needle ||
           l.title.toLowerCase().includes(needle) ||
           l.code.toLowerCase().includes(needle);
-        return capOk && sectorOk && favouriteOk && qOk;
+        return capOk && sectorOk && quotationOk && favouriteOk && qOk;
       }),
-    [listings, cap, sector, q, onlyFavourites, favourites.codes],
+    [listings, cap, sector, quotation, q, onlyFavourites, favourites.codes],
   );
 
   /**
@@ -234,6 +253,20 @@ function BoursePage() {
     }
     if (sort === "capDesc") {
       return rows.sort((a, b) => (b.marketCap ?? -1) - (a.marketCap ?? -1));
+    }
+    if (sort === "ytdDesc") {
+      // Une valeur sans clôture du 31/12 dans le classeur n'a pas de
+      // performance annuelle : elle ferme la liste plutôt que de s'y glisser
+      // à zéro, qui se lirait comme une année blanche et non comme une donnée
+      // absente.
+      return rows.sort((a, b) => {
+        const av = a.ytd;
+        const bv = b.ytd;
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return bv - av;
+      });
     }
     if (sort === "perAsc") {
       // Un PER négatif ou nul ne signale pas une valeur bon marché mais une
@@ -270,7 +303,7 @@ function BoursePage() {
     });
   }, [filtered, sort, locale]);
 
-  useEffect(() => setLimit(PAGE), [q, sector, cap, sort, onlyFavourites]);
+  useEffect(() => setLimit(PAGE), [q, sector, cap, quotation, sort, onlyFavourites]);
 
   const coveredCount = listings.filter((l) => l.covered).length;
   const up = filtered.filter((l) => (l.changePct ?? 0) > 0).length;
@@ -326,10 +359,27 @@ function BoursePage() {
           ))}
         </div>
 
-        <div className="chip-row scrollbar-hide">
+        {/* Le mode de cotation partage la bande des capitalisations plutôt que
+            d'en ouvrir une quatrième. Quinze secteurs, quatre capitalisations
+            et huit tris tiennent déjà trois bandes sur téléphone (cf. §9i) ;
+            une de plus repousserait les cartes d'autant. Les deux familles
+            sont des listes courtes de pastilles exclusives entre elles, et le
+            filet qui les sépare est celui qui marque déjà cette jonction plus
+            bas, devant les favoris. */}
+        <div className="chip-row scrollbar-hide items-center">
           {CAPS.map((c) => (
             <Chip key={c.id} active={cap === c.id} onClick={() => setCap(c.id)}>
               {t(c.label)}
+            </Chip>
+          ))}
+
+          <span aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
+          <Chip active={quotation === "all"} onClick={() => setQuotation("all")}>
+            {t("bourse.allQuotations")}
+          </Chip>
+          {QUOTATION_MODES.map((m) => (
+            <Chip key={m} active={quotation === m} onClick={() => setQuotation(m)}>
+              {t(quotationKey(m))}
             </Chip>
           ))}
         </div>
@@ -343,6 +393,7 @@ function BoursePage() {
               <span className="inline-flex items-center gap-1.5">
                 {s === "changeDesc" && <ArrowUp className="h-3 w-3" />}
                 {s === "changeAsc" && <ArrowDown className="h-3 w-3" />}
+                {s === "ytdDesc" && <CalendarRange className="h-3 w-3" />}
                 {s === "perAsc" && <ArrowUpNarrowWide className="h-3 w-3" />}
                 {s === "dyDesc" && <ArrowDownWideNarrow className="h-3 w-3" />}
                 {t(SORT_LABEL[s])}
@@ -409,6 +460,19 @@ function BoursePage() {
                   >
                     {l.changePct === null ? EMPTY : f.pct(l.changePct)}
                   </p>
+                  {/* La performance annuelle se lit sous celle du jour, en plus
+                      petit et sans couleur : c'est un repère, pas la mesure que
+                      la carte est venue donner. Sans clôture du 31/12 au
+                      classeur, le bloc ne s'affiche pas du tout — un « N/A »
+                      dirait qu'on a cherché et trouvé zéro. */}
+                  {l.ytd !== null && (
+                    <p
+                      title={t("bourse.ytdLabel")}
+                      className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground"
+                    >
+                      {f.pct(l.ytd)} {t("bourse.ytdSuffix")}
+                    </p>
+                  )}
                 </div>
               </div>
 

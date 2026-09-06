@@ -18,6 +18,7 @@ import { useFormat, type Formatter } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { getLiveQuotes, type LiveQuote } from "@/lib/quotes.functions";
 import { isIndexTicker, MASI20_TICKER, MASI_TICKER, tradingViewUrl } from "@/lib/cse-symbols";
+import { ytdOf } from "@/lib/quotation";
 import { useAuth } from "@/hooks/useAuth";
 import { greetingName, myProfileQuery } from "@/lib/profile";
 import { useRecordDailyQuotes } from "@/lib/quotes.history";
@@ -197,6 +198,7 @@ function Dashboard() {
           label={t("dash.masi")}
           caption={t("dash.masiFull")}
           quote={masi ?? null}
+          ytd={ytdOf(MASI_TICKER, masi?.price)}
           href={tradingViewUrl(MASI_TICKER)}
           f={f}
           t={t}
@@ -205,6 +207,7 @@ function Dashboard() {
           label={t("dash.masi20")}
           caption={t("dash.masi20Full")}
           quote={masi20 ?? null}
+          ytd={ytdOf(MASI20_TICKER, masi20?.price)}
           href={tradingViewUrl(MASI20_TICKER)}
           f={f}
           t={t}
@@ -346,6 +349,7 @@ function IndexCard({
   label,
   caption,
   quote,
+  ytd,
   href,
   f,
   t,
@@ -353,6 +357,8 @@ function IndexCard({
   label: string;
   caption: string;
   quote: LiveQuote | null;
+  /** Performance depuis le 1ᵉʳ janvier, `null` sans cotation du jour. */
+  ytd: number | null;
   href: string;
   f: Formatter;
   t: Translate;
@@ -378,16 +384,29 @@ function IndexCard({
       </div>
       <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 text-xs">
         <span className="text-muted-foreground">{caption}</span>
-        <span
-          className={`tabular-nums ${
-            !quote
-              ? "text-muted-foreground"
-              : quote.changePct >= 0
-                ? "text-[var(--success)]"
-                : "text-destructive"
-          }`}
-        >
-          {quote ? f.pct(quote.changePct) : t("dash.indexUnavailable")}
+        {/* Variation du jour, puis l'année en dessous : même disposition et
+            même discrétion que sur une vignette de la cote, parce que c'est le
+            même calcul sur la même référence. Sans cotation, pas de ligne. */}
+        <span className="text-right">
+          <span
+            className={`block tabular-nums ${
+              !quote
+                ? "text-muted-foreground"
+                : quote.changePct >= 0
+                  ? "text-[var(--success)]"
+                  : "text-destructive"
+            }`}
+          >
+            {quote ? f.pct(quote.changePct) : t("dash.indexUnavailable")}
+          </span>
+          {ytd !== null && (
+            <span
+              title={t("bourse.ytdLabel")}
+              className="block whitespace-nowrap text-[11px] tabular-nums text-muted-foreground"
+            >
+              {f.pct(ytd)} {t("bourse.ytdSuffix")}
+            </span>
+          )}
         </span>
       </div>
       <span className="mt-3 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors group-hover:text-foreground">
