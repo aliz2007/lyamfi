@@ -210,10 +210,6 @@ export const en: Record<keyof typeof fr, string> = {
     "All {total} listed stocks, with their live price. The {covered} with published fundamentals appear first. An indicator that has not been published is left out rather than filled with a placeholder.",
   "bourse.searchPlaceholder": "Search for a stock or ticker",
   "bourse.allSectors": "All sectors",
-  "bourse.capAll": "All market caps",
-  "bourse.capLarge": "> MAD 20bn",
-  "bourse.capMid": "MAD 5bn to 20bn",
-  "bourse.capSmall": "< MAD 5bn",
   "bourse.sortBy": "Sort by",
   "bourse.sortDefault": "Relevance",
   "bourse.sortChangeDesc": "Change: biggest gainers",
@@ -270,6 +266,12 @@ export const en: Record<keyof typeof fr, string> = {
   "stock.backToList": "Back to the listings",
   "stock.liveChart": "Live price (TradingView)",
   "stock.valuation": "Fundamental valuation",
+
+  /* ---------------------------------------------------------- shareholding */
+  "share.title": "Ownership structure",
+  "share.holdersUnit": "shareholders",
+  "share.details": "Position details",
+  "share.none": "Ownership data is not available for this stock.",
 
   /* ------------------------------------------------------------- portfolio */
   "pf.title": "Virtual portfolio",

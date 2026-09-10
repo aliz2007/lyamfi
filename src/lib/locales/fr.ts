@@ -213,10 +213,6 @@ export const fr = {
     "Les {total} valeurs cotées, avec leur cours en direct. Les {covered} dont les fondamentaux sont publiés apparaissent en premier. Un indicateur non publié n'est pas affiché plutôt que d'être rempli par une valeur factice.",
   "bourse.searchPlaceholder": "Rechercher une valeur ou un ticker",
   "bourse.allSectors": "Tous secteurs",
-  "bourse.capAll": "Toutes capitalisations",
-  "bourse.capLarge": "> 20 Md MAD",
-  "bourse.capMid": "5 à 20 Md MAD",
-  "bourse.capSmall": "< 5 Md MAD",
   "bourse.sortBy": "Trier par",
   "bourse.sortDefault": "Pertinence",
   "bourse.sortChangeDesc": "Variation : plus fortes hausses",
@@ -274,6 +270,12 @@ export const fr = {
   "stock.backToList": "Retour aux valeurs",
   "stock.liveChart": "Cours en direct (TradingView)",
   "stock.valuation": "Valorisation fondamentale",
+
+  /* ---------------------------------------------------------- actionnariat */
+  "share.title": "Structure actionnariale",
+  "share.holdersUnit": "actionnaires",
+  "share.details": "Détail des positions",
+  "share.none": "Données non disponibles pour cette valeur.",
 
   /* ---------------------------------------------------------- portefeuille */
   "pf.title": "Portefeuille virtuel",
