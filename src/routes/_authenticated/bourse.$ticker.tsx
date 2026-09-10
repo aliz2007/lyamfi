@@ -12,6 +12,7 @@ import { Disclaimer } from "@/components/Disclaimer";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
 import { ytdOf } from "@/lib/quotation";
+import { ShareholdingCard } from "@/components/ShareholdingCard";
 import { useI18n, type Key, type Translate } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/bourse/$ticker")({
@@ -126,8 +127,16 @@ function StockPage() {
         </div>
       </header>
 
-      {/* ------------------------------------------------------- graphique */}
-      {/*
+      {/* Fiche en deux colonnes sur grand écran : le graphique et les
+          fondamentaux gardent huit douzièmes, l'actionnariat se pose en barre
+          latérale à droite. `min-w-0` sur les deux pistes : un nom
+          d'actionnaire long a la même vertu expansive qu'un nom de société
+          (cf. §9i), et la colonne de droite ne doit pas élargir la page. Sur
+          téléphone, tout repasse en une seule colonne. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="min-w-0 space-y-6 sm:space-y-8 lg:col-span-8">
+          {/* -------------------------------------------------- graphique */}
+          {/*
         Graphique TradingView, chargé dans la page. Il apporte l'historique
         complet et les outils d'analyse, ce qu'une série reconstruite depuis
         les fenêtres de performance ne pouvait pas égaler.
@@ -136,68 +145,83 @@ function StockPage() {
         renvoyait vers tradingview.com au lieu d'ouvrir une fiche. Ce point
         reste réglé, les vignettes mènent bien ici.
       */}
-      <section className="glass glass-gold overflow-hidden p-2 sm:p-3">
-        <TradingViewWidget
-          key={`${code}-${locale}`}
-          widget="advanced-chart"
-          className="h-[460px] w-full sm:h-[520px]"
-          config={{
-            symbol: `CSEMA:${code}`,
-            interval: "D",
-            range: "12M",
-            timezone: "Africa/Casablanca",
-            theme: "dark",
-            style: "3",
-            locale: locale === "en-GB" ? "en" : "fr",
-            backgroundColor: "rgba(0, 0, 0, 0)",
-            gridColor: "rgba(255, 255, 255, 0.05)",
-            hide_side_toolbar: true,
-            hide_top_toolbar: false,
-            allow_symbol_change: false,
-            withdateranges: true,
-            save_image: false,
-            autosize: true,
-          }}
-        />
-      </section>
+          <section className="glass glass-gold overflow-hidden p-2 sm:p-3">
+            <TradingViewWidget
+              key={`${code}-${locale}`}
+              widget="advanced-chart"
+              className="h-[460px] w-full sm:h-[520px]"
+              config={{
+                symbol: `CSEMA:${code}`,
+                interval: "D",
+                range: "12M",
+                timezone: "Africa/Casablanca",
+                theme: "dark",
+                style: "3",
+                locale: locale === "en-GB" ? "en" : "fr",
+                backgroundColor: "rgba(0, 0, 0, 0)",
+                gridColor: "rgba(255, 255, 255, 0.05)",
+                hide_side_toolbar: true,
+                hide_top_toolbar: false,
+                allow_symbol_change: false,
+                withdateranges: true,
+                save_image: false,
+                autosize: true,
+              }}
+            />
+          </section>
 
-      <p className="-mt-4 text-xs text-muted-foreground">{t("stock.historySource")}</p>
+          <p className="-mt-4 text-xs text-muted-foreground">{t("stock.historySource")}</p>
 
-      {/* --------------------------------------------- données fondamentales */}
-      <section>
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="text-lg font-semibold">{t("metric.title")}</h2>
-          {groups.length > 0 && (
-            <p className="text-xs text-muted-foreground">{t("metric.liveNote")}</p>
+          {/* --------------------------------------------- données fondamentales */}
+          <section>
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 className="text-lg font-semibold">{t("metric.title")}</h2>
+              {groups.length > 0 && (
+                <p className="text-xs text-muted-foreground">{t("metric.liveNote")}</p>
+              )}
+            </div>
+
+            {groups.length === 0 ? (
+              <p className="glass mt-4 p-5 text-sm leading-relaxed text-muted-foreground">
+                {t("metric.none")}
+              </p>
+            ) : (
+              <div className="mt-5 space-y-7">
+                {/* Un groupe vide n'est pas produit, donc pas de titre orphelin. */}
+                {groups.map((group) => (
+                  <div key={group.title}>
+                    <p className="eyebrow">{t(group.title)}</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {group.metrics.map((metric) => (
+                        <MetricCard
+                          key={metric.label}
+                          metric={metric}
+                          label={t(metric.label)}
+                          f={f}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {stock?.description && (
+            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              {stock.description}
+            </p>
           )}
         </div>
 
-        {groups.length === 0 ? (
-          <p className="glass mt-4 p-5 text-sm leading-relaxed text-muted-foreground">
-            {t("metric.none")}
-          </p>
-        ) : (
-          <div className="mt-5 space-y-7">
-            {/* Un groupe vide n'est pas produit, donc pas de titre orphelin. */}
-            {groups.map((group) => (
-              <div key={group.title}>
-                <p className="eyebrow">{t(group.title)}</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {group.metrics.map((metric) => (
-                    <MetricCard key={metric.label} metric={metric} label={t(metric.label)} f={f} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {stock?.description && (
-        <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          {stock.description}
-        </p>
-      )}
+        {/* Actionnariat : barre latérale sur grand écran, dernière section
+            sur téléphone. La carte se suffit à elle-même : sans données
+            d'actionnariat pour la valeur, elle affiche sa mention discrète
+            et ne casse jamais la page (cf. §9i pour le `min-w-0`). */}
+        <div className="min-w-0 lg:col-span-4">
+          <ShareholdingCard code={code} />
+        </div>
+      </div>
 
       <Disclaimer />
     </div>
