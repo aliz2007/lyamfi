@@ -57,13 +57,6 @@ export const Route = createFileRoute("/_authenticated/bourse/")({
   component: BoursePage,
 });
 
-const CAPS: { id: string; label: Key }[] = [
-  { id: "all", label: "bourse.capAll" },
-  { id: "large", label: "bourse.capLarge" },
-  { id: "mid", label: "bourse.capMid" },
-  { id: "small", label: "bourse.capSmall" },
-];
-
 /**
  * Tris disponibles. « changeDesc » et « changeAsc » répondent au besoin le
  * plus concret de la page : voir d'un coup les plus fortes hausses ou les
@@ -145,7 +138,6 @@ function BoursePage() {
   }, [tvHistory, recordedByCode]);
 
   const [sector, setSector] = useState<SectorId | "all">("all");
-  const [cap, setCap] = useState("all");
   const [quotation, setQuotation] = useState<QuotationMode | "all">("all");
   const [sort, setSort] = useState<Sort>("default");
   const [onlyFavourites, setOnlyFavourites] = useState(false);
@@ -220,13 +212,6 @@ function BoursePage() {
   const filtered = useMemo(
     () =>
       listings.filter((l) => {
-        const mc = l.marketCap ?? 0;
-        const capOk =
-          cap === "all" ||
-          (l.marketCap !== null &&
-            ((cap === "large" && mc > 20e9) ||
-              (cap === "mid" && mc >= 5e9 && mc <= 20e9) ||
-              (cap === "small" && mc < 5e9)));
         const sectorOk = sector === "all" || l.sector === sector;
         const quotationOk = quotation === "all" || l.quotation === quotation;
         const favouriteOk = !onlyFavourites || favourites.codes.has(l.code);
@@ -235,9 +220,9 @@ function BoursePage() {
           !needle ||
           l.title.toLowerCase().includes(needle) ||
           l.code.toLowerCase().includes(needle);
-        return capOk && sectorOk && quotationOk && favouriteOk && qOk;
+        return sectorOk && quotationOk && favouriteOk && qOk;
       }),
-    [listings, cap, sector, quotation, q, onlyFavourites, favourites.codes],
+    [listings, sector, quotation, q, onlyFavourites, favourites.codes],
   );
 
   /**
@@ -303,7 +288,7 @@ function BoursePage() {
     });
   }, [filtered, sort, locale]);
 
-  useEffect(() => setLimit(PAGE), [q, sector, cap, quotation, sort, onlyFavourites]);
+  useEffect(() => setLimit(PAGE), [q, sector, quotation, sort, onlyFavourites]);
 
   const coveredCount = listings.filter((l) => l.covered).length;
   const up = filtered.filter((l) => (l.changePct ?? 0) > 0).length;
@@ -342,12 +327,12 @@ function BoursePage() {
           />
         </div>
 
-        {/* Quinze secteurs, quatre capitalisations, sept tris : empilés, ils
-            occupaient quatre lignes et repoussaient les cartes sous la ligne
-            de flottaison du téléphone. Chaque famille glisse maintenant dans
-            sa propre bande, qui ne peut plus élargir la page (cf. `chip-row`
-            dans styles.css), et redevient un simple retour à la ligne dès la
-            tablette. */}
+        {/* Quinze secteurs, deux modes de cotation, huit tris : empilés, ils
+            occupaient plusieurs lignes et repoussaient les cartes sous la
+            ligne de flottaison du téléphone. Chaque famille glisse maintenant
+            dans sa propre bande, qui ne peut plus élargir la page (cf.
+            `chip-row` dans styles.css), et redevient un simple retour à la
+            ligne dès la tablette. */}
         <div className="chip-row scrollbar-hide">
           <Chip active={sector === "all"} onClick={() => setSector("all")}>
             {t("bourse.allSectors")}
@@ -359,21 +344,11 @@ function BoursePage() {
           ))}
         </div>
 
-        {/* Le mode de cotation partage la bande des capitalisations plutôt que
-            d'en ouvrir une quatrième. Quinze secteurs, quatre capitalisations
-            et huit tris tiennent déjà trois bandes sur téléphone (cf. §9i) ;
-            une de plus repousserait les cartes d'autant. Les deux familles
-            sont des listes courtes de pastilles exclusives entre elles, et le
-            filet qui les sépare est celui qui marque déjà cette jonction plus
-            bas, devant les favoris. */}
+        {/* Le filtre par capitalisation a été retiré à la demande du
+            commanditaire : la capitalisation reste lisible par le tri
+            « capDesc » ci-dessous, et la bande des modes de cotation garde
+            seule cette ligne. */}
         <div className="chip-row scrollbar-hide items-center">
-          {CAPS.map((c) => (
-            <Chip key={c.id} active={cap === c.id} onClick={() => setCap(c.id)}>
-              {t(c.label)}
-            </Chip>
-          ))}
-
-          <span aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
           <Chip active={quotation === "all"} onClick={() => setQuotation("all")}>
             {t("bourse.allQuotations")}
           </Chip>
@@ -403,7 +378,7 @@ function BoursePage() {
 
           {/* Le filtre Favoris se pose au bout des tris, séparé par un trait :
               ce n'est pas un tri de plus mais une restriction de la liste, et
-              il se combine avec le secteur, la capitalisation et la recherche. */}
+              il se combine avec le secteur, la cotation et la recherche. */}
           <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
           <Chip active={onlyFavourites} onClick={() => setOnlyFavourites((v) => !v)}>
             <span className="inline-flex items-center gap-1.5">

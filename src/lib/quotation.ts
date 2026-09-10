@@ -135,7 +135,7 @@ const LISTING_BY_CODE: Readonly<Record<string, Listing>> = {
   TGC: { mode: "continu", close2025: 936.25 }, // TGCC
 
   /* --------------------------------------------------------------- mines (3) */
-  MNG: { mode: "continu", close2025: 6083.27 }, // Managem
+  MNG: { mode: "continu", close2025: 640 }, // Managem — 640 DH au 31/12/2025 (le 6083,27 du classeur était une erreur)
   CMT: { mode: "continu", close2025: 1839.46 }, // Minière de Touissit
   REB: { mode: "fixing", close2025: 106.3 }, // Rebab Company
 
