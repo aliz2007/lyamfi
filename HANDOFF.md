@@ -1,8 +1,10 @@
 # Lyamfi: Codebase Handoff
 
-_Written 2026-08-18, last revised 2026-09-06. Everything below was read from the source and, where marked ✅, executed._
+_Written 2026-08-18, last revised 2026-09-10. Everything below was read from the source and, where marked ✅, executed._
 
-> **Latest change (2026-09-06, later):** **a second principal administrator.** `ali.zaidane.2007@gmail.com` joins `lyamcorpo@gmail.com` at the top tier (§9c). It is a migration and not a button, on purpose. **One more migration to run:** see §12.
+> **Latest change (2026-09-10):** **the Actionnariat card** (§9l): every stock sheet now carries the shareholding structure — a Recharts donut, the count of named shareholders at its centre, and the detail of positions — fed from `src/lib/shareholders.ts`, a third workbook transcribed to code after sectors and quotation modes. Also from the same brief: **Managem's 31/12 close corrected to 640** (the workbook's 6 083,27 was an error) and the **capitalisation filter chips removed** from `/bourse` (the cap-descending sort stays). **No SQL to run:** see §12.
+>
+> _2026-09-06, later:_ **a second principal administrator.** `ali.zaidane.2007@gmail.com` joins `lyamcorpo@gmail.com` at the top tier (§9c). It is a migration and not a button, on purpose. **One more migration to run:** see §12.
 >
 > _2026-09-06:_ three things from the owner's 05/09 brief. **Ligues privées** (§9j): closed contests, each with its own dates, its own funding and its own ranking, played through a **second virtual portfolio** the Classement page opens for you and the Portefeuille page lets you switch to. **Perf YTD and the quotation mode** (§5, §9k): the sector workbook gained a 31/12 close and a Continu/Fixing column, so every card, the two index cards on the dashboard and the detail page now carry the year alongside the day, and `/bourse` filters and sorts on both. **Articles are printed as typed** (§9f): the markdown dialect is gone — a dash is a dash, a blank line is a blank line. **One migration to run:** see §12.
 >
@@ -24,17 +26,17 @@ A French-language financial-education platform for the **Bourse de Casablanca (B
 
 Eight surfaces:
 
-| Surface       | Route                            | What it does                                                                                   |
-| ------------- | -------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Landing       | `/`                              | Value prop, 4 module teasers, sign-up CTA                                                      |
-| Dashboard     | `/dashboard`                     | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress                 |
-| Bourse        | `/bourse`, `/bourse/$ticker`     | 80 listed companies, live prices, YTD, charts, fundamentals, sector / cap / quotation filters   |
+| Surface       | Route                            | What it does                                                                                                          |
+| ------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Landing       | `/`                              | Value prop, 4 module teasers, sign-up CTA                                                                             |
+| Dashboard     | `/dashboard`                     | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress                                        |
+| Bourse        | `/bourse`, `/bourse/$ticker`     | 80 listed companies, live prices, YTD, charts, fundamentals, shareholding card, sector / quotation filters            |
 | Portefeuille  | `/portefeuille`                  | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve, one wallet per league |
-| Classement    | `/classement`                    | Classement Général by portfolio value, cash / invested split, plus the private leagues (§9j)   |
-| Académie      | `/academie`, `/academie/$slug`   | 14 lessons in 3 gated levels, quiz + badge per lesson                                          |
-| Actualités    | `/actualites`, `/actualites/$id` | Searchable news feed, full reading page, admin CRUD                                            |
-| Macroéconomie | `/macroeconomie`                 | 5 TradingView charts on the Moroccan economy                                                   |
-| Simulateurs   | `/simulateurs`                   | Compound interest (3 risk profiles) and a credit simulator                                     |
+| Classement    | `/classement`                    | Classement Général by portfolio value, cash / invested split, plus the private leagues (§9j)                          |
+| Académie      | `/academie`, `/academie/$slug`   | 14 lessons in 3 gated levels, quiz + badge per lesson                                                                 |
+| Actualités    | `/actualites`, `/actualites/$id` | Searchable news feed, full reading page, admin CRUD                                                                   |
+| Macroéconomie | `/macroeconomie`                 | 5 TradingView charts on the Moroccan economy                                                                          |
+| Simulateurs   | `/simulateurs`                   | Compound interest (3 risk profiles) and a credit simulator                                                            |
 
 Nav order is fixed in `components/AppShell.tsx`: Actualités sits between Académie and Simulateurs. `/macroeconomie` is reached from the banner atop `/actualites`, not from the nav. `/budget` still resolves: it redirects to `/simulateurs` so old links keep working.
 
@@ -229,24 +231,24 @@ Consequences worth knowing:
 
 Five migrations in `supabase/migrations/`. **Every table has RLS enabled** and the policies are correct: user-owned tables scope by `auth.uid()`, and child tables (`portfolio_*`) check ownership through an `EXISTS` subquery on `portfolios`.
 
-| Table                 | Rows seeded    | Access                                                                                                  |
-| --------------------- | -------------- | ------------------------------------------------------------------------------------------------------- |
-| `profiles`            | N/A            | own row only; auto-created by an `on_auth_user_created` trigger                                         |
-| `stocks`              | 20             | public read                                                                                             |
-| `stock_prices`        | 12 months × 20 | public read                                                                                             |
-| `stock_fundamentals`  | 37             | public read                                                                                             |
-| `lessons`             | 6              | public read                                                                                             |
-| `lesson_progress`     | N/A            | own rows                                                                                                |
+| Table                 | Rows seeded    | Access                                                                                                                                                                                                                              |
+| --------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profiles`            | N/A            | own row only; auto-created by an `on_auth_user_created` trigger                                                                                                                                                                     |
+| `stocks`              | 20             | public read                                                                                                                                                                                                                         |
+| `stock_prices`        | 12 months × 20 | public read                                                                                                                                                                                                                         |
+| `stock_fundamentals`  | 37             | public read                                                                                                                                                                                                                         |
+| `lessons`             | 6              | public read                                                                                                                                                                                                                         |
+| `lesson_progress`     | N/A            | own rows                                                                                                                                                                                                                            |
 | `portfolios`          | N/A            | own rows; since 2026-09-06 the writes are **column-level**: `INSERT (user_id, cash)`, `UPDATE (cash)`, **no DELETE**. Carries `league_id` (NULL = the main wallet) and `start_capital`, neither writable from the browser. See §9j. |
-| `portfolio_holdings`  | N/A            | own, via portfolio                                                                                      |
-| `portfolio_trades`    | N/A            | own, via portfolio                                                                                      |
-| `portfolio_snapshots` | N/A            | own, via portfolio; unique on `(portfolio_id, date)`                                                    |
-| `portfolio_orders`    | N/A            | own, via portfolio; `pending`/`filled`/`cancelled`, `order_type` `market`/`limit`, `updated_at` trigger |
-| `stock_quotes_daily`  | grows          | public read; one real close per stock per session                                                       |
-| `stock_metrics`       | 80             | public read; the fundamentals workbook                                                                  |
-| `user_roles`          | N/A            | read own (admins read all); written only through `admin_set_role`                                       |
-| `news_posts`          | N/A            | **read** for `authenticated`; **no write grant at all**, see §9f                                        |
-| `leagues`             | N/A            | **read** for `authenticated`; written only through `league_create`, see §9j                            |
+| `portfolio_holdings`  | N/A            | own, via portfolio                                                                                                                                                                                                                  |
+| `portfolio_trades`    | N/A            | own, via portfolio                                                                                                                                                                                                                  |
+| `portfolio_snapshots` | N/A            | own, via portfolio; unique on `(portfolio_id, date)`                                                                                                                                                                                |
+| `portfolio_orders`    | N/A            | own, via portfolio; `pending`/`filled`/`cancelled`, `order_type` `market`/`limit`, `updated_at` trigger                                                                                                                             |
+| `stock_quotes_daily`  | grows          | public read; one real close per stock per session                                                                                                                                                                                   |
+| `stock_metrics`       | 80             | public read; the fundamentals workbook                                                                                                                                                                                              |
+| `user_roles`          | N/A            | read own (admins read all); written only through `admin_set_role`                                                                                                                                                                   |
+| `news_posts`          | N/A            | **read** for `authenticated`; **no write grant at all**, see §9f                                                                                                                                                                    |
+| `leagues`             | N/A            | **read** for `authenticated`; written only through `league_create`, see §9j                                                                                                                                                         |
 
 Nice touches: the `handle_new_user()` trigger is `SECURITY DEFINER` with a pinned `search_path`, and migration #2 exists solely to `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on it, that's a deliberate hardening pass.
 
@@ -579,13 +581,13 @@ Every reader in the codebase picked "the user's portfolio" with `ORDER BY create
 
 The predicate `league_id IS NULL` is therefore added in five places, three in SQL and two in the client:
 
-| Where                                       | What it protects                                                     |
-| ------------------------------------------- | -------------------------------------------------------------------- |
-| `leaderboard()`                             | the general ranking, and the 100 000 MAD it measures against          |
-| `admin_list_users()`                        | the cash column **and** the holdings / trades counters, which had no `LIMIT` at all and aggregated every wallet |
-| `admin_user_activity()`                     | the whole account sheet, which hangs off one `pf_id` chosen up front  |
-| `lib/portfolios.ts` (`loadWallet`)          | the Portefeuille page                                                 |
-| `lib/portfolios.ts` (`ensureMainWallet`)    | the dashboard, and the first-visit creation                           |
+| Where                                    | What it protects                                                                                                |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `leaderboard()`                          | the general ranking, and the 100 000 MAD it measures against                                                    |
+| `admin_list_users()`                     | the cash column **and** the holdings / trades counters, which had no `LIMIT` at all and aggregated every wallet |
+| `admin_user_activity()`                  | the whole account sheet, which hangs off one `pf_id` chosen up front                                            |
+| `lib/portfolios.ts` (`loadWallet`)       | the Portefeuille page                                                                                           |
+| `lib/portfolios.ts` (`ensureMainWallet`) | the dashboard, and the first-visit creation                                                                     |
 
 All portfolio resolution goes through `src/lib/portfolios.ts` now. **Do not reintroduce the raw query anywhere.**
 
@@ -622,9 +624,23 @@ The sector workbook came back with two more columns — the **quotation mode** (
 - **A missing figure renders nothing**, per §9. `ytdPct` treats a non-positive price as an absence on both sides: an unquoted stock arrives at `0`, and `0 ÷ 34,03` is a perfectly finite −100 % that would read as a collapse. The YTD sort sends listings without one to the very end.
 - On `/bourse/$ticker` the YTD is computed on the **live quote only**, never on the `stocks.price` seed the page falls back to for the price itself (§5). A year measured from a July-2026 price would be a wrong number presented as a measurement.
 - **Three absences, all the workbook's own.** `DIA` and `DLM` carry a mode but a dash instead of a close, so they filter normally and show no YTD. `S2M` is not in the workbook at all, so it has neither — and therefore **appears under neither mode chip**, only under « Tous modes de cotation », which is the default. Note this is the _opposite_ decision to `sectors.ts`, which inferred a sector for S2M and said so: the brief here says to use only the file, and a quotation procedure is read rather than reasoned. One line from the owner closes it (§11).
-- The Continu / Fixing chips share the capitalisations' strip rather than opening a fourth row: fifteen sectors, four capitalisations and eight sorts already hold three strips on a phone (§9i).
+- The Continu / Fixing chips held their own strip once the capitalisation chips were removed (§9l): fifteen sectors, two quotation modes and eight sorts hold three strips on a phone (§9i).
 
 > ⚠️ **The zero guard lives in `lib/format.ts`, not here.** `pct()` decided the sign before rounding and printed the digits after, so a stock down 0.001 % on the session read « -0,00 % » in red and an unrealised gain of +0.004 % read « +0,00 % » in green. It now rounds first: what displays as zero reads as zero, on the day's change, the year's performance and the portfolio P/L alike.
+
+---
+
+## 9l. Actionnariat: the shareholding card (2026-09-10)
+
+A third workbook — the owner's « Actionnariat BVC » — became `src/lib/shareholders.ts`, for the same reason sectors (§5) and quotation modes (§9k) live in code: a constant of the product, keyed by the same post-alias CSE code, never something to administer in the database. One block per company, holders in descending order with the float (« Divers ») last, and **every block sums to exactly 100,00** — the transcription script asserted it line by line.
+
+- **The card** is `components/ShareholdingCard.tsx`, mounted on `/bourse/$ticker` in a two-column grid (`lg:grid-cols-12`, the chart and fundamentals keep eight twelfths, the card takes four; one column on a phone, `min-w-0` on both tracks per §9i). It shows a Recharts donut (large inner radius), the **count of named shareholders at its centre** (the float is the remainder of the capital, not a holder, and does not count), a hover tooltip with name and exact percentage, and the « Détail des positions » list below — truncated name, percentage, and a thin progress bar per row.
+- **The float is always the same blue-grey**, wherever it ranks; named holders follow the palette in workbook order, and the palette index only advances on named holders so a float in the middle shifts nothing.
+- **Missing data degrades, never crashes.** `shareholdersOf` returns `undefined` and the card renders a discreet « Données non disponibles pour cette valeur. ». Today that is exactly one stock: **CRS (Cartier Saada)**, whose workbook block sums to 108,09 and could not be recovered. One corrected line from the owner closes it (§11).
+- **Seven blocks arrived damaged and were repaired best-effort, with the reasoning in a comment on each.** DHO and IMO had a displaced decimal on CIMR (61,20 % → 6,12 % and 63,80 % → 6,38 %, both confirmed against the AMMC's 31/12/2025 float figures) and were missing their float line. SOT had two displaced decimals. CSR, SBM and MOX each carried a line bled in from a neighbouring company (a second « SANLAM 35 % » on CSR, a « SAFARI 43 % » on SBM, an « AKHANNOUCH SAFAA 35 % » on MOX) — removed, and the float recomputed so the block sums to 100. Read the comments in the file before trusting any of these seven to the second decimal.
+- **Garbled rows were decoded against public sources** (AMMC ownership notices, company profiles): CTM's « Raffinerie TIRELEMONTOISE COMPAGNIE DE TRANSPORT A » interleave, Marsa Maroc's « TANGER MED DEV LOG SA 35 % », SNEP's YNNA Holding, Stroc Industrie's Al Istimrar Holding, TGCC's Bouzoubaa family, Promopharm's HIKMA MENA FZE.
+- **Managem's 31/12 close is 640 DH**, not the 6 083,27 the quotation workbook carried — corrected in `lib/quotation.ts` on the same brief. The YTD this feeds (§9k) was off by an order of magnitude.
+- **The capitalisation filter chips are gone from `/bourse`.** The brief keeps one way to read size: the « Capitalisation décroissante » sort. The `bourse.capAll/capLarge/capMid/capSmall` keys left both locales with the chips; `marketCap` stays computed, the sort still uses it.
 
 ---
 
@@ -717,8 +733,9 @@ A sine wave over `md5(ticker)`, seeded by the initial migration. Nothing charts 
 
 Roughly in order of value-per-effort:
 
-0. **Say how `S2M` is quoted.** It is the one listing the workbook does not cover. Its sector was inferred (Technologies, §5); its **quotation mode was not**, so it shows under neither the Continu nor the Fixing chip (§9k). One line in `LISTING_BY_CODE` — and, if Lyamfi publishes its 31 December close, a YTD with it.
-0b. **Let an admin fix a league.** `league_update(id, name, starts_at, ends_at)`, `SECURITY DEFINER` on `is_admin()`, plus an edit state on the card. Deliberately not `start_capital`: it is already credited into every participant's `cash`, so moving it would rewrite everyone's performance retroactively. A `league_delete` guarded on having no participants would go with it (§10).
+0. **Send the corrected CRS block.** Cartier Saada is the one listing without a shareholding card: its workbook block sums to 108,09 and stayed out of `shareholders.ts` rather than be guessed (§9l). One corrected line from the owner and the card fills itself in.
+   0a. **Say how `S2M` is quoted.** It is the one listing the workbook does not cover. Its sector was inferred (Technologies, §5); its **quotation mode was not**, so it shows under neither the Continu nor the Fixing chip (§9k). One line in `LISTING_BY_CODE` — and, if Lyamfi publishes its 31 December close, a YTD with it.
+   0b. **Let an admin fix a league.** `league_update(id, name, starts_at, ends_at)`, `SECURITY DEFINER` on `is_admin()`, plus an edit state on the card. Deliberately not `start_capital`: it is already credited into every participant's `cash`, so moving it would rewrite everyone's performance retroactively. A `league_delete` guarded on having no participants would go with it (§10).
 1. **Check `/macroeconomie` on the live site.** Three things: whether the policy-rate card shows the « série tenue à la main » warning (if it does, the IMF request is failing and wants another source), whether the five _Marchés internationaux_ cards paint at all, and specifically whether **natural gas** does — `TVC:NATGAS` was wrong and its replacement could not be confirmed from here (§9h).
 2. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature. Now that the session gates execution, that RPC should also own the clock, so the server decides what "open" means rather than the browser.
 3. **Translate the lesson content**, if English learners matter. Needs a schema change on `lessons`; see §9b. The `news_posts` rows are French-only for the same reason.
@@ -750,7 +767,11 @@ The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not
 
 ## 12. What to run in the Supabase SQL editor
 
-### 2026-09-06 (current): two migrations, in order
+### 2026-09-10 (current): nothing
+
+The Actionnariat card (§9l), the Managem close and the cap-filter removal are all code and constants; the database is untouched.
+
+### 2026-09-06: two migrations, in order
 
 `supabase/migrations/20260906100000_second_principal_admin.sql` promotes `ali.zaidane.2007@gmail.com` to principal administrator alongside `lyamcorpo@gmail.com` (§9c). It replaces `principal_admin_email()` (one address) with `principal_admin_emails()` (a `text[]`), rewrites `is_principal_admin`, `leaderboard`, `league_leaderboard` and `league_join` to test membership of that array, and back-fills the `admin` role for both addresses. **`PRINCIPAL_ADMIN_EMAILS` in `src/lib/admin.ts` carries the same list and must move with it.**
 
