@@ -618,12 +618,12 @@ function PortfolioPage() {
             <table className="w-full min-w-[640px] text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-y border-border">
-                  <th className="px-5 py-3 text-left font-medium sm:px-7">{t("pf.colStock")}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t("pf.colQty")}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t("pf.colBuyPrice")}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t("pf.colLastPrice")}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t("pf.colValue")}</th>
-                  <th className="px-5 py-3 text-right font-medium sm:px-7">{t("pf.colPnl")}</th>
+                  <th className="px-5 py-3 text-start font-medium sm:px-7">{t("pf.colStock")}</th>
+                  <th className="px-3 py-3 text-end font-medium">{t("pf.colQty")}</th>
+                  <th className="px-3 py-3 text-end font-medium">{t("pf.colBuyPrice")}</th>
+                  <th className="px-3 py-3 text-end font-medium">{t("pf.colLastPrice")}</th>
+                  <th className="px-3 py-3 text-end font-medium">{t("pf.colValue")}</th>
+                  <th className="px-5 py-3 text-end font-medium sm:px-7">{t("pf.colPnl")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -633,9 +633,9 @@ function PortfolioPage() {
                       <p className="font-medium">{r.ticker}</p>
                       <p className="truncate text-xs text-muted-foreground">{r.name}</p>
                     </td>
-                    <td className="px-3 py-4 text-right tabular-nums">{f.num(r.quantity, 0)}</td>
-                    <td className="px-3 py-4 text-right tabular-nums">{f.num(r.avg_price)}</td>
-                    <td className="px-3 py-4 text-right tabular-nums">
+                    <td className="px-3 py-4 text-end tabular-nums">{f.num(r.quantity, 0)}</td>
+                    <td className="px-3 py-4 text-end tabular-nums">{f.num(r.avg_price)}</td>
+                    <td className="px-3 py-4 text-end tabular-nums">
                       {f.num(r.last)}
                       <span
                         className={`ml-2 text-xs ${
@@ -645,9 +645,9 @@ function PortfolioPage() {
                         {f.pct(r.dayPct)}
                       </span>
                     </td>
-                    <td className="px-3 py-4 text-right tabular-nums">{f.num(r.value, 0)}</td>
+                    <td className="px-3 py-4 text-end tabular-nums">{f.num(r.value, 0)}</td>
                     <td
-                      className={`px-5 py-4 text-right font-semibold tabular-nums sm:px-7 ${
+                      className={`px-5 py-4 text-end font-semibold tabular-nums sm:px-7 ${
                         r.pnl >= 0 ? "text-[var(--success)]" : "text-destructive"
                       }`}
                     >
@@ -875,7 +875,7 @@ function TradePanel({
             <button
               key={s.ticker}
               onClick={() => setTicker(s.ticker)}
-              className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-colors ${
+              className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-4 py-2.5 text-start transition-colors ${
                 ticker === s.ticker
                   ? "border-primary/60 bg-accent"
                   : "border-transparent hover:border-border"
@@ -885,7 +885,7 @@ function TradePanel({
                 <span className="block truncate text-sm font-medium">{s.name}</span>
                 <span className="text-xs text-muted-foreground">{s.ticker}</span>
               </span>
-              <span className="text-right">
+              <span className="text-end">
                 <span className="block text-sm font-semibold tabular-nums">{f.num(s.price)}</span>
                 <span
                   className={`text-xs tabular-nums ${

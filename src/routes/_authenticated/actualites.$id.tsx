@@ -95,7 +95,7 @@ function Back({ t }: { t: Translate }) {
       to="/actualites"
       className="press -mx-2 inline-flex min-h-9 items-center gap-1.5 px-2 text-sm text-muted-foreground transition-colors hover:text-brand-yellow"
     >
-      <ArrowLeft className="h-4 w-4" /> {t("news.back")}
+      <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t("news.back")}
     </Link>
   );
 }
