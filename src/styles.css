@@ -99,6 +99,17 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  html[lang="ar"] body {
+    font-family: "IBM Plex Sans Arabic", "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  /* L'interlettrage négatif des titres casse la ligature arabe. */
+  html[lang="ar"] h1,
+  html[lang="ar"] h2,
+  html[lang="ar"] h3 {
+    letter-spacing: normal;
+  }
+
   h1,
   h2,
   h3 {

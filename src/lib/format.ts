@@ -12,10 +12,10 @@ import { useI18n } from "@/lib/i18n";
  * elles prennent le français par défaut.
  */
 
-export type Locale = "fr-MA" | "en-GB";
+export type Locale = "fr-MA" | "en-GB" | "ar-MA";
 const DEFAULT: Locale = "fr-MA";
 
-/** Marqueur de valeur absente. Pas de tiret : « N/A » se lit dans les deux langues. */
+/** Marqueur de valeur absente. Pas de tiret : « N/A » se lit dans les trois langues. */
 export const EMPTY = "N/A";
 
 /**
@@ -25,10 +25,15 @@ export const EMPTY = "N/A";
  * « 123.457 ». C'est la convention marocaine, mais dans une colonne de
  * montants sans décimales elle se lit « 123 virgule 457 », soit mille fois
  * moins. L'espace de fr-FR lève l'ambiguïté sans changer la virgule décimale.
+ *
+ * En ar-MA, le suffixe `-u-nu-latn` force les chiffres occidentaux : les
+ * chiffres arabes orientaux (٠١٢٣…) sont en déclin d'usage au Maroc, où les
+ * montants s'écrivent avec les conventions occidentales, y compris en arabe.
  */
 const NUMBER_LOCALE: Record<Locale, string> = {
   "fr-MA": "fr-FR",
   "en-GB": "en-GB",
+  "ar-MA": "ar-MA-u-nu-latn",
 };
 
 /**
@@ -52,7 +57,9 @@ export const num = (v: number | null | undefined, digits = 2, locale: Locale = D
 export const mad = (v: number | null | undefined, digits = 2, locale: Locale = DEFAULT) => {
   if (!finite(v)) return EMPTY;
   const n = format(v, digits, locale);
-  return locale === "en-GB" ? `MAD ${n}` : `${n} MAD`;
+  // En français le symbole suit le montant (« 1 234,50 MAD ») ; en anglais
+  // comme en arabe il le précède, à la manière des devises anglo-saxonnes.
+  return locale === "fr-MA" ? `${n} MAD` : `MAD ${n}`;
 };
 
 /**
@@ -77,9 +84,12 @@ export const pct = (v: number | null | undefined, digits = 2, locale: Locale = D
 
 export const compact = (v: number | null | undefined, locale: Locale = DEFAULT) => {
   if (!finite(v)) return EMPTY;
-  const bn = locale === "en-GB" ? "bn MAD" : "Md MAD";
+  // Les grandeurs se nomment selon la langue : milliard/million en français
+  // (« Md » / « M »), billion/million en anglais, مليار/مليون en arabe.
+  const bn = locale === "en-GB" ? "bn MAD" : locale === "ar-MA" ? "مليار MAD" : "Md MAD";
+  const mn = locale === "ar-MA" ? "مليون MAD" : "M MAD";
   if (v >= 1e9) return `${format(v / 1e9, 1, locale)} ${bn}`;
-  if (v >= 1e6) return `${format(v / 1e6, 0, locale)} M MAD`;
+  if (v >= 1e6) return `${format(v / 1e6, 0, locale)} ${mn}`;
   return format(v, 0, locale);
 };
 
@@ -165,7 +175,9 @@ export type Formatter = {
 /** Formateurs liés à la langue affichée. */
 export function useFormat(): Formatter {
   const { locale } = useI18n();
-  const l = (locale === "en-GB" ? "en-GB" : "fr-MA") as Locale;
+  // Le contexte expose la locale en `string` : on ne retient que les trois
+  // locales connues, avec repli sur le français pour toute valeur inattendue.
+  const l: Locale = locale === "en-GB" ? "en-GB" : locale === "ar-MA" ? "ar-MA" : "fr-MA";
   return useMemo<Formatter>(
     () => ({
       locale: l,

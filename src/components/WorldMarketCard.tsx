@@ -31,7 +31,7 @@ export function WorldMarketCard({
   symbol: string;
 }) {
   const { t, locale } = useI18n();
-  const lang = locale === "en-GB" ? "en" : "fr";
+  const lang = locale === "en-GB" ? "en" : locale === "ar-MA" ? "ar" : "fr";
 
   return (
     <section className="glass glass-gold overflow-hidden p-5 sm:p-6">

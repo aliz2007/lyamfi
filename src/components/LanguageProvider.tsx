@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ar } from "@/lib/locales/ar";
 import { en } from "@/lib/locales/en";
 import { fr } from "@/lib/locales/fr";
 import {
@@ -11,7 +12,7 @@ import {
   type Lang,
 } from "@/lib/i18n";
 
-const DICTS: Record<Lang, Dict> = { fr, en };
+const DICTS: Record<Lang, Dict> = { fr, en, ar };
 
 /**
  * Fournit la langue choisie à toute l'application.
@@ -32,7 +33,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (typeof document !== "undefined") document.documentElement.lang = lang;
+    if (typeof document === "undefined") return;
+    document.documentElement.lang = lang;
+    // L'arabe se lit de droite à gauche : la direction suit la langue pour
+    // que les propriétés logiques (ms-/me-, text-start/-end) se retournent.
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   }, [lang]);
 
   const setLang = useCallback((next: Lang) => {
@@ -50,7 +55,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return {
       lang,
       setLang,
-      locale: lang === "en" ? "en-GB" : "fr-MA",
+      locale: lang === "en" ? "en-GB" : lang === "ar" ? "ar-MA" : "fr-MA",
       // Repli sur le français si une clé manque à l'exécution : mieux vaut un
       // libellé dans l'autre langue qu'une clé brute affichée à l'écran.
       t: (key, vars) => interpolate(dict[key] ?? fr[key] ?? String(key), vars),
