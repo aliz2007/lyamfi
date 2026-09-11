@@ -34,7 +34,7 @@ export function MacroBanner() {
             {t("macro.bannerText")}
           </p>
         </div>
-        <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+        <ArrowRight className="h-5 w-5 shrink-0 rtl:rotate-180 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
       </div>
     </Link>
   );

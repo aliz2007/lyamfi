@@ -145,7 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
             <button
               onClick={signOut}
-              className="press rounded-xl px-3 py-3 text-left text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="press rounded-xl px-3 py-3 text-start text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               {t("nav.signOutLong")}
             </button>

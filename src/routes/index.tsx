@@ -152,7 +152,7 @@ function Landing() {
                 search={{ mode: "signup" }}
                 className="glow-gold press inline-flex items-center gap-2 rounded-full bg-gradient-gold px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
               >
-                {t("landing.ctaPrimary")} <ArrowRight className="h-4 w-4" />
+                {t("landing.ctaPrimary")} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
               </Link>
               <Link
                 to="/bourse"
@@ -244,7 +244,7 @@ function Landing() {
               search={{ mode: "signup" }}
               className="glow-gold press inline-flex items-center gap-2 rounded-full bg-gradient-gold px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
-              {t("landing.ctaPrimary")} <ArrowRight className="h-4 w-4" />
+              {t("landing.ctaPrimary")} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
             </Link>
           </div>
         </div>

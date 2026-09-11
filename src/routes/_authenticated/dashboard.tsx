@@ -248,7 +248,7 @@ function Dashboard() {
                         <p className="truncate text-sm font-semibold">{q.ticker}</p>
                         <p className="truncate text-xs text-muted-foreground">{q.name}</p>
                       </div>
-                      <div className="shrink-0 text-right">
+                      <div className="shrink-0 text-end">
                         <p className="text-sm font-semibold tabular-nums">{f.price(q.price)}</p>
                         <p
                           className={`text-xs tabular-nums ${
@@ -387,7 +387,7 @@ function IndexCard({
         {/* Variation du jour, puis l'année en dessous : même disposition et
             même discrétion que sur une vignette de la cote, parce que c'est le
             même calcul sur la même référence. Sans cotation, pas de ligne. */}
-        <span className="text-right">
+        <span className="text-end">
           <span
             className={`block tabular-nums ${
               !quote
