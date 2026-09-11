@@ -43,17 +43,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="grid-lines h-[38rem]" aria-hidden="true" />
 
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl">
-        <div className="safe-x mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2.5 sm:gap-4 sm:py-3">
-          <Link to="/dashboard" className="min-w-0">
+        {/*
+          La marque ne se fait plus écraser par la navigation. L'ancienne
+          grille `minmax(0,1fr)_auto` donnait toute la place aux libellés de
+          la nav — plus longs en français qu'en anglais — et laissait le logo
+          se rétrécir jusqu'à n'afficher que « L » (le `truncate` de Logo
+          coupait le mot-symbole). La première colonne est désormais `auto`,
+          donc dimensionnée sur son contenu et incompressible ; c'est la nav
+          qui absorbe le manque de place. En dessous d'`xl`, la nav complète
+          cède la place au menu hamburger : entre 1024 et 1280 px, les neuf
+          libellés français + le sélecteur de langue + déconnexion ne
+          tiennent matériellement pas à côté du logo.
+        */}
+        <div className="safe-x mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)] items-center gap-3 py-2.5 sm:gap-4 sm:py-3">
+          <Link to="/dashboard" className="shrink-0">
             <Logo compact />
           </Link>
 
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden items-center gap-1 justify-self-end xl:flex">
             {NAV.map((n) => (
               <Link
                 key={n.to}
                 to={n.to}
-                className={`relative rounded-full px-3.5 py-2 text-sm transition-colors ${
+                className={`relative rounded-full px-3 py-2 text-sm transition-colors ${
                   active(n.to)
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -65,7 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {isAdmin && (
               <Link
                 to="/admin"
-                className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm transition-colors ${
+                className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm transition-colors ${
                   active("/admin")
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -76,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             <Link
               to="/compte"
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm transition-colors ${
                 active("/compte")
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -90,13 +102,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <button
               onClick={signOut}
-              className="ml-2 flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+              className="ml-2 flex items-center gap-1.5 rounded-full border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
             >
               <LogOut className="h-4 w-4" /> {t("nav.signOut")}
             </button>
           </nav>
 
-          <div className="flex items-center gap-1.5 lg:hidden">
+          <div className="flex items-center gap-1.5 justify-self-end xl:hidden">
             <LanguageSwitcher />
             <button
               className="press grid h-10 w-10 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
@@ -112,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {open && (
           // `rise` : le panneau se déplie au lieu d'apparaître d'un coup, ce
           // qui rattache visuellement le menu au bouton qui vient de l'ouvrir.
-          <nav className="rise safe-x flex max-h-[70svh] flex-col gap-1 overflow-y-auto border-t border-border py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+          <nav className="rise safe-x flex max-h-[70svh] flex-col gap-1 overflow-y-auto border-t border-border py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] xl:hidden">
             {NAV.map((n) => (
               <Link
                 key={n.to}
