@@ -28,17 +28,17 @@ A French-language financial-education platform for the **Bourse de Casablanca (B
 
 Eight surfaces:
 
-| Surface       | Route                            | What it does                                                                                                          |
-| ------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Landing       | `/`                              | Value prop, 4 module teasers, sign-up CTA                                                                             |
-| Dashboard     | `/dashboard`                     | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress                                        |
-| Bourse        | `/bourse`, `/bourse/$ticker`     | 80 listed companies, live prices, YTD, charts, fundamentals, shareholding card, sector / quotation filters            |
-| Portefeuille  | `/portefeuille`                  | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve, one wallet per league |
-| Classement    | `/classement`                    | Classement Général by portfolio value, cash / invested split, plus the private leagues (§9j)                          |
-| Académie      | `/academie`, `/academie/$slug`   | 14 lessons in 3 gated levels, quiz + badge per lesson                                                                 |
-| Actualités    | `/actualites`, `/actualites/$id` | Searchable news feed, full reading page, admin CRUD                                                                   |
-| Macroéconomie | `/macroeconomie`                 | 5 TradingView charts on the Moroccan economy                                                                          |
-| Simulateurs   | `/simulateurs`                   | Compound interest (3 risk profiles) and a credit simulator                                                            |
+| Surface | Route | What it does |
+| --- | --- | --- |
+| Landing | `/` | Value prop, 4 module teasers, sign-up CTA |
+| Dashboard | `/dashboard` | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress |
+| Bourse | `/bourse`, `/bourse/$ticker` | 80 listed companies, live prices, YTD, charts, fundamentals, shareholding card, sector / quotation filters |
+| Portefeuille | `/portefeuille` | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve, one wallet per league |
+| Classement | `/classement` | Classement Général by portfolio value, cash / invested split, plus the private leagues (§9j) |
+| Académie | `/academie`, `/academie/$slug` | 14 lessons in 3 gated levels, quiz + badge per lesson |
+| Actualités | `/actualites`, `/actualites/$id` | Searchable news feed, full reading page, admin CRUD |
+| Macroéconomie | `/macroeconomie` | 5 TradingView charts on the Moroccan economy |
+| Simulateurs | `/simulateurs` | Compound interest (3 risk profiles) and a credit simulator |
 
 Nav order is fixed in `components/AppShell.tsx`: Actualités sits between Académie and Simulateurs. `/macroeconomie` is reached from the banner atop `/actualites`, not from the nav. `/budget` still resolves: it redirects to `/simulateurs` so old links keep working.
 
@@ -52,14 +52,14 @@ Nav order is fixed in `components/AppShell.tsx`: Actualités sits between Acadé
 
 I ran these in a clean checkout:
 
-| Check                     | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npx tsc --noEmit`        | ✅ **Clean.** Zero type errors, under a genuinely strict config (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`). Re-run 2026-08-27.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `npm run build`           | ✅ **Succeeds** in a few seconds. Emits a Cloudflare Workers bundle (`.output/`, auto-generated `wrangler.json`, `nodejs_compat`). Re-run 2026-08-27.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `npm run lint`            | ✅ **Zero errors** since 2026-09-01, when `prettier --write src` was finally run across the tree (including the generated `integrations/supabase/types.ts`). What remains is **6 `react-refresh` warnings** inside vendored shadcn/ui files, which are noise by design. The signal is usable again: a new error means a new problem.                                                                                                                                                                                                                                                                                                                                                                                      |
-| `supabase/setup.sql`      | ✅ **Applied twice in a row** against a throwaway PostgreSQL 16 with stand-ins for the `auth` and `storage` schemas and Supabase's default privileges, last on 2026-08-29. Clean both times, so it is genuinely re-runnable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Tests                     | **No test runner and no CI.** The pure logic added since 2026-08-27 was nonetheless checked by throwaway scripts run under `node --experimental-strip-types`: session hours, order fills, the PER/yield sorts, the capital-gains tax, the credit amortisation and APR, the excerpt stripper, both macro parsers, and the favourites store. Those scripts were not kept; a real suite is still §11 item 10.                                                                                                                                                                                                                                                                                                                                           |
-| Mobile run 2026-09-01 ✅  | Every route driven at **iPhone-13 size (390 px)** with realistic data — a funded portfolio, holdings carrying the longest names on the exchange, lessons, articles. **No page exceeds the viewport and no JavaScript errors anywhere.** An auditor script walks each route's DOM and reports elements past the viewport edge, tap targets under 32 px, and text clipped by an undeclared overflow; it now reports nothing on any of the twelve routes. The public header was additionally checked at 390, 360 and 320 px.                                                                                                                                                                                                                            |
+| Check | Result |
+| --- | --- |
+| `npx tsc --noEmit` | ✅ **Clean.** Zero type errors, under a genuinely strict config (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`). Re-run 2026-08-27. |
+| `npm run build` | ✅ **Succeeds** in a few seconds. Emits a Cloudflare Workers bundle (`.output/`, auto-generated `wrangler.json`, `nodejs_compat`). Re-run 2026-08-27. |
+| `npm run lint` | ✅ **Zero errors** since 2026-09-01, when `prettier --write src` was finally run across the tree (including the generated `integrations/supabase/types.ts`). What remains is **6 `react-refresh` warnings** inside vendored shadcn/ui files, which are noise by design. The signal is usable again: a new error means a new problem. |
+| `supabase/setup.sql` | ✅ **Applied twice in a row** against a throwaway PostgreSQL 16 with stand-ins for the `auth` and `storage` schemas and Supabase's default privileges, last on 2026-08-29. Clean both times, so it is genuinely re-runnable. |
+| Tests | **No test runner and no CI.** The pure logic added since 2026-08-27 was nonetheless checked by throwaway scripts run under `node --experimental-strip-types`: session hours, order fills, the PER/yield sorts, the capital-gains tax, the credit amortisation and APR, the excerpt stripper, both macro parsers, and the favourites store. Those scripts were not kept; a real suite is still §11 item 10. |
+| Mobile run 2026-09-01 ✅ | Every route driven at **iPhone-13 size (390 px)** with realistic data — a funded portfolio, holdings carrying the longest names on the exchange, lessons, articles. **No page exceeds the viewport and no JavaScript errors anywhere.** An auditor script walks each route's DOM and reports elements past the viewport edge, tap targets under 32 px, and text clipped by an undeclared overflow; it now reports nothing on any of the twelve routes. The public header was additionally checked at 390, 360 and 320 px. |
 | Browser run 2026-08-31 ✅ | The 2026-08-31 batch was driven in **headless Chromium against `vite dev`**, with Supabase and the server functions stubbed at the network layer (both are unreachable from the audit environment). Confirmed on screen: 80 listings with their sector, **all 15 sector counts matching the owner's workbook** (Agro-alimentaire 7, Industrie et BTP 9, Autres 13…), the star toggling without navigating, `lyamfi.favourites` written and re-read after a reload, the empty-favourites message, the MASI 20 link resolving to `CSEMA-MSI20`, all ten top-mover rows linking to `/bourse/<CODE>` (a click landed on `/bourse/ATW`), the Simulateurs tile, the five international cards with their symbols, and zero JavaScript errors on every page. |
 
 The codebase is in good mechanical health. The lint number looks alarming and isn't.
@@ -137,14 +137,14 @@ npm run format   # prettier --write .
 
 **This is the single most important section.** Stock data comes from **six** sources that are joined at runtime by ticker, and they disagree with each other.
 
-| #   | Source                                                         | Size                             | Freshness                                          | Used for                                                                                                                                                                                                                                                                                                             |
-| --- | -------------------------------------------------------------- | -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **`CSE_SYMBOLS`**: hardcoded array in `src/lib/cse-symbols.ts` | 81 entries (80 companies + MASI) | Manual                                             | **The master list.** Decides what appears on `/bourse` at all, and drives the ticker tape.                                                                                                                                                                                                                         |
-| 2   | **TradingView scanner**: `getLiveQuotes()` server fn           | ~live universe                   | Live, 60s refetch                                  | Every price and % change shown anywhere in the app.                                                                                                                                                                                                |
-| 3   | **`stock_metrics`** table                                      | 80 rows                          | The fundamentals workbook, seeded 2026-08-25       | Everything price-independent (share count, BPA, DPA, book value…). Market cap, PER, yield, P/B, P/S and P/FCF are _derived at render time_ against the live price. The older `stock_fundamentals` (37 rows) is no longer read by the market pages. |
-| 4   | **`SECTOR_BY_CODE`**: hardcoded map in `src/lib/sectors.ts`    | 80 entries, 15 sectors           | The Lyamfi sector workbook, transcribed 2026-08-31 | **The sector of every listing**, and the only source the `/bourse` filter reads.                                                                                                                                                                                                                                   |
-| 5   | **`stocks`** table                                             | 20 rows                          | Seeded 2026-07-31, **stale**                       | Company description and the `/bourse/$ticker` detail page's PER/BPA/PEG/target-price block. **No longer the sector filter** (see below).                                                                                                           |
-| 6   | **`LISTING_BY_CODE`**: hardcoded map in `src/lib/quotation.ts` | 79 entries                       | The same Lyamfi workbook, transcribed 2026-09-06   | The **quotation mode** (Continu / Fixing) that the `/bourse` chips filter on, and the **31 December close** that the YTD performance is measured from. Both module-private except through `quotationOf()` and `ytdOf()`; see §9k.                  |
+| # | Source | Size | Freshness | Used for |
+| --- | --- | --- | --- | --- |
+| 1 | **`CSE_SYMBOLS`**: hardcoded array in `src/lib/cse-symbols.ts` | 81 entries (80 companies + MASI) | Manual | **The master list.** Decides what appears on `/bourse` at all, and drives the ticker tape. |
+| 2 | **TradingView scanner**: `getLiveQuotes()` server fn | ~live universe | Live, 60s refetch | Every price and % change shown anywhere in the app. |
+| 3 | **`stock_metrics`** table | 80 rows | The fundamentals workbook, seeded 2026-08-25 | Everything price-independent (share count, BPA, DPA, book value…). Market cap, PER, yield, P/B, P/S and P/FCF are _derived at render time_ against the live price. The older `stock_fundamentals` (37 rows) is no longer read by the market pages. |
+| 4 | **`SECTOR_BY_CODE`**: hardcoded map in `src/lib/sectors.ts` | 80 entries, 15 sectors | The Lyamfi sector workbook, transcribed 2026-08-31 | **The sector of every listing**, and the only source the `/bourse` filter reads. |
+| 5 | **`stocks`** table | 20 rows | Seeded 2026-07-31, **stale** | Company description and the `/bourse/$ticker` detail page's PER/BPA/PEG/target-price block. **No longer the sector filter** (see below). |
+| 6 | **`LISTING_BY_CODE`**: hardcoded map in `src/lib/quotation.ts` | 79 entries | The same Lyamfi workbook, transcribed 2026-09-06 | The **quotation mode** (Continu / Fixing) that the `/bourse` chips filter on, and the **31 December close** that the YTD performance is measured from. Both module-private except through `quotationOf()` and `ytdOf()`; see §9k. |
 
 ### The ticker is a join key, and a wrong one fails silently
 
@@ -233,24 +233,24 @@ Consequences worth knowing:
 
 Five migrations in `supabase/migrations/`. **Every table has RLS enabled** and the policies are correct: user-owned tables scope by `auth.uid()`, and child tables (`portfolio_*`) check ownership through an `EXISTS` subquery on `portfolios`.
 
-| Table                 | Rows seeded    | Access                                                                                                                                                                                                                                                                                              |
-| --------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `profiles`            | N/A            | own row only; auto-created by an `on_auth_user_created` trigger                                                                                                                                                                                                                                     |
-| `stocks`              | 20             | public read                                                                                                                                                                                                                                                                                         |
-| `stock_prices`        | 12 months × 20 | public read                                                                                                                                                                                                                                                                                         |
-| `stock_fundamentals`  | 37             | public read                                                                                                                                                                                                                                                                                         |
-| `lessons`             | 6              | public read                                                                                                                                                                                                                                                                                         |
-| `lesson_progress`     | N/A            | own rows                                                                                                                                                                                                                                                                                            |
-| `portfolios`          | N/A            | own rows; since 2026-09-06 the writes are **column-level**: `INSERT (user_id, cash)`, `UPDATE (cash)`, **no DELETE**. Carries `league_id` (NULL = the main wallet) and `start_capital`, neither writable from the browser. See §9j. |
-| `portfolio_holdings`  | N/A            | own, via portfolio                                                                                                                                                                                                                                                                                    |
-| `portfolio_trades`    | N/A            | own, via portfolio                                                                                                                                                                                                                                                                                    |
-| `portfolio_snapshots` | N/A            | own, via portfolio; unique on `(portfolio_id, date)`                                                                                                                                                                                                                  |
-| `portfolio_orders`    | N/A            | own, via portfolio; `pending`/`filled`/`cancelled`, `order_type` `market`/`limit`, `updated_at` trigger                                                                                                                                                                                             |
-| `stock_quotes_daily`  | grows          | public read; one real close per stock per session                                                                                                                                                                                                                   |
-| `stock_metrics`       | 80             | public read; the fundamentals workbook                                                                                                                                                                                              |
-| `user_roles`          | N/A            | read own (admins read all); written only through `admin_set_role`                                                                                                                                                                                                                                   |
-| `news_posts`          | N/A            | **read** for `authenticated`; **no write grant at all**, see §9f                                                                                                                                                                                                                                    |
-| `leagues`             | N/A            | **read** for `authenticated`; written only through `league_create`, see §9j                                                                                                                                                                                                                         |
+| Table | Rows seeded | Access |
+| --- | --- | --- |
+| `profiles` | N/A | own row only; auto-created by an `on_auth_user_created` trigger |
+| `stocks` | 20 | public read |
+| `stock_prices` | 12 months × 20 | public read |
+| `stock_fundamentals` | 37 | public read |
+| `lessons` | 6 | public read |
+| `lesson_progress` | N/A | own rows |
+| `portfolios` | N/A | own rows; since 2026-09-06 the writes are **column-level**: `INSERT (user_id, cash)`, `UPDATE (cash)`, **no DELETE**. Carries `league_id` (NULL = the main wallet) and `start_capital`, neither writable from the browser. See §9j. |
+| `portfolio_holdings` | N/A | own, via portfolio |
+| `portfolio_trades` | N/A | own, via portfolio |
+| `portfolio_snapshots` | N/A | own, via portfolio; unique on `(portfolio_id, date)` |
+| `portfolio_orders` | N/A | own, via portfolio; `pending`/`filled`/`cancelled`, `order_type` `market`/`limit`, `updated_at` trigger |
+| `stock_quotes_daily` | grows | public read; one real close per stock per session |
+| `stock_metrics` | 80 | public read; the fundamentals workbook |
+| `user_roles` | N/A | read own (admins read all); written only through `admin_set_role` |
+| `news_posts` | N/A | **read** for `authenticated`; **no write grant at all**, see §9f |
+| `leagues` | N/A | **read** for `authenticated`; written only through `league_create`, see §9j |
 
 Nice touches: the `handle_new_user()` trigger is `SECURITY DEFINER` with a pinned `search_path`, and migration #2 exists solely to `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on it, that's a deliberate hardening pass.
 
@@ -320,15 +320,15 @@ All tokens are in `src/styles.css` as **OKLCH** CSS variables under Tailwind v4'
 
 The palette has never changed. What was added on top of it, to stop pages reading as flat rectangles on black:
 
-| Utility          | What it does                                                                                            |
-| ---------------- | ------------------------------------------------------------------------------------------------------- |
-| `surface-raised` | card with a top-lit gradient instead of a flat fill; replaced `surface-card` everywhere                 |
-| `card-hover`     | lift plus a gold-tinted border and shadow, self-contained (no `hover:` variant needed at the call site) |
-| `aurora`         | diffuse gold radial glow behind page headers                                                            |
-| `grid-lines`     | faint masked grid, gives the background texture without drawing the eye                                 |
-| `eyebrow`        | uppercase tracked gold section label                                                                    |
-| `hairline`       | thin gold-to-transparent rule                                                                           |
-| `rise`, `sheen`  | entrance animation and a slow gradient drift on the hero headline                                       |
+| Utility | What it does |
+| --- | --- |
+| `surface-raised` | card with a top-lit gradient instead of a flat fill; replaced `surface-card` everywhere |
+| `card-hover` | lift plus a gold-tinted border and shadow, self-contained (no `hover:` variant needed at the call site) |
+| `aurora` | diffuse gold radial glow behind page headers |
+| `grid-lines` | faint masked grid, gives the background texture without drawing the eye |
+| `eyebrow` | uppercase tracked gold section label |
+| `hairline` | thin gold-to-transparent rule |
+| `rise`, `sheen` | entrance animation and a slow gradient drift on the hero headline |
 
 Every animation is disabled under `prefers-reduced-motion`.
 
@@ -345,15 +345,15 @@ Two decisions worth knowing:
 
 The whole interface switches language from a control in the header, on the landing page, the auth pages and inside the app. The choice is stored in `localStorage` under `lyamfi.lang` and applied to `<html lang>`; **Arabic, added 2026-09-11, also flips the document to RTL** (`<html dir>`, set by the provider).
 
-| File                              | Role                                                                                                       |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `lib/locales/fr.ts`               | **source of truth.** `as const`, so its keys define the dictionary type                                    |
-| `lib/locales/en.ts`               | typed as `Record<keyof typeof fr, string>`, so a missing key is a compile error, never a raw key on screen |
-| `lib/locales/ar.ts`               | typed the same way; Moroccan-market Arabic, editorially reviewed                                           |
-| `lib/i18n.ts`                     | context, `useI18n()`, `useT()`, `usePageTitle()`, `{token}` interpolation                                  |
-| `components/LanguageProvider.tsx` | the provider component, kept apart so Vite fast refresh can track it; also sets `<html dir>`               |
-| `components/LanguageSwitcher.tsx` | the FR / EN / AR toggle                                                                                    |
-| `lib/levels.ts`                   | maps the French level names stored in `lessons.level` to translation keys                                  |
+| File | Role |
+| --- | --- |
+| `lib/locales/fr.ts` | **source of truth.** `as const`, so its keys define the dictionary type |
+| `lib/locales/en.ts` | typed as `Record<keyof typeof fr, string>`, so a missing key is a compile error, never a raw key on screen |
+| `lib/locales/ar.ts` | typed the same way; Moroccan-market Arabic, editorially reviewed |
+| `lib/i18n.ts` | context, `useI18n()`, `useT()`, `usePageTitle()`, `{token}` interpolation |
+| `components/LanguageProvider.tsx` | the provider component, kept apart so Vite fast refresh can track it; also sets `<html dir>` |
+| `components/LanguageSwitcher.tsx` | the FR / EN / AR toggle |
+| `lib/levels.ts` | maps the French level names stored in `lessons.level` to translation keys |
 
 What the Arabic round changed beyond the dictionary:
 
@@ -381,13 +381,13 @@ Adding a string: put it in `fr.ts`, then in `en.ts` **and** `ar.ts`. TypeScript 
 
 Requested so customer support can be delegated without handing over the keys.
 
-|                                 | Principal (`lyamcorpo@gmail.com`) | Secondary admin |
-| ------------------------------- | --------------------------------- | --------------- |
-| See accounts and their activity | ✅                                | ✅              |
-| Grant or revoke admin           | ✅                                | ❌              |
-| Rename an account               | ✅                                | ❌              |
-| Reset a password                | ✅                                | ❌              |
-| Delete an account               | ✅                                | ❌              |
+|  | Principal (`lyamcorpo@gmail.com`) | Secondary admin |
+| --- | --- | --- |
+| See accounts and their activity | ✅ | ✅ |
+| Grant or revoke admin | ✅ | ❌ |
+| Rename an account | ✅ | ❌ |
+| Reset a password | ✅ | ❌ |
+| Delete an account | ✅ | ❌ |
 
 The split is enforced in the database, not the interface: every sensitive RPC opens with `is_principal_admin()`, which resolves the caller's e-mail from `auth.users`. Hiding the buttons is cosmetic.
 
@@ -447,12 +447,12 @@ Three decisions are worth keeping in mind before touching it:
 
 The table stores **only what does not depend on the price**: share count, EPS 26 / 27e, DPS 26 / 27e, book value, sales and free cash flow per share, and the closed-year profitability ratios. Everything price-derived is computed at render time in `lib/metrics.ts`, because storing it would be stale by the next session:
 
-| Derived live           | Formula                                              |
-| ---------------------- | ---------------------------------------------------- |
-| Market cap             | `shares × price`                                     |
-| P/E 26, P/E 27e        | `price ÷ EPS`                                        |
-| Dividend yield 26, 27e | `DPS ÷ price × 100`                                  |
-| P/B, P/S, P/FCF 25     | `price ÷ book value, sales per share, FCF per share` |
+| Derived live | Formula |
+| --- | --- |
+| Market cap | `shares × price` |
+| P/E 26, P/E 27e | `price ÷ EPS` |
+| Dividend yield 26, 27e | `DPS ÷ price × 100` |
+| P/B, P/S, P/FCF 25 | `price ÷ book value, sales per share, FCF per share` |
 
 The ratio columns are stored as fractions, so `0.163` renders as `16,3 %`.
 
@@ -591,13 +591,13 @@ Every reader in the codebase picked "the user's portfolio" with `ORDER BY create
 
 The predicate `league_id IS NULL` is therefore added in five places, three in SQL and two in the client:
 
-| Where                                    | What it protects                                                                                                |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `leaderboard()`                          | the general ranking, and the 100 000 MAD it measures against                                                    |
-| `admin_list_users()`                     | the cash column **and** the holdings / trades counters, which had no `LIMIT` at all and aggregated every wallet |
-| `admin_user_activity()`                  | the whole account sheet, which hangs off one `pf_id` chosen up front                                            |
-| `lib/portfolios.ts` (`loadWallet`)       | the Portefeuille page                                                                                           |
-| `lib/portfolios.ts` (`ensureMainWallet`) | the dashboard, and the first-visit creation                                                                     |
+| Where | What it protects |
+| --- | --- |
+| `leaderboard()` | the general ranking, and the 100 000 MAD it measures against |
+| `admin_list_users()` | the cash column **and** the holdings / trades counters, which had no `LIMIT` at all and aggregated every wallet |
+| `admin_user_activity()` | the whole account sheet, which hangs off one `pf_id` chosen up front |
+| `lib/portfolios.ts` (`loadWallet`) | the Portefeuille page |
+| `lib/portfolios.ts` (`ensureMainWallet`) | the dashboard, and the first-visit creation |
 
 All portfolio resolution goes through `src/lib/portfolios.ts` now. **Do not reintroduce the raw query anywhere.**
 
