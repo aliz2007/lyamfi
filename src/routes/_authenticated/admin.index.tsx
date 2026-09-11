@@ -139,15 +139,15 @@ function Console({
             <table className="w-full min-w-[860px] text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b border-border">
-                  <th className="px-5 py-3 text-left font-medium sm:px-6">
+                  <th className="px-5 py-3 text-start font-medium sm:px-6">
                     {t("admin.colAccount")}
                   </th>
-                  <th className="px-3 py-3 text-left font-medium">{t("admin.colRole")}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t("admin.colModules")}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t("admin.colHoldings")}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t("admin.colTrades")}</th>
-                  <th className="px-3 py-3 text-left font-medium">{t("admin.colJoined")}</th>
-                  <th className="px-5 py-3 text-right font-medium sm:px-6">
+                  <th className="px-3 py-3 text-start font-medium">{t("admin.colRole")}</th>
+                  <th className="px-3 py-3 text-end font-medium">{t("admin.colModules")}</th>
+                  <th className="px-3 py-3 text-end font-medium">{t("admin.colHoldings")}</th>
+                  <th className="px-3 py-3 text-end font-medium">{t("admin.colTrades")}</th>
+                  <th className="px-3 py-3 text-start font-medium">{t("admin.colJoined")}</th>
+                  <th className="px-5 py-3 text-end font-medium sm:px-6">
                     {t("admin.colActions")}
                   </th>
                 </tr>
@@ -173,13 +173,13 @@ function Console({
                     <td className="px-3 py-4">
                       <RoleBadge role={u.role} principal={isPrincipalAdminEmail(u.email)} t={t} />
                     </td>
-                    <td className="px-3 py-4 text-right tabular-nums">{u.lessons_completed}</td>
-                    <td className="px-3 py-4 text-right tabular-nums">{u.holdings_count}</td>
-                    <td className="px-3 py-4 text-right tabular-nums">{u.trades_count}</td>
+                    <td className="px-3 py-4 text-end tabular-nums">{u.lessons_completed}</td>
+                    <td className="px-3 py-4 text-end tabular-nums">{u.holdings_count}</td>
+                    <td className="px-3 py-4 text-end tabular-nums">{u.trades_count}</td>
                     <td className="px-3 py-4 text-xs text-muted-foreground">
                       {f.shortDate(u.created_at)}
                     </td>
-                    <td className="px-5 py-4 text-right sm:px-6">
+                    <td className="px-5 py-4 text-end sm:px-6">
                       <div className="flex justify-end gap-2">
                         <RoleButton
                           row={u}

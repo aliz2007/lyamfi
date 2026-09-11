@@ -90,7 +90,7 @@ function MacroPage() {
         to="/actualites"
         className="press -mx-2 inline-flex min-h-9 items-center gap-1.5 px-2 text-sm text-muted-foreground transition-colors hover:text-brand-yellow"
       >
-        <ArrowLeft className="h-4 w-4" /> {t("macro.back")}
+        <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t("macro.back")}
       </Link>
 
       <header className="rise">
@@ -190,7 +190,7 @@ function IndicatorCard({
           <h2 className="text-sm font-semibold text-brand-yellow">{t(labels.label)}</h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t(labels.text)}</p>
         </div>
-        <div className="shrink-0 text-right">
+        <div className="shrink-0 text-end">
           <p className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
             {last ? `${f.num(last.value, 1)} %` : EMPTY}
           </p>

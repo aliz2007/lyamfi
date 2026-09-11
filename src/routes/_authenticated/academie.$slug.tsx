@@ -104,7 +104,7 @@ function LessonPage() {
         to="/academie"
         className="press -mx-2 inline-flex min-h-9 items-center gap-1.5 px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> {t("lesson.breadcrumb")}
+        <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t("lesson.breadcrumb")}
       </Link>
 
       <header className="rise">
@@ -156,7 +156,7 @@ function LessonPage() {
                           key={oi}
                           disabled={Boolean(result)}
                           onClick={() => setAnswers({ ...answers, [i]: oi })}
-                          className={`block w-full rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
+                          className={`block w-full rounded-xl border px-4 py-3 text-start text-sm transition-colors ${
                             showCorrect
                               ? "border-[var(--success)] text-[var(--success)]"
                               : wrongPick
