@@ -420,7 +420,7 @@ function BoursePage() {
                 </div>
                 {/* La place de l'étoile est réservée dans le coin : sans cette
                   marge, un cours à quatre chiffres passerait dessous. */}
-                <div className="shrink-0 pr-7 text-right">
+                <div className="shrink-0 pr-7 text-end">
                   <p className="whitespace-nowrap text-sm font-semibold tabular-nums">
                     {l.price === null ? EMPTY : `${f.price(l.price)} MAD`}
                   </p>

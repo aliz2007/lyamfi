@@ -217,9 +217,9 @@ function Detail({
             {data.holdings.map((h, i) => (
               <tr key={i} className="border-b border-border/60 last:border-0">
                 <td className="py-2.5 font-medium">{h.ticker}</td>
-                <td className="py-2.5 text-right tabular-nums">{f.num(Number(h.quantity), 0)}</td>
-                <td className="py-2.5 text-right tabular-nums">{f.num(Number(h.avg_price))}</td>
-                <td className="py-2.5 text-right tabular-nums">{f.mad(Number(h.cost), 0)}</td>
+                <td className="py-2.5 text-end tabular-nums">{f.num(Number(h.quantity), 0)}</td>
+                <td className="py-2.5 text-end tabular-nums">{f.num(Number(h.avg_price))}</td>
+                <td className="py-2.5 text-end tabular-nums">{f.mad(Number(h.cost), 0)}</td>
               </tr>
             ))}
           </Table>
@@ -240,12 +240,12 @@ function Detail({
             {data.orders.map((o, i) => (
               <tr key={i} className="border-b border-border/60 last:border-0">
                 <td className="py-2.5 font-medium">{o.ticker}</td>
-                <td className="py-2.5 text-right">
+                <td className="py-2.5 text-end">
                   <Side side={o.side} t={t} />
                 </td>
-                <td className="py-2.5 text-right tabular-nums">{f.num(Number(o.quantity), 0)}</td>
-                <td className="py-2.5 text-right tabular-nums">{f.num(Number(o.limit_price))}</td>
-                <td className="py-2.5 text-right text-xs text-muted-foreground">
+                <td className="py-2.5 text-end tabular-nums">{f.num(Number(o.quantity), 0)}</td>
+                <td className="py-2.5 text-end tabular-nums">{f.num(Number(o.limit_price))}</td>
+                <td className="py-2.5 text-end text-xs text-muted-foreground">
                   {f.shortDate(o.created_at)}
                 </td>
               </tr>
@@ -273,13 +273,13 @@ function Detail({
                 <td className="py-2.5 text-xs text-muted-foreground">
                   {f.shortDate(tr.created_at)}
                 </td>
-                <td className="py-2.5 text-right">
+                <td className="py-2.5 text-end">
                   <Side side={tr.side} t={t} />
                 </td>
-                <td className="py-2.5 text-right font-medium">{tr.ticker}</td>
-                <td className="py-2.5 text-right tabular-nums">{f.num(Number(tr.quantity), 0)}</td>
-                <td className="py-2.5 text-right tabular-nums">{f.num(Number(tr.price))}</td>
-                <td className="py-2.5 text-right tabular-nums">{f.mad(Number(tr.amount), 0)}</td>
+                <td className="py-2.5 text-end font-medium">{tr.ticker}</td>
+                <td className="py-2.5 text-end tabular-nums">{f.num(Number(tr.quantity), 0)}</td>
+                <td className="py-2.5 text-end tabular-nums">{f.num(Number(tr.price))}</td>
+                <td className="py-2.5 text-end tabular-nums">{f.mad(Number(tr.amount), 0)}</td>
               </tr>
             ))}
           </Table>
@@ -573,11 +573,11 @@ function Progression({ data, t, f }: { data: AdminActivity; t: Translate; f: For
         <table className="w-full min-w-[560px] text-sm">
           <thead className="text-xs text-muted-foreground">
             <tr className="border-b border-border">
-              <th className="py-2 text-left font-medium">{t("admin.colModule")}</th>
-              <th className="py-2 text-left font-medium">{t("admin.colLevel")}</th>
-              <th className="py-2 text-right font-medium">{t("admin.colScore")}</th>
-              <th className="py-2 text-right font-medium">{t("admin.colStatus")}</th>
-              <th className="py-2 text-right font-medium">{t("admin.colLastTry")}</th>
+              <th className="py-2 text-start font-medium">{t("admin.colModule")}</th>
+              <th className="py-2 text-start font-medium">{t("admin.colLevel")}</th>
+              <th className="py-2 text-end font-medium">{t("admin.colScore")}</th>
+              <th className="py-2 text-end font-medium">{t("admin.colStatus")}</th>
+              <th className="py-2 text-end font-medium">{t("admin.colLastTry")}</th>
             </tr>
           </thead>
           <tbody>
@@ -587,10 +587,10 @@ function Progression({ data, t, f }: { data: AdminActivity; t: Translate; f: For
                 <td className="py-2.5 pr-3 text-xs text-muted-foreground">
                   {t(levelKey(l.level))}
                 </td>
-                <td className="py-2.5 text-right tabular-nums">
+                <td className="py-2.5 text-end tabular-nums">
                   {l.attempted ? `${l.score}%` : EMPTY}
                 </td>
-                <td className="py-2.5 text-right">
+                <td className="py-2.5 text-end">
                   <span
                     className={`text-xs ${
                       l.completed
@@ -609,7 +609,7 @@ function Progression({ data, t, f }: { data: AdminActivity; t: Translate; f: For
                     )}
                   </span>
                 </td>
-                <td className="py-2.5 text-right text-xs text-muted-foreground">
+                <td className="py-2.5 text-end text-xs text-muted-foreground">
                   {f.shortDate(l.updated_at)}
                 </td>
               </tr>
@@ -691,7 +691,7 @@ function Back({ t }: { t: Translate }) {
       to="/admin"
       className="press -mx-2 inline-flex min-h-9 items-center gap-1.5 px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
-      <ArrowLeft className="h-4 w-4" /> {t("admin.backAll")}
+      <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t("admin.backAll")}
     </Link>
   );
 }
@@ -712,7 +712,7 @@ function Table({ head, children }: { head: string[]; children: React.ReactNode }
         <thead className="text-xs text-muted-foreground">
           <tr className="border-b border-border">
             {head.map((h, i) => (
-              <th key={h} className={`py-2 font-medium ${i === 0 ? "text-left" : "text-right"}`}>
+              <th key={h} className={`py-2 font-medium ${i === 0 ? "text-start" : "text-end"}`}>
                 {h}
               </th>
             ))}
@@ -728,7 +728,7 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-border/40 pb-2">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className={`truncate text-right ${mono ? "font-mono text-xs" : ""}`}>{value}</dd>
+      <dd className={`truncate text-end ${mono ? "font-mono text-xs" : ""}`}>{value}</dd>
     </div>
   );
 }
