@@ -51,7 +51,7 @@ const MAX_KEYWORDS = 6;
 function normalizeBase(s: string): string {
   return s
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/(^|\s)(l|d|qu|j|n|s|t|c|m)['’`]/g, "$1$2 ")
     .replace(/\s+/g, " ")
