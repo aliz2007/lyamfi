@@ -1,20 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 
 /**
- * Moissonnage et traduction du fil Boursenews.
+ * Moissonnage et traduction du fil d'actualités multi-sources.
  *
- * Exécuté côté serveur (modèle : `lib/quotes.functions.ts`) pour deux raisons :
- * le navigateur serait bloqué par CORS en appelant boursenews.ma, et la clé
- * d'entrée des traductions ne doit pas transiter par le client. Le HTML est
- * transformé en TEXTE BRUT ici, jamais renvoyé tel quel : l'interface n'a
- * ainsi aucune tentation de l'injecter (`dangerouslySetInnerHTML` reste
- * proscrit partout).
+ * Trois sources, une même chorégraphie : chaque page de liste est téléchargée
+ * ici côté serveur (CORS bloquerait le navigateur, et la clé d'entrée des
+ * traductions ne doit pas transiter par le client), transformée en TEXTE BRUT
+ * — jamais renvoyée telle quelle, l'interface n'a ainsi aucune tentation de
+ * l'injecter (`dangerouslySetInnerHTML` reste proscrit partout).
  *
  * Le parsing est volontairement à base d'expressions régulières sur la
  * structure des cartes et de l'article : pas de dépendance DOM côté serveur.
  * Les expressions ont été éprouvées sur des échantillons réels des pages
- * (`/articles/{cat}` et `/article/{cat}/{slug}`).
+ * (boursenews `/articles/{cat}` et `/article/{cat}/{slug}`, alphabourse
+ * `/fr/{rubrique}` et la page d'article).
  */
+
+/** Les trois sources du fil. « leboursier » = la rubrique Le Boursier de Medias24. */
+export type FeedSource = "boursenews" | "leboursier" | "alphabourse";
 
 export type NewsCategory = "marches" | "actualite" | "decryptage";
 
@@ -22,8 +25,10 @@ export const NEWS_CATEGORIES: NewsCategory[] = ["marches", "actualite", "decrypt
 
 /** Une carte du fil, déjà nettoyée (texte, entités déséchappées, URL absolues). */
 export type FeedItem = {
+  /** slug nu pour boursenews (legacy), « alphabourse:<hexid> », « leboursier:<id> ». */
   guid: string;
-  category: NewsCategory;
+  source: FeedSource;
+  category: string;
   url: string;
   title: string;
   excerpt: string;
@@ -33,13 +38,11 @@ export type FeedItem = {
 
 export type FeedResult = {
   items: FeedItem[];
-  /** Catégories dont la page n'a pas pu être récupérée (réseau, 5xx…). */
-  failedCategories: string[];
+  /** Sources dont AUCUNE page n'a pu être récupérée (réseau, 5xx, challenge…). */
+  failedSources: string[];
 };
 
-const BASE = "https://www.boursenews.ma";
-
-/** Un navigateur ordinaire : le site filtre les clients trop évidents. */
+/** Un navigateur ordinaire : les sites filtrent les clients trop évidents. */
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
@@ -120,6 +123,9 @@ function unescapeHtml(s: string): string {
 
 const stripTags = (s: string): string => s.replace(/<[^>]*>/g, "");
 
+/** Texte d'un fragment HTML : balises ôtées, entités résolues, blancs tassés. */
+const cleanText = (s: string): string => unescapeHtml(stripTags(s)).replace(/\s+/g, " ").trim();
+
 /* ------------------------------------------------------------- dates FR */
 
 const MONTHS: Record<string, number> = {
@@ -141,10 +147,10 @@ const MONTHS: Record<string, number> = {
 };
 
 /**
- * « Vendredi 11 Septembre 2026 » → ISO, midi UTC pour ne pas glisser d'un
- * jour selon le fuseau du serveur. Le jour de la semaine est ignoré : il est
- * redondant avec la date et n'ajoute qu'un risque de faute. Échec → null,
- * une carte sans date reste affichable (rangée en fin de fil).
+ * « Vendredi 11 Septembre 2026 » ou « 11 Septembre 2026 » (alphabourse, sans
+ * jour de semaine) → ISO, midi UTC pour ne pas glisser d'un jour selon le
+ * fuseau du serveur. Échec → null, une carte sans date reste affichable
+ * (rangée en fin de fil).
  */
 function parseFrenchDate(text: string): string | null {
   const m = /(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})/.exec(text);
@@ -158,12 +164,12 @@ function parseFrenchDate(text: string): string | null {
 }
 
 /** Rend absolue une URL du site source (les href/src des cartes sont relatifs). */
-const absolutize = (u: string): string => (u.startsWith("http") ? u : `${BASE}${u}`);
+const absolutize = (base: string, u: string): string => (u.startsWith("http") ? u : `${base}${u}`);
 
-/* ------------------------------------------------------- page de liste */
+/* ------------------------------------------------------- boursenews */
 
 /**
- * Extrait les cartes d'une page `/articles/{cat}`.
+ * Extrait les cartes d'une page `/articles/{cat}` de boursenews.
  *
  * Structure visée (éprouvée sur échantillon) : chaque carte est un
  * `<h3><a href="/article/{cat}/{slug}">titre<span>date</span></a></h3>`
@@ -172,7 +178,7 @@ const absolutize = (u: string): string => (u.startsWith("http") ? u : `${BASE}${
  * retrouvée par slug plutôt que par position : la mise en page peut changer,
  * le lien image↔article, lui, tient à l'URL.
  */
-function parseListing(html: string, category: NewsCategory): FeedItem[] {
+function parseBoursenewsListing(html: string, page: SourcePage, base: string): FeedItem[] {
   const images = new Map<string, string>();
   const imgRe = /<a[^>]*href="\/article\/[a-z]+\/([a-z0-9-]+)"[^>]*>\s*<img[^>]*src="([^"]+)"/g;
   for (const m of html.matchAll(imgRe)) images.set(m[1]!, m[2]!);
@@ -190,53 +196,216 @@ function parseListing(html: string, category: NewsCategory): FeedItem[] {
       string,
       string,
     ];
-    if (cat !== category) continue;
+    if (cat !== page.category) continue;
 
     const spanIdx = inner.indexOf("<span>");
-    const title = unescapeHtml(stripTags(spanIdx === -1 ? inner : inner.slice(0, spanIdx)))
-      .replace(/\s+/g, " ")
-      .trim();
+    const title = cleanText(spanIdx === -1 ? inner : inner.slice(0, spanIdx));
     // Le titre fait foi : une carte sans titre est une carte illisible.
     if (!title) continue;
 
-    const dateText = spanIdx === -1 ? "" : unescapeHtml(stripTags(inner.slice(spanIdx)));
-    const excerpt = unescapeHtml(stripTags(excerptRaw)).replace(/\s+/g, " ").trim();
+    const dateText = spanIdx === -1 ? "" : cleanText(inner.slice(spanIdx));
 
     items.push({
       guid: slug,
-      category,
-      url: absolutize(path),
+      source: "boursenews",
+      category: page.category,
+      url: absolutize(base, path),
       title,
-      excerpt,
-      imageUrl: images.has(slug) ? absolutize(images.get(slug)!) : null,
+      excerpt: cleanText(excerptRaw),
+      imageUrl: images.has(slug) ? absolutize(base, images.get(slug)!) : null,
       publishedAt: parseFrenchDate(dateText),
     });
-    // 15 par catégorie suffisent au fil ; au-delà on ne fait que grossir le
-    // cache et le lot validé par la base (borné à 25 au total... voir RPC).
-    if (items.length >= 15) break;
+    if (items.length >= page.limit) break;
   }
   return items;
 }
 
+/* ------------------------------------------------------- alphabourse */
+
 /**
- * Le fil des trois catégories, fusionné et trié du plus récent au plus
- * ancien (articles sans date en fin). Une catégorie injoignable est signalée
- * dans `failedCategories` plutôt que de faire échouer tout le fil.
+ * Extrait les cartes d'une page de rubrique alphabourse (`/fr/actualite-et-flux`,
+ * `/fr/actualite-macro`, `/fr/gouvernance-cotee`).
+ *
+ * Structure visée (éprouvée sur échantillon) : chaque carte est un
+ * `<div class="article[…]">` (variantes `article_la_une` incluses) contenant
+ * `.img_article a[href]` (URL `/fr/{rubrique}/{slug}-{hexid}`, l'hexid final
+ * sert de guid), un `<img>` paresseux (`data-src` prioritaire sur `src`),
+ * `ul.date_tag li span` = « 11 Septembre 2026 » (sans jour de semaine),
+ * `h3 a` = titre, et parfois un `<p>` d'extrait après le `</h3>`.
  */
-export const fetchBoursenewsFeed = createServerFn({ method: "GET" }).handler(
+function parseAlphabourseListing(html: string, page: SourcePage, base: string): FeedItem[] {
+  // Fenêtre d'une carte : du `<div class="article…">` au suivant (les cartes
+  // ne s'imbriquent pas, la limite est sûre).
+  const cardRe = /<div class="article[ "][\s\S]*?(?=<div class="article[ "]|$)/g;
+
+  const items: FeedItem[] = [];
+  const seen = new Set<string>();
+  for (const m of html.matchAll(cardRe)) {
+    const block = m[0];
+
+    const link = /href="(\/fr\/[a-z0-9-]+\/[a-z0-9-]*-([0-9a-f]{13}))"/.exec(block);
+    if (!link) continue;
+    const [, path, hexid] = link as unknown as [string, string, string];
+    const guid = `alphabourse:${hexid}`;
+    if (seen.has(guid)) continue; // même article en « à la une » et en grille
+
+    const titleM = /<h3>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/.exec(block);
+    const title = titleM ? cleanText(titleM[1]!) : "";
+    if (!title) continue;
+
+    // Image paresseuse : data-src fait foi, src en repli, et uniquement dans
+    // la partie `.img_article` — le `<h3>` peut loger un badge décoratif.
+    const imgScope = block.split('<div class="content_article">')[0] ?? "";
+    const imgM = /data-src="([^"]+)"/.exec(imgScope) ?? /<img[^>]*src="([^"]+)"/.exec(imgScope);
+    const dateM = /<ul class="date_tag">[\s\S]*?<li><span>([\s\S]*?)<\/span>/.exec(block);
+    const excerptM = /<\/h3>\s*<p>([\s\S]*?)<\/p>/.exec(block);
+
+    items.push({
+      guid,
+      source: "alphabourse",
+      category: page.category,
+      url: absolutize(base, path!),
+      title,
+      excerpt: excerptM ? cleanText(excerptM[1]!) : "",
+      imageUrl: imgM ? absolutize(base, imgM[1]!) : null,
+      publishedAt: dateM ? parseFrenchDate(cleanText(dateM[1]!)) : null,
+    });
+    seen.add(guid);
+    if (items.length >= page.limit) break;
+  }
+  return items;
+}
+
+/* --------------------------------------------------------- medias24 */
+
+/**
+ * Extrait les cartes de `medias24.com/categorie/leboursier/` (WordPress).
+ *
+ * Les URL d'articles sont de la forme `/YYYY/MM/DD/slug-<id>/` : la date
+ * vient de L'URL, l'id numérique final sert de guid, le titre est le texte
+ * de l'ancre. L'extrait est souvent absent des cartes → « ». Le même article
+ * apparaît sous plusieurs ancres (image + titre) : déduplication par guid,
+ * la première ancre portant un vrai texte gagne.
+ */
+function parseMedias24Listing(html: string, page: SourcePage, base: string): FeedItem[] {
+  const anchorRe =
+    /<a[^>]*href="((?:https?:\/\/(?:www\.)?medias24\.com)?\/(\d{4})\/(\d{2})\/(\d{2})\/[a-z0-9-]+-(\d+)\/)"[^>]*>([\s\S]*?)<\/a>/g;
+
+  const items: FeedItem[] = [];
+  const seen = new Set<string>();
+  for (const m of html.matchAll(anchorRe)) {
+    const [, path, y, mo, d, id, inner] = m as unknown as [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    const guid = `leboursier:${id}`;
+    if (seen.has(guid)) continue;
+
+    const title = cleanText(inner!);
+    // Les ancres d'image n'ont pas de texte ; un titre fait moins de 10
+    // caractères est un menu ou un « Lire aussi », pas une carte.
+    if (title.length < 10) continue;
+
+    items.push({
+      guid,
+      source: "leboursier",
+      category: page.category,
+      url: absolutize(base, path!),
+      title,
+      excerpt: "",
+      imageUrl: null,
+      publishedAt: new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d), 12)).toISOString(),
+    });
+    seen.add(guid);
+    if (items.length >= page.limit) break;
+  }
+  return items;
+}
+
+/* ---------------------------------------------------- table des sources */
+
+type SourcePage = {
+  /** Chemin sous la base de la source. */
+  path: string;
+  /** Catégorie posée sur les cartes (validée en base). */
+  category: string;
+  /** Plafond de cartes conservées pour cette page. */
+  limit: number;
+};
+
+type SourceConfig = {
+  id: FeedSource;
+  base: string;
+  pages: SourcePage[];
+  parse: (html: string, page: SourcePage, base: string) => FeedItem[];
+};
+
+const SOURCES: SourceConfig[] = [
+  {
+    id: "boursenews",
+    base: "https://www.boursenews.ma",
+    pages: NEWS_CATEGORIES.map((cat) => ({
+      path: `/articles/${cat}`,
+      category: cat,
+      limit: 15,
+    })),
+    parse: parseBoursenewsListing,
+  },
+  {
+    id: "alphabourse",
+    base: "https://www.alphabourse.ma",
+    pages: [
+      { path: "/fr/actualite-et-flux", category: "actualite-et-flux", limit: 12 },
+      { path: "/fr/actualite-macro", category: "actualite-macro", limit: 12 },
+      { path: "/fr/gouvernance-cotee", category: "gouvernance-cotee", limit: 12 },
+    ],
+    parse: parseAlphabourseListing,
+  },
+  {
+    // ⚠️ Medias24 est derrière un challenge Cloudflare : le fetch échouera
+    // probablement côté serveur. C'est ACCEPTÉ — la source tombe alors dans
+    // `failedSources` sans casser le reste du fil, et le parseur reste prêt
+    // pour le jour où le challenge laisse passer une réponse.
+    id: "leboursier",
+    base: "https://medias24.com",
+    pages: [{ path: "/categorie/leboursier/", category: "leboursier", limit: 15 }],
+    parse: parseMedias24Listing,
+  },
+];
+
+/* -------------------------------------------------------------- le fil */
+
+/**
+ * Le fil de toutes les sources, fusionné et trié du plus récent au plus
+ * ancien (articles sans date en fin), plafonné à 45 cartes. Une source dont
+ * TOUTES les pages sont tombées est signalée dans `failedSources` plutôt que
+ * de faire échouer tout le fil.
+ */
+export const fetchNewsFeed = createServerFn({ method: "GET" }).handler(
   async (): Promise<FeedResult> => {
+    const tasks = SOURCES.flatMap((src) => src.pages.map((page) => ({ src, page })));
     const pages = await Promise.allSettled(
-      NEWS_CATEGORIES.map(async (cat) => ({
-        cat,
-        html: await fetchText(`${BASE}/articles/${cat}`, 8_000),
+      tasks.map(async ({ src, page }) => ({
+        src,
+        page,
+        html: await fetchText(`${src.base}${page.path}`, 8_000),
       })),
     );
 
     const items: FeedItem[] = [];
-    const failedCategories: string[] = [];
-    for (const p of pages) {
-      if (p.status === "fulfilled") items.push(...parseListing(p.value.html, p.value.cat));
-      else failedCategories.push(NEWS_CATEGORIES[pages.indexOf(p)]!);
+    const okBySource = new Set<FeedSource>();
+    for (let i = 0; i < pages.length; i++) {
+      const p = pages[i]!;
+      const { src, page } = tasks[i]!;
+      if (p.status === "fulfilled") {
+        okBySource.add(src.id);
+        items.push(...src.parse(p.value.html, page, src.base));
+      }
     }
 
     items.sort((a, b) => {
@@ -246,9 +415,19 @@ export const fetchBoursenewsFeed = createServerFn({ method: "GET" }).handler(
       return 0;
     });
 
-    return { items, failedCategories };
+    return {
+      items: items.slice(0, 45),
+      failedSources: SOURCES.filter((s) => !okBySource.has(s.id)).map((s) => s.id),
+    };
   },
 );
+
+/**
+ * @deprecated Ancien nom de {@link fetchNewsFeed}, conservé pour les
+ * appelants du batch précédent. ⚠️ Le retour a changé : `failedSources`
+ * remplace `failedCategories`.
+ */
+export const fetchBoursenewsFeed = fetchNewsFeed;
 
 /* ---------------------------------------------------------- page article */
 
@@ -281,21 +460,45 @@ function removeDivBlocks(html: string, pred: (openTag: string) => boolean): stri
   return html;
 }
 
+/** Hôtes dont cette fonction accepte de relayer les articles. */
+const ARTICLE_HOSTS: Record<string, { bodyClass: string }> = {
+  "boursenews.ma": { bodyClass: "article_detail_description" },
+  "alphabourse.ma": { bodyClass: "article_selected_body_contenu" },
+  "medias24.com": { bodyClass: "entry-content" },
+};
+
+function articleHost(url: string): string | null {
+  const m = /^https?:\/\/(?:www\.)?([a-z0-9.-]+)\//i.exec(url);
+  const host = m?.[1]?.toLowerCase();
+  return host && host in ARTICLE_HOSTS ? host : null;
+}
+
+/** Repli Medias24 : le résumé éditorial quand le corps est introuvable. */
+function ogDescription(html: string): string {
+  const m =
+    /<meta[^>]*(?:property|name)="og:description"[^>]*content="([^"]*)"/i.exec(html) ??
+    /<meta[^>]*content="([^"]*)"[^>]*(?:property|name)="og:description"/i.exec(html);
+  return m ? unescapeHtml(m[1]!).trim() : "";
+}
+
 /**
  * Convertit le HTML du corps d'article en texte brut.
  *
- * Étapes : isoler `.article_detail_description`, retirer ce qui n'est pas du
- * texte (scripts, styles, cadres, formulaires, commentaires), retirer les
- * blocs sans valeur de lecture (pavés publicitaires `div-gpt-ad`, colonne
- * flottante `detail_article_left`, étiquettes `list_tages`), poser un saut de
- * ligne par bloc (`p`, `br`, `div`, `li`), supprimer toutes les autres
- * balises, déséchapper les entités et tasser les lignes vides. Plafond aligné
- * sur la borne de la base (30 000).
+ * Étapes : isoler le conteneur du corps (classe propre à l'hôte), retirer ce
+ * qui n'est pas du texte (scripts, styles, cadres, formulaires,
+ * commentaires), retirer les blocs sans valeur de lecture (pavés
+ * publicitaires `div-gpt-ad`, colonne flottante `detail_article_left`,
+ * étiquettes `list_tages`, partages WordPress `sharedaddy` /
+ * `jp-relatedposts`), poser un saut de ligne par bloc (`p`, `br`, `div`,
+ * `li`), supprimer toutes les autres balises, déséchapper les entités et
+ * tasser les lignes vides. Plafond aligné sur la borne de la base (30 000).
  */
-export function articleHtmlToText(html: string): string {
-  const startRe = /<div[^>]*class="[^"]*article_detail_description[^"]*"[^>]*>/i;
+export function articleHtmlToText(html: string, host = "boursenews.ma"): string {
+  const conf = ARTICLE_HOSTS[host] ?? ARTICLE_HOSTS["boursenews.ma"]!;
+  const startRe = new RegExp(`<div[^>]*class="[^"]*${conf.bodyClass}[^"]*"[^>]*>`, "i");
   const sm = startRe.exec(html);
-  if (!sm) return "";
+  // Medias24 sans corps lisible : le résumé og:description vaut mieux que rien.
+  if (!sm) return host === "medias24.com" ? ogDescription(html) : "";
 
   // Fin du bloc : comptage d'imbrication des divs, comme removeDivBlocks.
   let depth = 1;
@@ -314,7 +517,9 @@ export function articleHtmlToText(html: string): string {
 
   body = body.replace(/<!--[\s\S]*?-->/g, "");
   body = body.replace(/<(script|style|noscript|iframe|form)\b[\s\S]*?<\/\1>/gi, "");
-  body = removeDivBlocks(body, (tag) => /div-gpt-ad|detail_article_left|list_tages/i.test(tag));
+  body = removeDivBlocks(body, (tag) =>
+    /div-gpt-ad|detail_article_left|list_tages|sharedaddy|jp-relatedposts/i.test(tag),
+  );
   body = body.replace(/<br\s*\/?>/gi, "\n");
   body = body.replace(/<\/(p|div|li|h[1-6])>/gi, "\n");
   body = stripTags(body);
@@ -328,22 +533,26 @@ export function articleHtmlToText(html: string): string {
 }
 
 /**
- * Le corps d'un article. Seules les URL d'articles du site source sont
- * acceptées : la fonction est un relais de téléchargement, elle ne doit pas
- * servir à aller lire n'importe quel site sous l'identité du serveur.
+ * Le corps d'un article, toutes sources confondues. Seules les URL des hôtes
+ * sources sont acceptées : la fonction est un relais de téléchargement, elle
+ * ne doit pas servir à aller lire n'importe quel site sous l'identité du
+ * serveur. Le sélecteur du corps dépend de l'hôte (voir ARTICLE_HOSTS).
  */
-export const fetchBoursenewsBody = createServerFn({ method: "POST" })
+export const fetchArticleBody = createServerFn({ method: "POST" })
   .validator((data: unknown): { url: string } => {
     const url = (data as { url?: unknown })?.url;
-    if (typeof url !== "string" || !/^https?:\/\/(www\.)?boursenews\.ma\/article\//i.test(url)) {
+    if (typeof url !== "string" || articleHost(url) === null) {
       throw new Error("URL d'article invalide");
     }
     return { url };
   })
   .handler(async ({ data }): Promise<{ body: string }> => {
     const html = await fetchText(data.url, 8_000);
-    return { body: articleHtmlToText(html) };
+    return { body: articleHtmlToText(html, articleHost(data.url) ?? "boursenews.ma") };
   });
+
+/** @deprecated Ancien nom de {@link fetchArticleBody} (boursenews seul). */
+export const fetchBoursenewsBody = fetchArticleBody;
 
 /* ------------------------------------------------------------ traduction */
 
