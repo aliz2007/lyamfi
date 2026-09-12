@@ -1,15 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ExternalLink, Newspaper, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Newspaper, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { deleteInsight, newsFeedQuery, saveInsight, type NewsFeedItem } from "@/lib/newsfeed";
+import { deleteInsight, newsFeedQuery, saveInsight, SOURCE_LABEL } from "@/lib/newsfeed";
 import { MacroBanner } from "@/components/MacroBanner";
-import { NewsInsight } from "@/components/NewsInsight";
+import { NewsCard } from "@/components/NewsCard";
 import { NewsInsightEditor } from "@/components/NewsInsightEditor";
 import { myRoleQuery } from "@/lib/admin";
-import { useFormat, type Formatter } from "@/lib/format";
-import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
+import { useFormat } from "@/lib/format";
+import { useI18n, usePageTitle } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/actualites/")({
   head: () => ({
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/actualites/")({
       {
         name: "description",
         content:
-          "Le fil Boursenews suivi par Lyamfi : marchés, actualité et décryptage de la Bourse de Casablanca, traduits en trois langues.",
+          "Le fil Boursenews, Le Boursier (Medias24) et AlphaBourse suivi par Lyamfi : l'actualité de la Bourse de Casablanca, traduite en trois langues et rangée par mots-clés.",
       },
       { property: "og:title", content: "Actualités | Lyamfi" },
       { property: "og:description", content: "Le fil d'actualité boursière de Lyamfi." },
@@ -28,10 +28,12 @@ export const Route = createFileRoute("/_authenticated/actualites/")({
 });
 
 /**
- * Le fil Boursenews, moissonné côté serveur, mis en cache en base et traduit
- * à la volée. La publication manuelle d'articles a disparu : Lyamfi n'écrit
- * plus que le commentaire de rédaction (« l'œil »), par carte, réservé aux
- * administrateurs.
+ * Le fil multi-sources (Boursenews, Le Boursier — Medias24, AlphaBourse),
+ * moissonné côté serveur, mis en cache en base et traduit à la volée. La
+ * publication manuelle d'articles a disparu : Lyamfi n'écrit plus que le
+ * commentaire de rédaction (« l'œil »), par carte, réservé aux
+ * administrateurs. Chaque carte porte ses mots-clés (≤6), qui mènent aux
+ * pages par mot-clé.
  */
 function NewsPage() {
   const { t, lang } = useI18n();
@@ -41,7 +43,11 @@ function NewsPage() {
   const qc = useQueryClient();
   const { data: role } = useQuery(myRoleQuery);
   const isAdmin = role === "admin";
-  const { data: items = [], isLoading, error } = useQuery(newsFeedQuery(lang));
+  const { data: feed, isLoading, error } = useQuery(newsFeedQuery(lang));
+  // Références stables pour le filtrage : sans useMemo, `?? []` recréerait
+  // un tableau à chaque rendu et relancerait le filtre en boucle.
+  const items = useMemo(() => feed?.items ?? [], [feed]);
+  const failedSources = feed?.failedSources ?? [];
 
   const [search, setSearch] = useState("");
   /** Guid de la carte dont le panneau d'insight est ouvert, null sinon. */
@@ -102,6 +108,20 @@ function NewsPage() {
         />
       </div>
 
+      {/* Une source injoignable (challenge, panne) ne casse pas le fil : une
+          ligne discrète le signale, les autres sources continuent. */}
+      {failedSources.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {failedSources
+            .map((s) =>
+              t("newsfeed.sourceDown", {
+                source: SOURCE_LABEL[s as keyof typeof SOURCE_LABEL] ?? s,
+              }),
+            )
+            .join(" ")}
+        </p>
+      )}
+
       {error ? (
         <div className="glass p-8 text-center">
           <p className="text-sm text-destructive">{t("newsfeed.fetchError")}</p>
@@ -119,173 +139,62 @@ function NewsPage() {
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((item) => (
-            <FeedCard
+            <NewsCard
               key={item.guid}
               item={item}
               t={t}
               f={f}
-              isAdmin={isAdmin}
-              editingInsight={editingInsight === item.guid}
-              saving={save.isPending && save.variables?.guid === item.guid}
-              onToggleInsight={() =>
-                setEditingInsight(editingInsight === item.guid ? null : item.guid)
+              adminSlot={
+                isAdmin ? (
+                  <>
+                    <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+                      <button
+                        onClick={() =>
+                          setEditingInsight(editingInsight === item.guid ? null : item.guid)
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3.5 py-1.5 text-xs text-brand-yellow transition-colors hover:bg-accent"
+                      >
+                        {item.insight ? (
+                          <Pencil className="h-3.5 w-3.5" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" />
+                        )}
+                        {t(item.insight ? "newsfeed.insightEdit" : "newsfeed.insightAdd")}
+                      </button>
+                      {item.insight && (
+                        <button
+                          onClick={() => {
+                            // La suppression touche tous les membres :
+                            // confirmation explicite, comme partout où
+                            // l'action est irréversible.
+                            if (window.confirm(t("newsfeed.insightDeleteConfirm"))) {
+                              removeInsight.mutate(item.guid);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-destructive/50 px-3.5 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> {t("newsfeed.insightDelete")}
+                        </button>
+                      )}
+                    </div>
+                    {editingInsight === item.guid && (
+                      <div className="mt-3">
+                        <NewsInsightEditor
+                          initialBody={item.insight?.body ?? ""}
+                          pending={save.isPending && save.variables?.guid === item.guid}
+                          onSave={(body) => save.mutate({ guid: item.guid, body })}
+                          onCancel={() => setEditingInsight(null)}
+                        />
+                      </div>
+                    )}
+                  </>
+                ) : undefined
               }
-              onSaveInsight={(body) => save.mutate({ guid: item.guid, body })}
-              onDeleteInsight={() => {
-                // La suppression touche tous les membres : confirmation
-                // explicite, comme partout où l'action est irréversible.
-                if (window.confirm(t("newsfeed.insightDeleteConfirm"))) {
-                  removeInsight.mutate(item.guid);
-                }
-              }}
             />
           ))}
         </div>
       )}
     </div>
-  );
-}
-
-/* --------------------------------------------------------------- carte */
-
-const CATEGORY_KEY: Record<NewsFeedItem["category"], Key> = {
-  marches: "newsfeed.catMarches",
-  actualite: "newsfeed.catActualite",
-  decryptage: "newsfeed.catDecryptage",
-};
-
-/**
- * Une carte du fil : image, chip catégorie, titre, extrait, source, et le
- * commentaire de rédaction quand il existe.
- *
- * L'image et le titre mènent à l'article ; les commandes d'administration
- * sont posées HORS des liens : imbriquer un bouton dans une ancre produit un
- * balisage invalide, et cliquer « Supprimer » ouvrirait l'article au passage.
- */
-function FeedCard({
-  item,
-  t,
-  f,
-  isAdmin,
-  editingInsight,
-  saving,
-  onToggleInsight,
-  onSaveInsight,
-  onDeleteInsight,
-}: {
-  item: NewsFeedItem;
-  t: Translate;
-  f: Formatter;
-  isAdmin: boolean;
-  editingInsight: boolean;
-  saving: boolean;
-  onToggleInsight: () => void;
-  onSaveInsight: (body: string) => void;
-  onDeleteInsight: () => void;
-}) {
-  return (
-    <article className="surface-raised card-hover group flex flex-col overflow-hidden">
-      <Link
-        to="/actualites/$id"
-        params={{ id: item.guid }}
-        className="relative block h-40 overflow-hidden bg-[oklch(0.22_0.006_90)]"
-      >
-        {item.imageUrl ? (
-          <img
-            src={item.imageUrl}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
-        ) : (
-          <span className="grid h-full w-full place-items-center">
-            <Newspaper className="h-8 w-8 text-muted-foreground/40" />
-          </span>
-        )}
-      </Link>
-
-      <div className="flex min-w-0 flex-1 flex-col p-5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <span className="rounded-full bg-accent px-2.5 py-0.5 font-medium text-brand-yellow">
-            {t(CATEGORY_KEY[item.category])}
-          </span>
-          {item.publishedAt && (
-            <span className="text-muted-foreground">{f.weekdayDate(item.publishedAt)}</span>
-          )}
-        </div>
-
-        <Link to="/actualites/$id" params={{ id: item.guid }} className="mt-2.5 block">
-          <h2 className="text-base font-bold leading-snug transition-colors group-hover:text-brand-yellow">
-            {item.title}
-          </h2>
-        </Link>
-
-        {/* Trois lignes, coupées par le CSS : l'article entier se lit sur sa
-            page, pas dans le flux. */}
-        {item.excerpt && (
-          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-            {item.excerpt}
-          </p>
-        )}
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 underline-offset-4 transition-colors hover:text-brand-yellow hover:underline"
-          >
-            {t("newsfeed.source")}
-            <ExternalLink className="h-3 w-3" aria-hidden="true" />
-          </a>
-          {item.machineTranslated && (
-            <span className="rounded-full border border-border px-2 py-0.5 text-[11px]">
-              {t("newsfeed.autoTranslated")}
-            </span>
-          )}
-        </div>
-
-        {item.insight && (
-          <div className="mt-4">
-            <NewsInsight insight={item.insight} />
-          </div>
-        )}
-
-        {isAdmin && (
-          <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
-            <button
-              onClick={onToggleInsight}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3.5 py-1.5 text-xs text-brand-yellow transition-colors hover:bg-accent"
-            >
-              {item.insight ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-              {t(item.insight ? "newsfeed.insightEdit" : "newsfeed.insightAdd")}
-            </button>
-            {item.insight && (
-              <button
-                onClick={onDeleteInsight}
-                className="inline-flex items-center gap-1.5 rounded-full border border-destructive/50 px-3.5 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> {t("newsfeed.insightDelete")}
-              </button>
-            )}
-          </div>
-        )}
-
-        {isAdmin && editingInsight && (
-          <div className="mt-3">
-            <NewsInsightEditor
-              initialBody={item.insight?.body ?? ""}
-              pending={saving}
-              onSave={onSaveInsight}
-              onCancel={onToggleInsight}
-            />
-          </div>
-        )}
-      </div>
-    </article>
   );
 }
 
