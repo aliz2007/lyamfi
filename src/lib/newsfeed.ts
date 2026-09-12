@@ -6,7 +6,7 @@ import {
   translateTexts,
   type FeedSource,
 } from "@/lib/newsfeed.functions";
-import { extractKeywords } from "@/lib/news-keywords";
+import { extractKeywords, parseKeywordId } from "@/lib/news-keywords";
 import type { Lang } from "@/lib/i18n";
 
 /**
@@ -114,7 +114,7 @@ type ItemsTable = {
     };
     contains: (
       col: string,
-      val: string[],
+      val: string,
     ) => {
       order: (col: string, opts: { ascending: boolean; nullsFirst?: boolean }) => OrderedQuery;
     };
@@ -379,10 +379,18 @@ export const newsFeedQuery = (lang: Lang) => ({
 export const newsKeywordQuery = (kw: string, lang: Lang) => ({
   queryKey: ["bnews-kw", kw, lang],
   queryFn: async (): Promise<NewsFeedItem[]> => {
+    // ⚠️ Le littéral `cs.{…}` est monté à la main, guillemets compris :
+    // postgrest-js sérialise un tableau SANS les guillemets, et Postgres
+    // refuse alors l'id (« malformed array literal: "t:agriculture" »,
+    // 22P02) à cause des deux-points. L'id est validé par parseKeywordId
+    // (alphabet `[ct]:[A-Za-z0-9+-]`, sans guillemets ni accolades) avant
+    // d'entrer dans le littéral.
+    const parsed = parseKeywordId(kw);
+    if (parsed === null) return [];
     const [itemsRes, insightsRes] = await Promise.all([
       itemsTable()
         .select(ITEM_COLS)
-        .contains("keywords", [kw])
+        .contains("keywords", `{"${kw}"}`)
         .order("published_at", { ascending: false, nullsFirst: false })
         .limit(60),
       insightsTable().select(INSIGHT_COLS),
