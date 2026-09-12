@@ -1,22 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
-import { ImagePlus, Newspaper, Pencil, Search, Trash2, Upload } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ExternalLink, Newspaper, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  createNews,
-  deleteNews,
-  MAX_IMAGE_BYTES,
-  NewsUploadError,
-  newsQuery,
-  toDayInput,
-  updateNews,
-  uploadNewsImage,
-  type NewsDraft,
-  type NewsPost,
-} from "@/lib/news";
-import { plainExcerpt } from "@/lib/excerpt";
+import { deleteInsight, newsFeedQuery, saveInsight, type NewsFeedItem } from "@/lib/newsfeed";
 import { MacroBanner } from "@/components/MacroBanner";
+import { NewsInsight } from "@/components/NewsInsight";
+import { NewsInsightEditor } from "@/components/NewsInsightEditor";
 import { myRoleQuery } from "@/lib/admin";
 import { useFormat, type Formatter } from "@/lib/format";
 import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
@@ -28,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/actualites/")({
       {
         name: "description",
         content:
-          "Les actualités de la Bourse de Casablanca publiées par Lyamfi : résultats, opérations et mouvements de la cote.",
+          "Le fil Boursenews suivi par Lyamfi : marchés, actualité et décryptage de la Bourse de Casablanca, traduits en trois langues.",
       },
       { property: "og:title", content: "Actualités | Lyamfi" },
       { property: "og:description", content: "Le fil d'actualité boursière de Lyamfi." },
@@ -37,83 +27,53 @@ export const Route = createFileRoute("/_authenticated/actualites/")({
   component: NewsPage,
 });
 
-const emptyDraft = (): NewsDraft => ({
-  title: "",
-  body: "",
-  imageUrl: "",
-  // Une publication est datée du jour, sauf décision contraire du rédacteur.
-  publishedAt: new Date().toISOString().slice(0, 10),
-});
-
+/**
+ * Le fil Boursenews, moissonné côté serveur, mis en cache en base et traduit
+ * à la volée. La publication manuelle d'articles a disparu : Lyamfi n'écrit
+ * plus que le commentaire de rédaction (« l'œil »), par carte, réservé aux
+ * administrateurs.
+ */
 function NewsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const f = useFormat();
   usePageTitle("news.title");
 
   const qc = useQueryClient();
   const { data: role } = useQuery(myRoleQuery);
   const isAdmin = role === "admin";
-  const { data: posts = [], isLoading, error } = useQuery(newsQuery);
+  const { data: items = [], isLoading, error } = useQuery(newsFeedQuery(lang));
 
   const [search, setSearch] = useState("");
-  /** `null` : le formulaire publie. Sinon il corrige l'article de cet identifiant. */
-  const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState<NewsDraft>(emptyDraft);
-  const formRef = useRef<HTMLDivElement>(null);
+  /** Guid de la carte dont le panneau d'insight est ouvert, null sinon. */
+  const [editingInsight, setEditingInsight] = useState<string | null>(null);
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["news"] });
-  const reset = () => {
-    setEditing(null);
-    setDraft(emptyDraft());
-  };
-
-  const publish = useMutation({
-    mutationFn: (v: NewsDraft) => createNews(v),
-    onSuccess: () => {
-      toast.success(t("news.published"));
-      reset();
-      refresh();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["bnews-feed"] });
 
   const save = useMutation({
-    mutationFn: (v: { id: string; draft: NewsDraft }) => updateNews(v.id, v.draft),
+    mutationFn: (v: { guid: string; body: string }) => saveInsight(v.guid, v.body, lang),
     onSuccess: () => {
-      toast.success(t("news.updated"));
-      reset();
+      toast.success(t("newsfeed.insightSaved"));
+      setEditingInsight(null);
       refresh();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const remove = useMutation({
-    mutationFn: (id: string) => deleteNews(id),
-    onSuccess: (_d, id) => {
-      toast.success(t("news.deleted"));
-      if (editing === id) reset();
+  const removeInsight = useMutation({
+    mutationFn: (guid: string) => deleteInsight(guid),
+    onSuccess: () => {
+      toast.success(t("newsfeed.insightDeleted"));
       refresh();
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const startEdit = (post: NewsPost) => {
-    setEditing(post.id);
-    setDraft({
-      title: post.title,
-      body: post.body,
-      imageUrl: post.imageUrl ?? "",
-      publishedAt: toDayInput(post.publishedAt),
-    });
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   /** Filtrage sur les titres, à la frappe. Aucun aller-retour réseau. */
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return posts;
-    return posts.filter((p) => p.title.toLowerCase().includes(needle));
-  }, [posts, search]);
+    if (!needle) return items;
+    return items.filter((i) => i.title.toLowerCase().includes(needle));
+  }, [items, search]);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -132,62 +92,52 @@ function NewsPage() {
       </header>
 
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("news.searchPlaceholder")}
           aria-label={t("news.searchPlaceholder")}
-          className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-primary"
+          className="w-full rounded-xl border border-input bg-card py-3 ps-11 pe-4 text-sm outline-none transition-colors focus:border-primary"
         />
       </div>
 
-      {isAdmin && (
-        <div ref={formRef}>
-          <Editor
-            t={t}
-            draft={draft}
-            editing={editing !== null}
-            pending={publish.isPending || save.isPending}
-            onChange={setDraft}
-            onCancel={reset}
-            onSubmit={() => (editing ? save.mutate({ id: editing, draft }) : publish.mutate(draft))}
-          />
+      {error ? (
+        <div className="glass p-8 text-center">
+          <p className="text-sm text-destructive">{t("newsfeed.fetchError")}</p>
         </div>
-      )}
-
-      {error && (
-        <p className="glass p-5 text-sm text-destructive">
-          {t("news.error", { reason: (error as Error).message })}
-        </p>
-      )}
-
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">{t("news.loading")}</p>
-      ) : posts.length === 0 ? (
-        <div className="glass space-y-2 p-8 text-center">
-          <p className="text-sm font-medium">{t("news.empty")}</p>
-          <p className="text-xs text-muted-foreground">
-            {t(isAdmin ? "news.emptyAdmin" : "news.emptyHint")}
-          </p>
+      ) : isLoading ? (
+        <FeedSkeleton label={t("newsfeed.loadingFeed")} />
+      ) : items.length === 0 ? (
+        <div className="glass p-8 text-center">
+          <p className="text-sm font-medium">{t("newsfeed.empty")}</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="glass p-8 text-center">
           <p className="text-sm text-muted-foreground">{t("news.noMatch", { q: search.trim() })}</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filtered.map((post) => (
-            <ArticleCard
-              key={post.id}
-              post={post}
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((item) => (
+            <FeedCard
+              key={item.guid}
+              item={item}
               t={t}
               f={f}
               isAdmin={isAdmin}
-              editing={editing === post.id}
-              onEdit={() => startEdit(post)}
-              onDelete={() => remove.mutate(post.id)}
-              deleting={remove.isPending && remove.variables === post.id}
+              editingInsight={editingInsight === item.guid}
+              saving={save.isPending && save.variables?.guid === item.guid}
+              onToggleInsight={() =>
+                setEditingInsight(editingInsight === item.guid ? null : item.guid)
+              }
+              onSaveInsight={(body) => save.mutate({ guid: item.guid, body })}
+              onDeleteInsight={() => {
+                // La suppression touche tous les membres : confirmation
+                // explicite, comme partout où l'action est irréversible.
+                if (window.confirm(t("newsfeed.insightDeleteConfirm"))) {
+                  removeInsight.mutate(item.guid);
+                }
+              }}
             />
           ))}
         </div>
@@ -196,302 +146,170 @@ function NewsPage() {
   );
 }
 
-/* -------------------------------------------------------------- vignette */
+/* --------------------------------------------------------------- carte */
+
+const CATEGORY_KEY: Record<NewsFeedItem["category"], Key> = {
+  marches: "newsfeed.catMarches",
+  actualite: "newsfeed.catActualite",
+  decryptage: "newsfeed.catDecryptage",
+};
 
 /**
- * Vignette horizontale : image à gauche, texte à droite, empilé sur mobile.
+ * Une carte du fil : image, chip catégorie, titre, extrait, source, et le
+ * commentaire de rédaction quand il existe.
  *
- * La carte entière mène à l'article. Les commandes d'administration sont donc
- * posées HORS du lien : imbriquer un bouton dans une ancre produit un balisage
- * invalide, et cliquer « Supprimer » ouvrirait l'article au passage.
+ * L'image et le titre mènent à l'article ; les commandes d'administration
+ * sont posées HORS des liens : imbriquer un bouton dans une ancre produit un
+ * balisage invalide, et cliquer « Supprimer » ouvrirait l'article au passage.
  */
-function ArticleCard({
-  post,
+function FeedCard({
+  item,
   t,
   f,
   isAdmin,
-  editing,
-  onEdit,
-  onDelete,
-  deleting,
+  editingInsight,
+  saving,
+  onToggleInsight,
+  onSaveInsight,
+  onDeleteInsight,
 }: {
-  post: NewsPost;
+  item: NewsFeedItem;
   t: Translate;
   f: Formatter;
   isAdmin: boolean;
-  editing: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-  deleting: boolean;
+  editingInsight: boolean;
+  saving: boolean;
+  onToggleInsight: () => void;
+  onSaveInsight: (body: string) => void;
+  onDeleteInsight: () => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
-  const excerpt = useMemo(() => plainExcerpt(post.body), [post.body]);
-
   return (
-    <article
-      className={`surface-raised card-hover group overflow-hidden ${
-        editing ? "border-primary/60 ring-1 ring-primary/30" : ""
-      }`}
-    >
+    <article className="surface-raised card-hover group flex flex-col overflow-hidden">
       <Link
         to="/actualites/$id"
-        params={{ id: post.id }}
-        className="grid gap-0 sm:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]"
+        params={{ id: item.guid }}
+        className="relative block h-40 overflow-hidden bg-[oklch(0.22_0.006_90)]"
       >
-        <div className="relative aspect-[16/9] overflow-hidden bg-[oklch(0.22_0.006_90)] sm:aspect-[4/3]">
-          {post.imageUrl ? (
-            <img
-              src={post.imageUrl}
-              alt=""
-              loading="lazy"
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          ) : (
-            <span className="grid h-full w-full place-items-center">
-              <Newspaper className="h-8 w-8 text-muted-foreground/40" />
+        {item.imageUrl ? (
+          <img
+            src={item.imageUrl}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        ) : (
+          <span className="grid h-full w-full place-items-center">
+            <Newspaper className="h-8 w-8 text-muted-foreground/40" />
+          </span>
+        )}
+      </Link>
+
+      <div className="flex min-w-0 flex-1 flex-col p-5">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <span className="rounded-full bg-accent px-2.5 py-0.5 font-medium text-brand-yellow">
+            {t(CATEGORY_KEY[item.category])}
+          </span>
+          {item.publishedAt && (
+            <span className="text-muted-foreground">{f.weekdayDate(item.publishedAt)}</span>
+          )}
+        </div>
+
+        <Link to="/actualites/$id" params={{ id: item.guid }} className="mt-2.5 block">
+          <h2 className="text-base font-bold leading-snug transition-colors group-hover:text-brand-yellow">
+            {item.title}
+          </h2>
+        </Link>
+
+        {/* Trois lignes, coupées par le CSS : l'article entier se lit sur sa
+            page, pas dans le flux. */}
+        {item.excerpt && (
+          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+            {item.excerpt}
+          </p>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 underline-offset-4 transition-colors hover:text-brand-yellow hover:underline"
+          >
+            {t("newsfeed.source")}
+            <ExternalLink className="h-3 w-3" aria-hidden="true" />
+          </a>
+          {item.machineTranslated && (
+            <span className="rounded-full border border-border px-2 py-0.5 text-[11px]">
+              {t("newsfeed.autoTranslated")}
             </span>
           )}
         </div>
 
-        <div className="min-w-0 p-5 sm:p-6">
-          <h2 className="text-lg font-bold leading-snug transition-colors group-hover:text-brand-yellow sm:text-xl">
-            {post.title}
-          </h2>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            {f.weekdayDate(post.publishedAt)} · Lyamfi
-          </p>
-          {/* Trois lignes, coupées par le CSS : l'article entier se lit sur sa
-              page, pas dans le flux. */}
-          <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-            {excerpt}
-          </p>
-          <span className="mt-4 inline-block text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-            {t("news.readMore")} →
-          </span>
-        </div>
-      </Link>
+        {item.insight && (
+          <div className="mt-4">
+            <NewsInsight insight={item.insight} />
+          </div>
+        )}
 
-      {isAdmin && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-5 py-3 sm:px-6">
-          <button
-            onClick={onEdit}
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3.5 py-1.5 text-xs text-brand-yellow transition-colors hover:bg-accent"
-          >
-            <Pencil className="h-3.5 w-3.5" /> {t("news.edit")}
-          </button>
-          {confirming ? (
-            <>
-              <button
-                disabled={deleting}
-                onClick={onDelete}
-                className="rounded-full bg-destructive px-3.5 py-1.5 text-xs font-semibold text-destructive-foreground disabled:opacity-50"
-              >
-                {deleting ? t("news.deleting") : t("news.deleteConfirm")}
-              </button>
-              <button
-                onClick={() => setConfirming(false)}
-                className="rounded-full border border-border px-3.5 py-1.5 text-xs text-muted-foreground"
-              >
-                {t("common.cancel")}
-              </button>
-            </>
-          ) : (
+        {isAdmin && (
+          <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
             <button
-              onClick={() => setConfirming(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-destructive/50 px-3.5 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10"
+              onClick={onToggleInsight}
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3.5 py-1.5 text-xs text-brand-yellow transition-colors hover:bg-accent"
             >
-              <Trash2 className="h-3.5 w-3.5" /> {t("news.delete")}
+              {item.insight ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              {t(item.insight ? "newsfeed.insightEdit" : "newsfeed.insightAdd")}
             </button>
-          )}
-        </div>
-      )}
+            {item.insight && (
+              <button
+                onClick={onDeleteInsight}
+                className="inline-flex items-center gap-1.5 rounded-full border border-destructive/50 px-3.5 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> {t("newsfeed.insightDelete")}
+              </button>
+            )}
+          </div>
+        )}
+
+        {isAdmin && editingInsight && (
+          <div className="mt-3">
+            <NewsInsightEditor
+              initialBody={item.insight?.body ?? ""}
+              pending={saving}
+              onSave={onSaveInsight}
+              onCancel={onToggleInsight}
+            />
+          </div>
+        )}
+      </div>
     </article>
   );
 }
 
-/* --------------------------------------------------------------- éditeur */
+/* ----------------------------------------------------------- squelettes */
 
-function Editor({
-  t,
-  draft,
-  editing,
-  pending,
-  onChange,
-  onCancel,
-  onSubmit,
-}: {
-  t: Translate;
-  draft: NewsDraft;
-  editing: boolean;
-  pending: boolean;
-  onChange: (d: NewsDraft) => void;
-  onCancel: () => void;
-  onSubmit: () => void;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const set = <K extends keyof NewsDraft>(key: K, value: NewsDraft[K]) =>
-    onChange({ ...draft, [key]: value });
-
-  const ready = draft.title.trim().length > 0 && draft.body.trim().length > 0;
-
-  const upload = async (file: File | undefined) => {
-    if (!file) return;
-    setUploading(true);
-    try {
-      set("imageUrl", await uploadNewsImage(file));
-      toast.success(t("news.uploadDone"));
-    } catch (e) {
-      const kind = e instanceof NewsUploadError ? e.kind : "other";
-      const key: Key = (
-        {
-          type: "news.uploadType",
-          size: "news.uploadSize",
-          bucket: "news.uploadNoBucket",
-          denied: "news.uploadDenied",
-          other: "news.uploadFailed",
-        } as const
-      )[kind];
-      toast.error(t(key, { mb: Math.round(MAX_IMAGE_BYTES / 1024 / 1024) }));
-    } finally {
-      setUploading(false);
-      // Le même fichier doit pouvoir être resélectionné après un échec.
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
-
-  const field =
-    "w-full rounded-xl border border-input bg-background/60 px-4 py-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
-
+/** Cartes fantômes pendant le premier chargement du fil. */
+function FeedSkeleton({ label }: { label: string }) {
   return (
-    <section className="surface-raised p-5 sm:p-7">
-      <h2 className="text-sm font-semibold">{t(editing ? "news.formEdit" : "news.formNew")}</h2>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("news.formHint")}</p>
-
-      <div className="mt-5 space-y-4">
-        <div>
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="news-image">
-            {t("news.fieldImage")}
-          </label>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <input
-              id="news-image"
-              value={draft.imageUrl}
-              onChange={(e) => set("imageUrl", e.target.value)}
-              placeholder="https://…"
-              inputMode="url"
-              maxLength={2000}
-              className={`min-w-0 flex-1 ${field}`}
-            />
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => void upload(e.target.files?.[0])}
-            />
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={() => fileRef.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-4 py-2.5 text-xs text-brand-yellow transition-colors hover:bg-accent disabled:opacity-50"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              {uploading ? t("news.uploading") : t("news.upload")}
-            </button>
-          </div>
-          {draft.imageUrl ? (
-            <div className="mt-3 flex items-start gap-3">
-              <img
-                src={draft.imageUrl}
-                alt=""
-                className="h-20 w-32 shrink-0 rounded-lg border border-border object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.visibility = "hidden";
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => set("imageUrl", "")}
-                className="press -mx-2 inline-flex min-h-9 items-center px-2 text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline"
-              >
-                {t("news.removeImage")}
-              </button>
+    <div role="status" aria-label={label}>
+      <span className="sr-only">{label}</span>
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="surface-raised animate-pulse overflow-hidden">
+            <div className="h-40 bg-accent/60" />
+            <div className="space-y-3 p-5">
+              <div className="h-3 w-24 rounded-full bg-accent/60" />
+              <div className="h-4 w-full rounded-full bg-accent/60" />
+              <div className="h-4 w-3/4 rounded-full bg-accent/60" />
+              <div className="h-3 w-full rounded-full bg-accent/40" />
+              <div className="h-3 w-5/6 rounded-full bg-accent/40" />
             </div>
-          ) : (
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <ImagePlus className="h-3.5 w-3.5" /> {t("news.imageOptional")}
-            </p>
-          )}
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem]">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="news-title">
-              {t("news.fieldTitle")}
-            </label>
-            <input
-              id="news-title"
-              value={draft.title}
-              onChange={(e) => set("title", e.target.value)}
-              maxLength={200}
-              placeholder={t("news.titlePlaceholder")}
-              className={`mt-1.5 ${field}`}
-            />
           </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="news-date">
-              {t("news.fieldDate")}
-            </label>
-            <input
-              id="news-date"
-              type="date"
-              value={draft.publishedAt}
-              onChange={(e) => set("publishedAt", e.target.value)}
-              className={`mt-1.5 ${field}`}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="news-body">
-            {t("news.fieldBody")}
-          </label>
-          <textarea
-            id="news-body"
-            value={draft.body}
-            onChange={(e) => set("body", e.target.value)}
-            rows={10}
-            maxLength={20000}
-            placeholder={t("news.bodyPlaceholder")}
-            className={`mt-1.5 resize-y leading-relaxed ${field}`}
-          />
-        </div>
+        ))}
       </div>
-
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          disabled={!ready || pending || uploading}
-          onClick={onSubmit}
-          className="rounded-full bg-gradient-gold px-6 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-        >
-          {pending ? t("common.saving") : t(editing ? "news.save" : "news.publish")}
-        </button>
-        {editing && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-full border border-border px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {t("common.cancel")}
-          </button>
-        )}
-      </div>
-    </section>
+    </div>
   );
 }

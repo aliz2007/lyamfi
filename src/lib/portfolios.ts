@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
  *
  * ⚠️ `src/integrations/supabase/types.ts` est régénéré depuis la base et ignore
  * `league_id` comme `start_capital`. Comme dans `lib/orders.ts`, `lib/metrics.ts`
- * et `lib/news.ts`, l'unique cast nécessaire est isolé ici et les appelants ne
+ * et `lib/newsfeed.ts`, l'unique cast nécessaire est isolé ici et les appelants ne
  * voient que des types propres. Éditer le fichier généré serait perdu à la
  * régénération.
  */
