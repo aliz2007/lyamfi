@@ -461,8 +461,10 @@ function removeDivBlocks(html: string, pred: (openTag: string) => boolean): stri
 }
 
 /** Hôtes dont cette fonction accepte de relayer les articles. */
-const ARTICLE_HOSTS: Record<string, { bodyClass: string }> = {
-  "boursenews.ma": { bodyClass: "article_detail_description" },
+const ARTICLE_HOSTS: Record<string, { bodyClass: string; leadClass?: string }> = {
+  // Boursenews met le chapeau dans un bloc `mini_list` AU-DESSUS du corps :
+  // sans lui, un flash d'une phrase n'affiche plus que sa chute.
+  "boursenews.ma": { bodyClass: "article_detail_description", leadClass: "mini_list" },
   "alphabourse.ma": { bodyClass: "article_selected_body_contenu" },
   "medias24.com": { bodyClass: "entry-content" },
 };
@@ -481,24 +483,11 @@ function ogDescription(html: string): string {
   return m ? unescapeHtml(m[1]!).trim() : "";
 }
 
-/**
- * Convertit le HTML du corps d'article en texte brut.
- *
- * Étapes : isoler le conteneur du corps (classe propre à l'hôte), retirer ce
- * qui n'est pas du texte (scripts, styles, cadres, formulaires,
- * commentaires), retirer les blocs sans valeur de lecture (pavés
- * publicitaires `div-gpt-ad`, colonne flottante `detail_article_left`,
- * étiquettes `list_tages`, partages WordPress `sharedaddy` /
- * `jp-relatedposts`), poser un saut de ligne par bloc (`p`, `br`, `div`,
- * `li`), supprimer toutes les autres balises, déséchapper les entités et
- * tasser les lignes vides. Plafond aligné sur la borne de la base (30 000).
- */
-export function articleHtmlToText(html: string, host = "boursenews.ma"): string {
-  const conf = ARTICLE_HOSTS[host] ?? ARTICLE_HOSTS["boursenews.ma"]!;
-  const startRe = new RegExp(`<div[^>]*class="[^"]*${conf.bodyClass}[^"]*"[^>]*>`, "i");
+/** Contenu du premier `<div>` portant `className`, null s'il est absent. */
+function divBlockInner(html: string, className: string): string | null {
+  const startRe = new RegExp(`<div[^>]*class="[^"]*${className}[^"]*"[^>]*>`, "i");
   const sm = startRe.exec(html);
-  // Medias24 sans corps lisible : le résumé og:description vaut mieux que rien.
-  if (!sm) return host === "medias24.com" ? ogDescription(html) : "";
+  if (!sm) return null;
 
   // Fin du bloc : comptage d'imbrication des divs, comme removeDivBlocks.
   let depth = 1;
@@ -513,9 +502,12 @@ export function articleHtmlToText(html: string, host = "boursenews.ma"): string 
       break;
     }
   }
-  let body = html.slice(sm.index + sm[0].length, end);
+  return html.slice(sm.index + sm[0].length, end);
+}
 
-  body = body.replace(/<!--[\s\S]*?-->/g, "");
+/** HTML d'un bloc (chapeau ou corps) → texte brut : le pipeline commun. */
+function blockHtmlToText(html: string): string {
+  let body = html.replace(/<!--[\s\S]*?-->/g, "");
   body = body.replace(/<(script|style|noscript|iframe|form)\b[\s\S]*?<\/\1>/gi, "");
   body = removeDivBlocks(body, (tag) =>
     /div-gpt-ad|detail_article_left|list_tages|sharedaddy|jp-relatedposts/i.test(tag),
@@ -528,7 +520,36 @@ export function articleHtmlToText(html: string, host = "boursenews.ma"): string 
     .split("\n")
     .map((l) => l.replace(/[ \t]+/g, " ").trim())
     .join("\n");
-  body = body.replace(/\n{3,}/g, "\n\n").trim();
+  return body.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * Convertit le HTML d'une page d'article en texte brut.
+ *
+ * Étapes : isoler le conteneur du corps (classe propre à l'hôte), retirer ce
+ * qui n'est pas du texte (scripts, styles, cadres, formulaires,
+ * commentaires), retirer les blocs sans valeur de lecture (pavés
+ * publicitaires `div-gpt-ad`, colonne flottante `detail_article_left`,
+ * étiquettes `list_tages`, partages WordPress `sharedaddy` /
+ * `jp-relatedposts`), poser un saut de ligne par bloc (`p`, `br`, `div`,
+ * `li`), supprimer toutes les autres balises, déséchapper les entités et
+ * tasser les lignes vides. Quand l'hôte sépare le chapeau du corps
+ * (boursenews, bloc `mini_list`), il est extrait par le même pipeline et
+ * préposé au corps. Plafond aligné sur la borne de la base (30 000).
+ */
+export function articleHtmlToText(html: string, host = "boursenews.ma"): string {
+  const conf = ARTICLE_HOSTS[host] ?? ARTICLE_HOSTS["boursenews.ma"]!;
+  const inner = divBlockInner(html, conf.bodyClass);
+  // Medias24 sans corps lisible : le résumé og:description vaut mieux que rien.
+  if (inner === null) return host === "medias24.com" ? ogDescription(html) : "";
+
+  let body = blockHtmlToText(inner);
+
+  // Chapeau éventuel (boursenews) : préposé au corps, sauf s'il le double
+  // déjà — certains articles répètent la phrase d'ouverture.
+  const lead = conf.leadClass ? blockHtmlToText(divBlockInner(html, conf.leadClass) ?? "") : "";
+  if (lead && !body.includes(lead)) body = body ? `${lead}\n\n${body}` : lead;
+
   return body.slice(0, 30_000);
 }
 
