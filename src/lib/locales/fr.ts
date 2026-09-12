@@ -758,6 +758,33 @@ export const fr = {
   "news.articleFooter":
     "Publié par l'équipe Lyamfi. Outil pédagogique, ne constitue pas un conseil en investissement.",
 
+  /* ------------------------------------------- fil Boursenews (actualités) */
+  "newsfeed.source": "Source : Boursenews",
+  "newsfeed.autoTranslated": "Traduction automatique",
+  "newsfeed.catMarches": "Marchés",
+  "newsfeed.catActualite": "Actualité",
+  "newsfeed.catDecryptage": "Décryptage",
+  "newsfeed.fetchError": "Impossible de charger le fil d'actualités. Réessaie dans un instant.",
+  "newsfeed.empty": "Aucune actualité pour le moment.",
+  "newsfeed.loadingFeed": "Chargement du fil d'actualités…",
+  "newsfeed.readArticle": "Lire l'article",
+  "newsfeed.insightTitle": "L'œil de Lyamfi",
+  "newsfeed.insightAdd": "Ajouter un commentaire",
+  "newsfeed.insightEdit": "Modifier le commentaire",
+  "newsfeed.insightDelete": "Supprimer le commentaire",
+  "newsfeed.insightDeleteConfirm":
+    "Supprimer ce commentaire Lyamfi ? Il disparaîtra pour tous les membres.",
+  "newsfeed.insightPlaceholder":
+    "Ton regard sur cette actualité : ce qu'elle change pour un investisseur marocain.",
+  "newsfeed.insightSave": "Enregistrer",
+  "newsfeed.insightCancel": "Annuler",
+  "newsfeed.insightSaved": "Commentaire enregistré.",
+  "newsfeed.insightDeleted": "Commentaire supprimé.",
+  "newsfeed.insightOriginalLang": "Affiché dans sa langue de rédaction.",
+  "newsfeed.translating": "Traduction…",
+  "newsfeed.bodyLoading": "Chargement de l'article…",
+  "newsfeed.backToNews": "Retour aux actualités",
+
   /* ------------------------------------------------------ macroéconomie */
   "macro.bannerTitle": "Données macro et marchés internationaux",
   "macro.bannerText":

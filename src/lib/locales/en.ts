@@ -748,6 +748,31 @@ export const en: Record<keyof typeof fr, string> = {
   "news.articleFooter":
     "Published by the Lyamfi team. Educational tool, this is not investment advice.",
 
+  /* ------------------------------------------------- Boursenews feed (news) */
+  "newsfeed.source": "Source: Boursenews",
+  "newsfeed.autoTranslated": "Machine translated",
+  "newsfeed.catMarches": "Markets",
+  "newsfeed.catActualite": "News",
+  "newsfeed.catDecryptage": "Analysis",
+  "newsfeed.fetchError": "Could not load the news feed. Please try again in a moment.",
+  "newsfeed.empty": "No news for now.",
+  "newsfeed.loadingFeed": "Loading the news feed…",
+  "newsfeed.readArticle": "Read the article",
+  "newsfeed.insightTitle": "Lyamfi's take",
+  "newsfeed.insightAdd": "Add an insight",
+  "newsfeed.insightEdit": "Edit the insight",
+  "newsfeed.insightDelete": "Delete the insight",
+  "newsfeed.insightDeleteConfirm": "Delete this Lyamfi insight? It will disappear for all members.",
+  "newsfeed.insightPlaceholder": "Your take on this news: what it means for a Moroccan investor.",
+  "newsfeed.insightSave": "Save",
+  "newsfeed.insightCancel": "Cancel",
+  "newsfeed.insightSaved": "Insight saved.",
+  "newsfeed.insightDeleted": "Insight deleted.",
+  "newsfeed.insightOriginalLang": "Shown in its original writing language.",
+  "newsfeed.translating": "Translating…",
+  "newsfeed.bodyLoading": "Loading the article…",
+  "newsfeed.backToNews": "Back to news",
+
   /* ------------------------------------------------------- macroeconomics */
   "macro.bannerTitle": "Macro data and international markets",
   "macro.bannerText":
