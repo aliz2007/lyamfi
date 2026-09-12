@@ -28,6 +28,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminUserIdRouteImport } from './routes/_authenticated/admin.$userId'
 import { Route as AuthenticatedBourseIndexRouteImport } from './routes/_authenticated/bourse.index'
 import { Route as AuthenticatedBourseTickerRouteImport } from './routes/_authenticated/bourse.$ticker'
+import { Route as AuthenticatedActualitesMotKwRouteImport } from './routes/_authenticated/actualites.mot.$kw'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -133,6 +134,12 @@ const AuthenticatedBourseTickerRoute =
     path: '/bourse/$ticker',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedActualitesMotKwRoute =
+  AuthenticatedActualitesMotKwRouteImport.update({
+    id: '/actualites/mot/$kw',
+    path: '/actualites/mot/$kw',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/actualites/': typeof AuthenticatedActualitesIndexRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/bourse/': typeof AuthenticatedBourseIndexRoute
+  '/actualites/mot/$kw': typeof AuthenticatedActualitesMotKwRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -173,6 +181,7 @@ export interface FileRoutesByTo {
   '/actualites': typeof AuthenticatedActualitesIndexRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/bourse': typeof AuthenticatedBourseIndexRoute
+  '/actualites/mot/$kw': typeof AuthenticatedActualitesMotKwRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -195,6 +204,7 @@ export interface FileRoutesById {
   '/_authenticated/actualites/': typeof AuthenticatedActualitesIndexRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/bourse/': typeof AuthenticatedBourseIndexRoute
+  '/_authenticated/actualites/mot/$kw': typeof AuthenticatedActualitesMotKwRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/actualites/'
     | '/admin/'
     | '/bourse/'
+    | '/actualites/mot/$kw'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/actualites'
     | '/admin'
     | '/bourse'
+    | '/actualites/mot/$kw'
   id:
     | '__root__'
     | '/'
@@ -258,6 +270,7 @@ export interface FileRouteTypes {
     | '/_authenticated/actualites/'
     | '/_authenticated/admin/'
     | '/_authenticated/bourse/'
+    | '/_authenticated/actualites/mot/$kw'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -402,6 +415,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBourseTickerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/actualites/mot/$kw': {
+      id: '/_authenticated/actualites/mot/$kw'
+      path: '/actualites/mot/$kw'
+      fullPath: '/actualites/mot/$kw'
+      preLoaderRoute: typeof AuthenticatedActualitesMotKwRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -421,6 +441,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedActualitesIndexRoute: typeof AuthenticatedActualitesIndexRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedBourseIndexRoute: typeof AuthenticatedBourseIndexRoute
+  AuthenticatedActualitesMotKwRoute: typeof AuthenticatedActualitesMotKwRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -439,6 +460,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedActualitesIndexRoute: AuthenticatedActualitesIndexRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedBourseIndexRoute: AuthenticatedBourseIndexRoute,
+  AuthenticatedActualitesMotKwRoute: AuthenticatedActualitesMotKwRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

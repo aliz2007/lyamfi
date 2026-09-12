@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { ArticleBody } from "@/components/ArticleBody";
 import { NewsInsight } from "@/components/NewsInsight";
 import { NewsInsightEditor } from "@/components/NewsInsightEditor";
-import { deleteInsight, newsArticleQuery, saveInsight } from "@/lib/newsfeed";
+import { NewsKeywordChips } from "@/components/NewsKeywordChips";
+import { deleteInsight, newsArticleQuery, saveInsight, SOURCE_LABEL } from "@/lib/newsfeed";
 import { myRoleQuery } from "@/lib/admin";
 import { useFormat } from "@/lib/format";
 import { useI18n, type Key, type Translate } from "@/lib/i18n";
@@ -111,6 +112,11 @@ function ArticlePage() {
           <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-brand-yellow">
             {t(CATEGORY_KEY[article.category] ?? "newsfeed.catActualite")}
           </span>
+          {/* La source est une donnée : Boursenews, Le Boursier — Medias24
+              ou AlphaBourse. */}
+          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+            {SOURCE_LABEL[article.source]}
+          </span>
           {article.publishedAt && (
             <span className="text-muted-foreground">{f.weekdayDate(article.publishedAt)}</span>
           )}
@@ -132,6 +138,7 @@ function ArticlePage() {
         <h1 className="text-2xl font-bold leading-tight text-foreground sm:text-3xl">
           {article.title}
         </h1>
+        {article.keywords.length > 0 && <NewsKeywordChips keywords={article.keywords} />}
         <div className="hairline" aria-hidden="true" />
       </header>
 
