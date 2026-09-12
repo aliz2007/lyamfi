@@ -14,6 +14,7 @@ import { LessonContent } from "@/components/LessonContent";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { levelKey } from "@/lib/levels";
+import { lessonTranslation } from "@/lib/lessons-i18n";
 
 export const Route = createFileRoute("/_authenticated/academie/$slug")({
   head: ({ params }) => ({
@@ -36,7 +37,7 @@ export const Route = createFileRoute("/_authenticated/academie/$slug")({
 
 function LessonPage() {
   const { slug } = Route.useParams();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const qc = useQueryClient();
   const { data: lessons = [] } = useQuery(lessonsQuery);
   const { data: progress = [] } = useQuery(progressQuery);
@@ -66,7 +67,15 @@ function LessonPage() {
     );
   }
 
-  const quiz = (lesson.quiz as unknown as QuizQuestion[]) ?? [];
+  // Superposition i18n : la table `lessons` reste en français (source de
+  // vérité) ; le programme étant figé, les traductions vivent dans le dépôt
+  // et remplacent l'affichage par slug. Les index `answer` du quiz sont
+  // identiques quelle que soit la langue, la correction ne change donc pas.
+  const tr = lessonTranslation(lang, lesson.slug);
+  const title = tr?.title ?? lesson.title;
+  const summary = tr?.summary ?? lesson.summary;
+  const content = tr?.content ?? lesson.content;
+  const quiz = tr?.quiz ?? (lesson.quiz as unknown as QuizQuestion[]) ?? [];
   const existing = progress.find((p) => p.lesson_id === lesson.id);
 
   const submit = async () => {
@@ -119,7 +128,7 @@ function LessonPage() {
       </header>
 
       <article className="surface-raised p-6 sm:p-8">
-        <LessonContent content={lesson.content} />
+        <LessonContent content={content} />
       </article>
 
       {quiz.length > 0 && (

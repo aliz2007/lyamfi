@@ -4,6 +4,7 @@ import { Award, CheckCircle2, Circle, Lock } from "lucide-react";
 import { buildLevelProgress, lessonsQuery, progressQuery } from "@/lib/market";
 import { useI18n, usePageTitle } from "@/lib/i18n";
 import { levelKey } from "@/lib/levels";
+import { lessonTranslation } from "@/lib/lessons-i18n";
 
 export const Route = createFileRoute("/_authenticated/academie/")({
   head: () => ({
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/academie/")({
 });
 
 function Academy() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   usePageTitle("acad.title");
 
   const { data: lessons = [] } = useQuery(lessonsQuery);
@@ -77,6 +78,12 @@ function Academy() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((l, i) => {
                 const isDone = doneIds.has(l.id);
+                // Superposition i18n : la table `lessons` reste en français
+                // (source de vérité) ; le programme étant figé, les traductions
+                // vivent dans le dépôt et remplacent l'affichage par slug.
+                const tr = lessonTranslation(lang, l.slug);
+                const title = tr?.title ?? l.title;
+                const summary = tr?.summary ?? l.summary;
                 if (!unlocked) {
                   return (
                     <div
@@ -86,7 +93,7 @@ function Academy() {
                     >
                       <Lock className="h-5 w-5 text-muted-foreground" />
                       <h3 className="mt-4 font-medium">
-                        {i + 1}. {l.title}
+                        {i + 1}. {title}
                       </h3>
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                         {t("acad.lockedModule")}
@@ -107,11 +114,9 @@ function Academy() {
                       <Circle className="h-5 w-5 text-muted-foreground" />
                     )}
                     <h3 className="mt-4 font-medium">
-                      {i + 1}. {l.title}
+                      {i + 1}. {title}
                     </h3>
-                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      {l.summary}
-                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{summary}</p>
                   </Link>
                 );
               })}
