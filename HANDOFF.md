@@ -4,6 +4,8 @@ _Written 2026-08-18, last revised 2026-09-12. Everything below was read from the
 
 > **Latest change (2026-09-12):** three things from the owner's brief. **Actualités runs itself** (§9f): the page now fetches the latest Boursenews articles server-side, caches them in `news_items`, machine-translates them into the selected language with a provider chain, and the manual posting form is gone — the admin's job is now an optional **insight** (`news_insights`) under any article, his read on what the news means for the market, translated like the rest. **The Académie speaks English and Arabic** (§9b): all 14 modules and their 140 quiz questions are translated, glossary-bound and editorially reviewed, overlaid on the French database rows by slug — no schema change. **The header logo survives French** (§9m): the nav no longer crushes the wordmark down to « L ». **One migration to run:** see §12. ⚠️ `supabase/setup.sql` is regenerated locally but could not be pushed through the LLM-sized push channel (300 KB); regenerate after pull with `python3 scripts/build-setup-sql.py` (§12).
 >
+> _2026-09-12, later:_ **the feed widens to three sources and learns keywords** (§9f): Le Boursier (Medias24) and AlphaBourse join Boursenews, and every article now carries up to six smart keywords — a listed company (« Akdital ») or a market theme (« pétrole », « taux ») — computed deterministically from the site's own ticker table and a French financial-press lexicon, no LLM. Clicking a chip opens a page with every article bearing it; a company keyword also deep-links to its stock sheet. Medias24 sits behind a Cloudflare challenge, so that source may show as unreachable until their protection lets the fetch pass — the feed carries on without it. **One more migration to run:** see §12.
+>
 > _2026-09-11:_ **Arabic is a third language** (§9b): the whole interface now speaks reviewed Moroccan-market Arabic, the document flips to RTL, an Arabic font ships, and the header toggle reads FR / EN / AR. Same brief: **the stock sheet uses its full width again** — the chart and the Actionnariat card keep the two-column row, the fundamentals and the description span the page below it (§9l). **No SQL to run:** see §12.
 >
 > _2026-09-10:_ **the Actionnariat card** (§9l): every stock sheet now carries the shareholding structure — a Recharts donut, the count of named shareholders at its centre, and the detail of positions — fed from `src/lib/shareholders.ts`, a third workbook transcribed to code after sectors and quotation modes. Also from the same brief: **Managem's 31/12 close corrected to 640** (the workbook's 6 083,27 was an error) and the **capitalisation filter chips removed** from `/bourse` (the cap-descending sort stays). **No SQL to run:** see §12.
@@ -38,7 +40,7 @@ Eight surfaces:
 | Portefeuille | `/portefeuille` | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve, one wallet per league |
 | Classement | `/classement` | Classement Général by portfolio value, cash / invested split, plus the private leagues (§9j) |
 | Académie | `/academie`, `/academie/$slug` | 14 lessons in 3 gated levels, quiz + badge per lesson |
-| Actualités | `/actualites`, `/actualites/$id` | Auto-fetched Boursenews feed, translated into the selected language, optional admin insight per article |
+| Actualités | `/actualites`, `/actualites/$id`, `/actualites/mot/$kw` | Auto-fetched Boursenews + Le Boursier (Medias24) + AlphaBourse feed, translated into the selected language, smart keyword chips (≤6) with their own pages, optional admin insight per article |
 | Macroéconomie | `/macroeconomie` | 5 TradingView charts on the Moroccan economy |
 | Simulateurs | `/simulateurs` | Compound interest (3 risk profiles) and a credit simulator |
 
@@ -487,7 +489,7 @@ Value comes from the most recent `portfolio_snapshots` row, which already carrie
 
 ## 9f. Actualités
 
-`/actualites`, between Académie and Simulateurs in the nav. **Rebuilt on 2026-09-12 as a self-updating press feed**: the page no longer waits for an admin to write, it fetches the latest articles from Boursenews (boursenews.ma), the Moroccan market daily, and shows them in the reader's language. The admin's role changed from writer to commentator: under any article he can pin an optional **insight** — his read on what the news means for the market — in one language, translated like the rest.
+`/actualites`, between Académie and Simulateurs in the nav. **Rebuilt on 2026-09-12 as a self-updating press feed**: the page no longer waits for an admin to write, it fetches the latest articles from three Moroccan market sources — Boursenews, Le Boursier (Medias24) and AlphaBourse — and shows them in the reader's language, with smart keyword chips under every card. The admin's role changed from writer to commentator: under any article he can pin an optional **insight** — his read on what the news means for the market — in one language, translated like the rest.
 
 How the machinery fits together:
 
@@ -496,6 +498,8 @@ How the machinery fits together:
 - **Insights are one per article, optional, admin-only.** `public.news_insights` keys on `news_item_guid` (CASCADE delete), stores `body`, the `lang` it was written in, and `body_en`/`body_ar` translations the client fills right after save (stale translations are nulled by `bnews_insight_upsert` on every edit). Displayed as « L'œil de Lyamfi » in an accent-bordered block under the card and on the reading page; when the reader's language has no translation yet, the original shows with a discreet note.
 - **The rights split still lives in the database**, same doctrine as the old `news_posts` (REVOKE ALL then grant back SELECT, RLS select-true, everything else through SECURITY DEFINER RPCs). New here: the write RPCs any member can reach (`bnews_items_upsert`, `bnews_body_set`, `bnews_translation_set`) **validate inside the database** — guid shape, category whitelist, URL pinned to the boursenews.ma domain, length caps, 25 rows per call — so a crafted call cannot inject off-domain "news" or megabytes of prose. The insight RPCs open with `is_admin()` exactly like the old `news_*` ones.
 - **The manual publication workflow is retired.** `news_posts`, its three RPCs and the `news` storage bucket stay in the database untouched (old articles are not deleted), but nothing reads them anymore: `lib/news.ts` is gone, replaced by `lib/newsfeed.ts` (client, cast pattern since `types.ts` is not regenerated), and the two routes were rewritten. `components/ArticleBody.tsx` still prints plain text as typed — scraped bodies arrive as text, never HTML, and `dangerouslySetInnerHTML` remains banned.
+- **Three sources, one choreography (2026-09-12, later).** `SOURCES` in `lib/newsfeed.functions.ts` lists Boursenews (its three listing pages), AlphaBourse (`/fr/actualite-et-flux`, `actualite-macro`, `gouvernance-cotee`) and Le Boursier (`medias24.com/categorie/leboursier/`). Each source has its own regex parser and its own guid prefix (`alphabourse:<hexid>`, `leboursier:<id>`; bare slugs stay Boursenews legacy), and every page is fetched with `Promise.allSettled`: a source whose pages all failed lands in `failedSources`, the page says so in one discreet line, and the rest of the feed carries on. ⚠️ Medias24 answers datacenter fetches with a Cloudflare challenge (HTTP 403 as of writing), so Le Boursier will be dark until that protection lets the server through — accepted and handled, the parser is ready. `fetchBoursenewsFeed` survives as a deprecated alias, but its return changed: `failedSources` replaces `failedCategories`. `news_items` gained `source` and `keywords`; the upsert RPC revalidates both (three-source whitelist, URL pinned to the three hosts, ≤6 keywords of the form `c:<TICKER>` / `t:<theme>`, 45 rows per call).
+- **Smart keywords, no LLM (2026-09-12, later).** `lib/news-keywords.ts` turns title + excerpt into ≤6 ids: `c:<TICKER>` when a listed company shows up (ticker in capitals, or a distinctive name alias — « akdital », « attijariwafa », « labelvie »), `t:<theme>` for 18 market themes matched on a French press lexicon. A denylist of financial acronyms (BCE, OPA, MASI, IPO…) and a stopword list of generic company words (« capital », « groupe »…) keep false positives out — « Capital-risque » is not Aradei. Scoring (ticker +4, name in title +3, theme in title +2, excerpt +1) sorts by relevance before the cap. Chips on every card open `/actualites/mot/$kw`, which lists the keyword's articles (GIN index on `keywords`, `.contains` filter, 60 rows) and, for a company, links the stock sheet. Rows cached before keywords existed are back-filled on the next read through `bnews_keywords_set`.
 
 Client flow in one breath: `newsFeedQuery(lang)` scrapes (15-minute `staleTime`), upserts, reads cache + insights, batch-translates what the current language misses among the visible items, merges, and hands the page `NewsFeedItem`s; `newsArticleQuery(guid, lang)` lazily fetches and translates the body the same way.
 
@@ -782,9 +786,11 @@ The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not
 
 ## 12. What to run in the Supabase SQL editor
 
-### 2026-09-12 (current): one migration, plus one regeneration the push channel could not carry
+### 2026-09-12 (current): two migrations, plus one regeneration the push channel could not carry
 
 **Run `supabase/migrations/20260912090000_boursenews_feed.sql`** in the SQL editor. It creates `news_items` (the Boursenews cache) and `news_insights` (the admin commentaries) with the locked-down grants, the RLS policies and the six `bnews_*` RPCs (§9f). Until it runs, `/actualites` answers « fonctionnalité pas encore activée » through the usual `explain` path, nothing worse.
+
+**Then run `supabase/migrations/20260912100000_bnews_sources_keywords.sql`** (same day, later brief): it adds `source` and `keywords` to `news_items`, the GIN index that serves the keyword pages, widens `bnews_items_upsert` to the three sources, and adds `bnews_keywords_set` for the back-fill (§9f). Both migrations are idempotent — if the feed migration already ran, only this one is left.
 
 **Then regenerate `supabase/setup.sql` after pulling**: `python3 scripts/build-setup-sql.py`. The regenerated file is correct locally but is ~300 KB, and the MCP push channel truncates payloads somewhere above ~190 KB — the migration itself is pushed; the generated aggregate is one command away.
 
@@ -800,7 +806,7 @@ select 2, 'droits des membres sur le cache',
          where table_schema = 'public' and table_name = 'news_items' and grantee = 'authenticated')
 union all
 select 3, 'RPC du fil presentes',
-       (select count(*) = 6 from information_schema.routines
+       (select count(*) = 8 from information_schema.routines
          where routine_schema = 'public' and routine_name like 'bnews\_%');
 ```
 
