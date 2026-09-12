@@ -1,8 +1,10 @@
 # Lyamfi: Codebase Handoff
 
-_Written 2026-08-18, last revised 2026-09-11. Everything below was read from the source and, where marked ✅, executed._
+_Written 2026-08-18, last revised 2026-09-12. Everything below was read from the source and, where marked ✅, executed._
 
-> **Latest change (2026-09-11):** **Arabic is a third language** (§9b): the whole interface now speaks reviewed Moroccan-market Arabic, the document flips to RTL, an Arabic font ships, and the header toggle reads FR / EN / AR. Same brief: **the stock sheet uses its full width again** — the chart and the Actionnariat card keep the two-column row, the fundamentals and the description span the page below it (§9l). **No SQL to run:** see §12.
+> **Latest change (2026-09-12):** three things from the owner's brief. **Actualités runs itself** (§9f): the page now fetches the latest Boursenews articles server-side, caches them in `news_items`, machine-translates them into the selected language with a provider chain, and the manual posting form is gone — the admin's job is now an optional **insight** (`news_insights`) under any article, his read on what the news means for the market, translated like the rest. **The Académie speaks English and Arabic** (§9b): all 14 modules and their 140 quiz questions are translated, glossary-bound and editorially reviewed, overlaid on the French database rows by slug — no schema change. **The header logo survives French** (§9m): the nav no longer crushes the wordmark down to « L ». **One migration to run:** see §12. ⚠️ `supabase/setup.sql` is regenerated locally but could not be pushed through the LLM-sized push channel (300 KB); regenerate after pull with `python3 scripts/build-setup-sql.py` (§12).
+>
+> _2026-09-11:_ **Arabic is a third language** (§9b): the whole interface now speaks reviewed Moroccan-market Arabic, the document flips to RTL, an Arabic font ships, and the header toggle reads FR / EN / AR. Same brief: **the stock sheet uses its full width again** — the chart and the Actionnariat card keep the two-column row, the fundamentals and the description span the page below it (§9l). **No SQL to run:** see §12.
 >
 > _2026-09-10:_ **the Actionnariat card** (§9l): every stock sheet now carries the shareholding structure — a Recharts donut, the count of named shareholders at its centre, and the detail of positions — fed from `src/lib/shareholders.ts`, a third workbook transcribed to code after sectors and quotation modes. Also from the same brief: **Managem's 31/12 close corrected to 640** (the workbook's 6 083,27 was an error) and the **capitalisation filter chips removed** from `/bourse` (the cap-descending sort stays). **No SQL to run:** see §12.
 >
@@ -36,7 +38,7 @@ Eight surfaces:
 | Portefeuille | `/portefeuille` | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve, one wallet per league |
 | Classement | `/classement` | Classement Général by portfolio value, cash / invested split, plus the private leagues (§9j) |
 | Académie | `/academie`, `/academie/$slug` | 14 lessons in 3 gated levels, quiz + badge per lesson |
-| Actualités | `/actualites`, `/actualites/$id` | Searchable news feed, full reading page, admin CRUD |
+| Actualités | `/actualites`, `/actualites/$id` | Auto-fetched Boursenews feed, translated into the selected language, optional admin insight per article |
 | Macroéconomie | `/macroeconomie` | 5 TradingView charts on the Moroccan economy |
 | Simulateurs | `/simulateurs` | Compound interest (3 risk profiles) and a credit simulator |
 
@@ -249,7 +251,9 @@ Five migrations in `supabase/migrations/`. **Every table has RLS enabled** and t
 | `stock_quotes_daily` | grows | public read; one real close per stock per session |
 | `stock_metrics` | 80 | public read; the fundamentals workbook |
 | `user_roles` | N/A | read own (admins read all); written only through `admin_set_role` |
-| `news_posts` | N/A | **read** for `authenticated`; **no write grant at all**, see §9f |
+| `news_posts` | N/A | **retired 2026-09-12** — kept in the base, nothing reads it; see §9f |
+| `news_items` | N/A | **read** for `authenticated`; writes validated inside `bnews_*` RPCs, see §9f |
+| `news_insights` | N/A | **read** for `authenticated`; writes admin-only via RPC, see §9f |
 | `leagues` | N/A | **read** for `authenticated`; written only through `league_create`, see §9j |
 
 Nice touches: the `handle_new_user()` trigger is `SECURITY DEFINER` with a pinned `search_path`, and migration #2 exists solely to `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` on it, that's a deliberate hardening pass.
@@ -365,7 +369,7 @@ What the Arabic round changed beyond the dictionary:
 Two deliberate limits:
 
 - **Page `<title>` and meta tags declared in `head()` stay French.** Route heads are evaluated outside React and cannot follow state. SEO keeps the French version (the audience is francophone); the tab title follows the language at runtime through `usePageTitle()`, called by each page component.
-- **Lesson content is French only.** The 14 modules and their 140 quiz questions live in the database, seeded from the course PDF. Translating them is a content project, not a code change: it needs a `lessons` schema that carries both languages plus a full translation pass on ~130 KB of prose.
+- **Lesson content comes from two places.** The 14 modules and their 140 quiz questions live in the database in French (source of truth, seeded from the course PDF). Since 2026-09-12 the English and Arabic versions live **in the repo**, in `src/lib/lessons-i18n/` — one data file per level per language, keyed by slug, merged by `lessonTranslation(lang, slug)`. The two Académie routes overlay the translation onto the database row at render time (`tr?.title ?? lesson.title`, same for summary, content and quiz), so progress tracking, gating and scoring keep reading the French rows untouched. The curriculum is a fixed document, which is what makes a repo-held overlay saner than a schema change: no migration, no write path to secure, translations versioned like the rest of the code. Quiz `answer` indexes are identical across languages — only the strings move. The Arabic pass was glossary-bound (same register as the interface) and editorially reviewed (~190 corrections: outstanding-shares vs free-float confusion, bond-redemption الإطفاء, date de jouissance → تاريخ التمتع, press-register calques).
 
 Adding a string: put it in `fr.ts`, then in `en.ts` **and** `ar.ts`. TypeScript will not compile until all three exist.
 
@@ -483,22 +487,17 @@ Value comes from the most recent `portfolio_snapshots` row, which already carrie
 
 ## 9f. Actualités
 
-`/actualites`, between Académie and Simulateurs in the nav. Rebuilt on 2026-08-29 as a press feed rather than a card wall:
+`/actualites`, between Académie and Simulateurs in the nav. **Rebuilt on 2026-09-12 as a self-updating press feed**: the page no longer waits for an admin to write, it fetches the latest articles from Boursenews (boursenews.ma), the Moroccan market daily, and shows them in the reader's language. The admin's role changed from writer to commentator: under any article he can pin an optional **insight** — his read on what the news means for the market — in one language, translated like the rest.
 
-- **`/actualites`** is a search box over article titles (filtered as you type, no round trip) and a vertical list of **horizontal** cards: thumbnail left, text right, stacked on mobile. Each card shows the title, the date in full (_Vendredi 28 août 2026_) and a three-line excerpt clamped by CSS. The whole card links through; the admin buttons sit outside the anchor, because a button inside a link is invalid markup and would open the article on its way to deleting it.
-- **`/actualites/$id`** is the reading page: back link, date, large title, illustration, then the body in a `max-w-4xl` column.
-- **`components/ArticleBody.tsx` prints the body as typed** (2026-09-06). It used to read a small Markdown subset — `##` a subheading, `-` a bullet, `1.` a numbered list, `---` a rule, `**bold**` an emphasis — and the owner asked for it to go: it was a language to learn to publish six lines, and one that _ate_ what was typed, a leading dash disappearing into a bullet and a lone newline being glued back onto the paragraph above. Now a blank line separates paragraphs and everything inside one is carried through untouched by `whitespace-pre-wrap`. **Articles published under the old syntax show their marks literally**; erasing them silently would restore exactly the invisible rule that was removed, and they are fixed from the form. Still never `dangerouslySetInnerHTML`: articles are written by admins, but a compromised admin account must not be able to run script in every member's browser. `lib/excerpt.ts` no longer strips markup — it flattens whitespace, because the feed card is a three-line clamp and a body has to arrive on one line.
-  - ⚠️ One promise the component cannot keep alone: `news_clean_text` applies `btrim()` before storing, and `btrim` strips **spaces** at both ends. The indentation of the very first line is therefore lost on write. Line breaks, dashes and indentation _inside_ the text all survive.
-  - ⚠️ `components/LessonContent.tsx` still parses Markdown, deliberately: the lessons are seeded Markdown content, not something an admin types into a form.
-- The admin form carries Image, **Date**, Titre and Corps. The date is optional in the database: absent, a new article is stamped now and an edited one keeps the date it had.
+How the machinery fits together:
 
-**The split of rights lives in the database, not the interface.** `authenticated` holds `SELECT` on `news_posts` and nothing else, because the migration does `REVOKE ALL … FROM authenticated, anon` and _then_ grants back the single privilege it wants. Enumerating what to remove is not enough: a Supabase project carries `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so the table is born with everything granted, and naming `INSERT, UPDATE, DELETE` leaves `TRUNCATE`, `REFERENCES` and `TRIGGER` behind (this is exactly what shipped first and had to be corrected). Publishing, editing and deleting go through `news_create`, `news_update` and `news_delete`, three `SECURITY DEFINER` functions that each open with `is_admin()`. Hiding the buttons is cosmetic, exactly as for the admin console. Both admin tiers may write: publishing an article is editorial work, not a privileged operation on an account.
+- **Fetching is server-side, scraping, and cached in the database.** `lib/newsfeed.functions.ts` (TanStack server functions, same pattern as the quotes fetcher) downloads the three listing pages that matter — `/articles/marches`, `/articles/actualite`, `/articles/decryptage` — parses the cards (link, image, title, French date, excerpt), and returns them. Boursenews has **no RSS feed** (probed: /rss, /feed, /rss.xml all 404), so this is HTML parsing against their current templates; if they redesign, the feed degrades to the cached rows and `failedCategories`, not to a crash. The client upserts what it scraped into `public.news_items` through the RPC `bnews_items_upsert`, so the next visitor starts from the cache. Full bodies are scraped on demand when a reader opens an article (`fetchBoursenewsBody`, URL allow-listed to `boursenews.ma/article/`, ads and tag blocks stripped, HTML flattened to plain paragraphs) and stored in `body_fr`.
+- **Translation is a provider chain with a first-writer-wins cache.** `translateTexts` tries Lingva (a Google Translate front-end), then Google's `gtx` endpoint, then MyMemory, with a timeout each, and never throws: on total failure it returns the French originals flagged `failed`. The client only **persists** a translation when a real provider answered — `bnews_translation_set` fills `title_en/ar`, `excerpt_en/ar`, `body_en/ar` but `COALESCE`s, so the first good translation wins and a later degraded one cannot overwrite it. A card rendered from machine output carries a « Traduction automatique » badge; French is the original and needs no badge. Expect the Arabic to be serviceable MT, not the reviewed Arabic of the interface and lessons — that distinction is deliberate and worth keeping in mind before "fixing" a weird sentence in the cache.
+- **Insights are one per article, optional, admin-only.** `public.news_insights` keys on `news_item_guid` (CASCADE delete), stores `body`, the `lang` it was written in, and `body_en`/`body_ar` translations the client fills right after save (stale translations are nulled by `bnews_insight_upsert` on every edit). Displayed as « L'œil de Lyamfi » in an accent-bordered block under the card and on the reading page; when the reader's language has no translation yet, the original shows with a discreet note.
+- **The rights split still lives in the database**, same doctrine as the old `news_posts` (REVOKE ALL then grant back SELECT, RLS select-true, everything else through SECURITY DEFINER RPCs). New here: the write RPCs any member can reach (`bnews_items_upsert`, `bnews_body_set`, `bnews_translation_set`) **validate inside the database** — guid shape, category whitelist, URL pinned to the boursenews.ma domain, length caps, 25 rows per call — so a crafted call cannot inject off-domain "news" or megabytes of prose. The insight RPCs open with `is_admin()` exactly like the old `news_*` ones.
+- **The manual publication workflow is retired.** `news_posts`, its three RPCs and the `news` storage bucket stay in the database untouched (old articles are not deleted), but nothing reads them anymore: `lib/news.ts` is gone, replaced by `lib/newsfeed.ts` (client, cast pattern since `types.ts` is not regenerated), and the two routes were rewritten. `components/ArticleBody.tsx` still prints plain text as typed — scraped bodies arrive as text, never HTML, and `dangerouslySetInnerHTML` remains banned.
 
-The database also does the validation, so it cannot be bypassed from a console: title and body are trimmed and refused when empty (200 and 20 000 characters max), and an image URL is either empty (stored `NULL`) or starts with `http://` or `https://`.
-
-Illustrations can be pasted as a URL **or** uploaded. Uploads go to a public Storage bucket named `news`, created by the same migration, with write reserved to admins by four `storage.objects` policies. That whole block is wrapped in an exception handler: `storage.objects` belongs to `supabase_storage_admin`, and the SQL editor runs the file as one transaction, so a privilege refusal there would otherwise roll back every migration. If the bucket is missing, uploading shows a specific message and pasting a URL still works.
-
-Client code: `lib/news.ts` (queries, RPC wrappers, upload) and `routes/_authenticated/actualites.tsx` (feed, editor, per-card edit/delete with a self-disarming confirm).
+Client flow in one breath: `newsFeedQuery(lang)` scrapes (15-minute `staleTime`), upserts, reads cache + insights, batch-translates what the current language misses among the visible items, merges, and hands the page `NewsFeedItem`s; `newsArticleQuery(guid, lang)` lazily fetches and translates the body the same way.
 
 ---
 
@@ -654,6 +653,12 @@ A third workbook — the owner's « Actionnariat BVC » — became `src/lib/shar
 
 ---
 
+## 9m. The header logo survives French (2026-09-12)
+
+A grid cell sized `minmax(0,1fr)` gives its space away; one sized `auto` keeps what its content needs. The AppShell header used to be `grid-cols-[minmax(0,1fr)_auto]`: the navigation — whose French labels are the longest of the three languages — took everything it wanted, and the logo cell shrank until `truncate` on the wordmark left a bare « L ». The header is now `grid-cols-[auto_minmax(0,1fr)]`, the logo link is `shrink-0`, and the navigation (with `justify-self-end`) is the side that absorbs scarcity. Scarcity genuinely exists between 1024 and 1280 px, where nine French labels plus the language switcher plus « Déconnexion » do not fit next to the wordmark no matter the padding: the full nav now starts at `xl` instead of `lg`, with the hamburger menu covering the gap. Nav items also went from `px-3.5` to `px-3` so 1280 px is comfortable rather than borderline. The mobile pass doctrine (§9i) is untouched — this only moves the breakpoint the desktop nav appears at.
+
+---
+
 ## 10. Known issues, ranked
 
 ### 🔴 Trading integrity is entirely client-side
@@ -674,13 +679,13 @@ The fill loop is a `useEffect` on the portfolio page: no open tab, no execution.
 
 `isMarketOpen` is computed client-side from `Intl.DateTimeFormat` in the `Africa/Casablanca` zone. A user whose device clock is wrong, or who changes it, can make the app believe the session is open. Given trading is already client-side (see the 🔴 items), this adds no new exposure, but it moves server-side with them. Until then, the code fails **closed**: before the clock is read (SSR, first render) the session counts as shut, because queuing an order can be undone and executing one wrongly cannot.
 
-### 🟠 Every table but `news_posts`, `leagues` and `portfolios` grants TRUNCATE, REFERENCES and TRIGGER to `anon` and `authenticated`
+### 🟠 Every table but `news_posts`, `leagues`, `portfolios`, `news_items` and `news_insights` grants TRUNCATE, REFERENCES and TRIGGER to `anon` and `authenticated`
 
 A Supabase project sets `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated`, so every table created by a migration starts with all privileges granted, and the explicit `GRANT SELECT` / `GRANT ... TO authenticated` lines in the migrations only _add_ to that. **RLS does not cover the leftovers**: it filters the rows a statement reads and writes, and has no say over `TRUNCATE`, which empties the table outright.
 
 Not reachable through the app as it stands: PostgREST exposes no verb that issues `TRUNCATE`, `CREATE TRIGGER` or `ALTER TABLE`, so the publishable key cannot get at any of it over HTTP. It needs a direct Postgres connection, which needs the database password. So this is a privilege model that says something other than what it means, not an open door.
 
-`news_posts`, and since 2026-09-06 `leagues` and `portfolios`, are the tables done right (`REVOKE ALL` then grant back). `portfolios` went further and took **column-level** write grants, because leagues made the difference matter (§9j). Fixing the remaining thirteen is one migration: `REVOKE ALL ON <table> FROM anon, authenticated;` followed by the grants each already documents. Worth doing next time the schema is touched.
+`news_posts`, since 2026-09-06 `leagues` and `portfolios`, and since 2026-09-12 `news_items` and `news_insights`, are the tables done right (`REVOKE ALL` then grant back). `portfolios` went further and took **column-level** write grants, because leagues made the difference matter (§9j). Fixing the remaining thirteen is one migration: `REVOKE ALL ON <table> FROM anon, authenticated;` followed by the grants each already documents. Worth doing next time the schema is touched.
 
 ### 🟠 A league can be created but never corrected
 
@@ -748,7 +753,7 @@ Roughly in order of value-per-effort:
    0b. **Let an admin fix a league.** `league_update(id, name, starts_at, ends_at)`, `SECURITY DEFINER` on `is_admin()`, plus an edit state on the card. Deliberately not `start_capital`: it is already credited into every participant's `cash`, so moving it would rewrite everyone's performance retroactively. A `league_delete` guarded on having no participants would go with it (§10).
 1. **Check `/macroeconomie` on the live site.** Three things: whether the policy-rate card shows the « série tenue à la main » warning (if it does, the IMF request is failing and wants another source), whether the five _Marchés internationaux_ cards paint at all, and specifically whether **natural gas** does — `TVC:NATGAS` was wrong and its replacement could not be confirmed from here (§9h).
 2. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature. Now that the session gates execution, that RPC should also own the clock, so the server decides what "open" means rather than the browser.
-3. **Translate the lesson content**, if English learners matter. Needs a schema change on `lessons`; see §9b. The `news_posts` rows are French-only for the same reason.
+3. ~~**Translate the lesson content**~~ — **done 2026-09-12** without a schema change: translations live in `src/lib/lessons-i18n/` and overlay by slug (§9b). The news feed is machine-translated on fetch (§9f).
 4. **Extend the Moroccan holiday table** in `lib/market-session.ts` past 2027. It now gates order execution, not just a badge, so a missing holiday means orders filling on a closed day.
 5. **Self-host the logo.** Required before any non-Lovable deployment.
 6. ~~Run `npm run format`~~ — **done 2026-09-01.** `npx eslint src` now reports **zero errors**, only the six pre-existing `react-refresh` warnings inside vendored shadcn/ui files. It is a usable signal again; keep it that way.
@@ -777,7 +782,29 @@ The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not
 
 ## 12. What to run in the Supabase SQL editor
 
-### 2026-09-11 (current): nothing
+### 2026-09-12 (current): one migration, plus one regeneration the push channel could not carry
+
+**Run `supabase/migrations/20260912090000_boursenews_feed.sql`** in the SQL editor. It creates `news_items` (the Boursenews cache) and `news_insights` (the admin commentaries) with the locked-down grants, the RLS policies and the six `bnews_*` RPCs (§9f). Until it runs, `/actualites` answers « fonctionnalité pas encore activée » through the usual `explain` path, nothing worse.
+
+**Then regenerate `supabase/setup.sql` after pulling**: `python3 scripts/build-setup-sql.py`. The regenerated file is correct locally but is ~300 KB, and the MCP push channel truncates payloads somewhere above ~190 KB — the migration itself is pushed; the generated aggregate is one command away.
+
+Quick check after running the migration:
+
+```sql
+select 1 as n, 'tables du fil d''actualites' as verification,
+       (select count(*) = 2 from information_schema.tables
+         where table_schema = 'public' and table_name in ('news_items','news_insights')) as resultat
+union all
+select 2, 'droits des membres sur le cache',
+       (select string_agg(privilege_type, ',' order by privilege_type) from information_schema.role_table_grants
+         where table_schema = 'public' and table_name = 'news_items' and grantee = 'authenticated')
+union all
+select 3, 'RPC du fil presentes',
+       (select count(*) = 6 from information_schema.routines
+         where routine_schema = 'public' and routine_name like 'bnews\_%');
+```
+
+### 2026-09-11: nothing
 
 Arabic (§9b) and the stock-sheet layout (§9l) are code and constants; the database is untouched.
 
