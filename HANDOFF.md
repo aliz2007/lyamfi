@@ -1,8 +1,10 @@
 # Lyamfi: Codebase Handoff
 
-_Written 2026-08-18, last revised 2026-09-12. Everything below was read from the source and, where marked ✅, executed._
+_Written 2026-08-18, last revised 2026-09-14. Everything below was read from the source and, where marked ✅, executed._
 
-> **Latest change (2026-09-12):** three things from the owner's brief. **Actualités runs itself** (§9f): the page now fetches the latest Boursenews articles server-side, caches them in `news_items`, machine-translates them into the selected language with a provider chain, and the manual posting form is gone — the admin's job is now an optional **insight** (`news_insights`) under any article, his read on what the news means for the market, translated like the rest. **The Académie speaks English and Arabic** (§9b): all 14 modules and their 140 quiz questions are translated, glossary-bound and editorially reviewed, overlaid on the French database rows by slug — no schema change. **The header logo survives French** (§9m): the nav no longer crushes the wordmark down to « L ». **One migration to run:** see §12. ⚠️ `supabase/setup.sql` is regenerated locally but could not be pushed through the LLM-sized push channel (300 KB); regenerate after pull with `python3 scripts/build-setup-sql.py` (§12).
+> **Latest change (2026-09-14):** **the stock sheet and the news feed cross-link** (§9n). A company keyword chip (« Mutandis ») now opens the stock sheet directly instead of the keyword page, and the stock sheet carries a **Dans la presse** panel at the bottom: the feed articles that cite the stock, each opening its reading page, with a link to the full keyword page. Theme chips are unchanged — they still open their keyword page. **No SQL to run:** pure front-end, see §12.
+>
+> _2026-09-12:_ three things from the owner's brief. **Actualités runs itself** (§9f): the page now fetches the latest Boursenews articles server-side, caches them in `news_items`, machine-translates them into the selected language with a provider chain, and the manual posting form is gone — the admin's job is now an optional **insight** (`news_insights`) under any article, his read on what the news means for the market, translated like the rest. **The Académie speaks English and Arabic** (§9b): all 14 modules and their 140 quiz questions are translated, glossary-bound and editorially reviewed, overlaid on the French database rows by slug — no schema change. **The header logo survives French** (§9m): the nav no longer crushes the wordmark down to « L ». **One migration to run:** see §12. ⚠️ `supabase/setup.sql` is regenerated locally but could not be pushed through the LLM-sized push channel (300 KB); regenerate after pull with `python3 scripts/build-setup-sql.py` (§12).
 >
 > _2026-09-12, later:_ **the feed widens to three sources and learns keywords** (§9f): Le Boursier (Medias24) and AlphaBourse join Boursenews, and every article now carries up to six smart keywords — a listed company (« Akdital ») or a market theme (« pétrole », « taux ») — computed deterministically from the site's own ticker table and a French financial-press lexicon, no LLM. Clicking a chip opens a page with every article bearing it; a company keyword also deep-links to its stock sheet. Medias24 sits behind a Cloudflare challenge, so that source may show as unreachable until their protection lets the fetch pass — the feed carries on without it. **One more migration to run:** see §12.
 >
@@ -38,7 +40,7 @@ Eight surfaces:
 | --- | --- | --- |
 | Landing | `/` | Value prop, 4 module teasers, sign-up CTA |
 | Dashboard | `/dashboard` | Portfolio value, MASI + MASI 20, day's top 5 gainers/losers, learning progress |
-| Bourse | `/bourse`, `/bourse/$ticker` | 80 listed companies, live prices, YTD, charts, fundamentals, shareholding card, sector / quotation filters |
+| Bourse | `/bourse`, `/bourse/$ticker` | 80 listed companies, live prices, YTD, charts, fundamentals, shareholding card, related news, sector / quotation filters |
 | Portefeuille | `/portefeuille` | Paper-trading with 100 000 MAD, market + limit orders, session-aware order book, vs-MASI curve, one wallet per league |
 | Classement | `/classement` | Classement Général by portfolio value, cash / invested split, plus the private leagues (§9j) |
 | Académie | `/academie`, `/academie/$slug` | 14 lessons in 3 gated levels, quiz + badge per lesson |
@@ -501,7 +503,7 @@ How the machinery fits together:
 - **The rights split still lives in the database**, same doctrine as the old `news_posts` (REVOKE ALL then grant back SELECT, RLS select-true, everything else through SECURITY DEFINER RPCs). New here: the write RPCs any member can reach (`bnews_items_upsert`, `bnews_body_set`, `bnews_translation_set`) **validate inside the database** — guid shape, category whitelist, URL pinned to the boursenews.ma domain, length caps, 25 rows per call — so a crafted call cannot inject off-domain "news" or megabytes of prose. The insight RPCs open with `is_admin()` exactly like the old `news_*` ones.
 - **The manual publication workflow is retired.** `news_posts`, its three RPCs and the `news` storage bucket stay in the database untouched (old articles are not deleted), but nothing reads them anymore: `lib/news.ts` is gone, replaced by `lib/newsfeed.ts` (client, cast pattern since `types.ts` is not regenerated), and the two routes were rewritten. `components/ArticleBody.tsx` still prints plain text as typed — scraped bodies arrive as text, never HTML, and `dangerouslySetInnerHTML` remains banned.
 - **Three sources, one choreography (2026-09-12, later).** `SOURCES` in `lib/newsfeed.functions.ts` lists Boursenews (its three listing pages), AlphaBourse (`/fr/actualite-et-flux`, `actualite-macro`, `gouvernance-cotee`) and Le Boursier (`medias24.com/categorie/leboursier/`). Each source has its own regex parser and its own guid prefix (`alphabourse:<hexid>`, `leboursier:<id>`; bare slugs stay Boursenews legacy), and every page is fetched with `Promise.allSettled`: a source whose pages all failed lands in `failedSources`, the page says so in one discreet line, and the rest of the feed carries on. ⚠️ Medias24 answers datacenter fetches with a Cloudflare challenge (HTTP 403 as of writing), so Le Boursier will be dark until that protection lets the server through — accepted and handled, the parser is ready. `fetchBoursenewsFeed` survives as a deprecated alias, but its return changed: `failedSources` replaces `failedCategories`. `news_items` gained `source` and `keywords`; the upsert RPC revalidates both (three-source whitelist, URL pinned to the three hosts, ≤6 keywords of the form `c:<TICKER>` / `t:<theme>`, 45 rows per call).
-- **Smart keywords, no LLM (2026-09-12, later).** `lib/news-keywords.ts` turns title + excerpt into ≤6 ids: `c:<TICKER>` when a listed company shows up (ticker in capitals, or a distinctive name alias — « akdital », « attijariwafa », « labelvie »), `t:<theme>` for 18 market themes matched on a French press lexicon. A denylist of financial acronyms (BCE, OPA, MASI, IPO…) and a stopword list of generic company words (« capital », « groupe »…) keep false positives out — « Capital-risque » is not Aradei. Scoring (ticker +4, name in title +3, theme in title +2, excerpt +1) sorts by relevance before the cap. Chips on every card open `/actualites/mot/$kw`, which lists the keyword's articles (GIN index on `keywords`, `.contains` filter, 60 rows) and, for a company, links the stock sheet. Rows cached before keywords existed are back-filled on the next read through `bnews_keywords_set`.
+- **Smart keywords, no LLM (2026-09-12, later).** `lib/news-keywords.ts` turns title + excerpt into ≤6 ids: `c:<TICKER>` when a listed company shows up (ticker in capitals, or a distinctive name alias — « akdital », « attijariwafa », « labelvie »), `t:<theme>` for 18 market themes matched on a French press lexicon. A denylist of financial acronyms (BCE, OPA, MASI, IPO…) and a stopword list of generic company words (« capital », « groupe »…) keep false positives out — « Capital-risque » is not Aradei. Scoring (ticker +4, name in title +3, theme in title +2, excerpt +1) sorts by relevance before the cap. Theme chips open `/actualites/mot/$kw`, which lists the keyword's articles (GIN index on `keywords`, `.contains` filter — a pre-quoted string literal, see the 2026-09-12 evening entry — 60 rows); **company chips open the stock sheet directly** (§9n), which shows the articles citing the stock and links the keyword page for the full list. Rows cached before keywords existed are back-filled on the next read through `bnews_keywords_set`.
 
 Client flow in one breath: `newsFeedQuery(lang)` scrapes (15-minute `staleTime`), upserts, reads cache + insights, batch-translates what the current language misses among the visible items, merges, and hands the page `NewsFeedItem`s; `newsArticleQuery(guid, lang)` lazily fetches and translates the body the same way.
 
@@ -665,6 +667,19 @@ A grid cell sized `minmax(0,1fr)` gives its space away; one sized `auto` keeps w
 
 ---
 
+## 9n. Stock sheet × news feed cross-links (2026-09-14)
+
+Two one-way doors made a loop. A company keyword chip used to open the keyword page, which offered a link to the stock sheet; the stock sheet, meanwhile, knew nothing about the news. Now:
+
+- **A company chip opens the stock sheet directly** (`NewsKeywordChips` routes `c:<TICKER>` to `/bourse/$ticker`; theme chips still open `/actualites/mot/$kw`). The chip's label is unchanged — the company's name — so the destination matches what the chip says.
+- **The stock sheet ends with a « Dans la presse » panel** (`components/StockNews.tsx`, mounted on `/bourse/$ticker` just above the disclaimer): up to six feed articles carrying the stock's `c:<CODE>` keyword, title plus source and date, each opening the article's reading page, and a « Tous les articles » link to the keyword page for the full list. The query is `newsKeywordQuery("c:<CODE>")` itself — same cache key as the keyword page, so the two screens share the result and neither fetches twice.
+- **The panel renders nothing when there is nothing to show.** No skeleton while loading, no error box if the feed query fails (a feed outage is not the stock sheet's problem), no empty frame for the many stocks the press has not cited lately. It appears when the first article cites the stock and disappears with the last one — the same doctrine as §9l's missing-data card.
+- The keyword page keeps its « Voir la fiche action » link for company keywords, so the loop closes: chip → stock sheet → all articles → keyword page → stock sheet.
+
+Entirely front-end: no schema change, no migration.
+
+---
+
 ## 10. Known issues, ranked
 
 ### 🔴 Trading integrity is entirely client-side
@@ -788,7 +803,11 @@ The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not
 
 ## 12. What to run in the Supabase SQL editor
 
-### 2026-09-12 (current): three migrations, plus one regeneration the push channel could not carry
+### 2026-09-14: nothing
+
+The stock-sheet ↔ news cross-links (§9n) are components and dictionary keys; the database is untouched. **Do not run anything for it.**
+
+### 2026-09-12: three migrations, plus one regeneration the push channel could not carry
 
 **Run `supabase/migrations/20260912090000_boursenews_feed.sql`** in the SQL editor. It creates `news_items` (the Boursenews cache) and `news_insights` (the admin commentaries) with the locked-down grants, the RLS policies and the six `bnews_*` RPCs (§9f). Until it runs, `/actualites` answers « fonctionnalité pas encore activée » through the usual `explain` path, nothing worse.
 
