@@ -552,6 +552,8 @@ export const ar: Record<keyof typeof fr, string> = {
   "stock.historyRetry": "تعذّر جلب الأسعار لهذه القيمة. حدِّث الصفحة بعد قليل.",
   "stock.historySource":
     "الرسم البياني والأسعار مقدَّمة من TradingView. أداة تعليمية، لا تشكل نصيحة استثمارية.",
+  "stock.newsTitle": "في الصحافة",
+  "stock.newsAll": "جميع المقالات",
   /* classement */
   "nav.leaderboard": "الترتيب",
   "lb.title": "الترتيب",

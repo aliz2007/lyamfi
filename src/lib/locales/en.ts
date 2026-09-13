@@ -584,6 +584,8 @@ export const en: Record<keyof typeof fr, string> = {
   "stock.historyRetry": "Prices could not be fetched for this stock. Refresh the page in a moment.",
   "stock.historySource":
     "Chart and prices provided by TradingView. Educational tool, this is not investment advice.",
+  "stock.newsTitle": "In the news",
+  "stock.newsAll": "All articles",
 
   /* ------------------------------------------------------------ leaderboard */
   "nav.leaderboard": "Leaderboard",

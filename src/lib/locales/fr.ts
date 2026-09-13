@@ -593,6 +593,8 @@ export const fr = {
     "Les cours n'ont pas pu être récupérés pour cette valeur. Actualise la page dans un instant.",
   "stock.historySource":
     "Graphique et cours fournis par TradingView. Outil pédagogique, ne constitue pas un conseil en investissement.",
+  "stock.newsTitle": "Dans la presse",
+  "stock.newsAll": "Tous les articles",
 
   /* ----------------------------------------------------------- classement */
   "nav.leaderboard": "Classement",
