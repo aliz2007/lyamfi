@@ -13,6 +13,7 @@ import { TradingViewWidget } from "@/components/TradingViewWidget";
 import { CSE_SYMBOLS, tvSymbol } from "@/lib/cse-symbols";
 import { ytdOf } from "@/lib/quotation";
 import { ShareholdingCard } from "@/components/ShareholdingCard";
+import { StockNews } from "@/components/StockNews";
 import { useI18n, type Key, type Translate } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/bourse/$ticker")({
@@ -221,6 +222,10 @@ function StockPage() {
           {stock.description}
         </p>
       )}
+
+      {/* Les articles du fil qui citent la valeur, en bas de fiche. Ne rend
+          rien sans article, en chargement ou en erreur (cf. StockNews). */}
+      <StockNews code={code} />
 
       <Disclaimer />
     </div>
