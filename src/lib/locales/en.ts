@@ -206,8 +206,6 @@ export const en: Record<keyof typeof fr, string> = {
 
   /* --------------------------------------------------------------- market */
   "bourse.title": "Casablanca Stock Exchange",
-  "bourse.intro":
-    "All {total} listed stocks, with their live price. The {covered} with published fundamentals appear first. An indicator that has not been published is left out rather than filled with a placeholder.",
   "bourse.searchPlaceholder": "Search for a stock or ticker",
   "bourse.allSectors": "All sectors",
   "bourse.sortBy": "Sort by",
@@ -407,6 +405,11 @@ export const en: Record<keyof typeof fr, string> = {
   "budget.growth": "Capital growth",
   "budget.withCompound": "With compound interest",
   "budget.simpleSaving": "Plain saving",
+  "budget.inflation": "Estimated inflation rate (%)",
+  "budget.inflationHint": "1.8%: Morocco's historical average.",
+  "budget.realCapital": "Real capital (inflation-adjusted)",
+  "budget.finalReal": "Final real capital (purchasing power)",
+  "budget.realHint": "The value of your capital adjusted for inflation.",
   "budget.finalCapital": "Final capital",
   "budget.totalPaid": "Total paid in",
   "budget.interestEarned": "Interest earned",
@@ -643,6 +646,10 @@ export const en: Record<keyof typeof fr, string> = {
   "league.namePlaceholder": "ENCG Casablanca challenge",
   "league.create": "Create the league",
   "league.created": "League created.",
+  "league.delete": "Delete the league",
+  "league.deleteConfirm":
+    "Delete the league “{name}”? Its participants' portfolios will be deleted with it.",
+  "league.deleted": "League “{name}” deleted.",
 
   /* ------------------------------------------------------ fundamental metrics */
   "metric.valuation": "Valuation",

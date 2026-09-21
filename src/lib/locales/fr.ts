@@ -209,8 +209,6 @@ export const fr = {
 
   /* --------------------------------------------------------------- bourse */
   "bourse.title": "Bourse de Casablanca",
-  "bourse.intro":
-    "Les {total} valeurs cotées, avec leur cours en direct. Les {covered} dont les fondamentaux sont publiés apparaissent en premier. Un indicateur non publié n'est pas affiché plutôt que d'être rempli par une valeur factice.",
   "bourse.searchPlaceholder": "Rechercher une valeur ou un ticker",
   "bourse.allSectors": "Tous secteurs",
   "bourse.sortBy": "Trier par",
@@ -414,6 +412,11 @@ export const fr = {
   "budget.growth": "Croissance du capital",
   "budget.withCompound": "Avec intérêts composés",
   "budget.simpleSaving": "Épargne simple",
+  "budget.inflation": "Taux d'inflation estimé (%)",
+  "budget.inflationHint": "1,8 % : la moyenne historique marocaine.",
+  "budget.realCapital": "Capital réel (corrigé de l'inflation)",
+  "budget.finalReal": "Capital final réel (pouvoir d'achat)",
+  "budget.realHint": "Valeur de votre capital ajustée à l'inflation.",
   "budget.finalCapital": "Capital final",
   "budget.totalPaid": "Total versé",
   "budget.interestEarned": "Intérêts générés",
@@ -652,6 +655,10 @@ export const fr = {
   "league.namePlaceholder": "Challenge ENCG Casablanca",
   "league.create": "Créer la ligue",
   "league.created": "Ligue créée.",
+  "league.delete": "Supprimer la ligue",
+  "league.deleteConfirm":
+    "Supprimer la ligue « {name} » ? Les portefeuilles de ses participants seront supprimés avec elle.",
+  "league.deleted": "Ligue « {name} » supprimée.",
 
   /* ------------------------------------------------- fondamentaux (metrics) */
   "metric.valuation": "Valorisation",

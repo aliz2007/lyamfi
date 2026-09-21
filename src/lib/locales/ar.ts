@@ -191,8 +191,6 @@ export const ar: Record<keyof typeof fr, string> = {
   "dash.q4Text": "الاستثمار والتمويل",
   /* bourse */
   "bourse.title": "بورصة الدار البيضاء",
-  "bourse.intro":
-    "القيم المدرجة البالغ عددها {total}، مع أسعارها المباشرة. تظهر أولاً القيم البالغ عددها {covered} التي تُنشر بياناتها الأساسية. أي مؤشر غير منشور لا يُعرض بدلاً من ملئه بقيمة وهمية.",
   "bourse.searchPlaceholder": "ابحث عن قيمة مدرجة أو رمز تداول",
   "bourse.allSectors": "جميع القطاعات",
   "bourse.sortBy": "ترتيب حسب",
@@ -384,6 +382,11 @@ export const ar: Record<keyof typeof fr, string> = {
   "budget.growth": "نمو رأس المال",
   "budget.withCompound": "مع الفوائد المركبة",
   "budget.simpleSaving": "ادخار بسيط",
+  "budget.inflation": "معدل التضخم المتوقع (%)",
+  "budget.inflationHint": "1,8%: المتوسط التاريخي بالمغرب.",
+  "budget.realCapital": "رأس المال الحقيقي (المعدل بالتضخم)",
+  "budget.finalReal": "رأس المال النهائي الحقيقي (القدرة الشرائية)",
+  "budget.realHint": "قيمة رأس مالك معدلة بالتضخم.",
   "budget.finalCapital": "رأس المال النهائي",
   "budget.totalPaid": "إجمالي المدفوع",
   "budget.interestEarned": "الفوائد المحققة",
@@ -607,6 +610,9 @@ export const ar: Record<keyof typeof fr, string> = {
   "league.namePlaceholder": "تحدي ENCG الدار البيضاء",
   "league.create": "إنشاء الدوري",
   "league.created": "تم إنشاء الدوري.",
+  "league.delete": "حذف الدوري",
+  "league.deleteConfirm": "حذف دوري «{name}»؟ ستُحذف معه محافظ جميع المشاركين فيه.",
+  "league.deleted": "تم حذف دوري «{name}».",
   /* fondamentaux (metrics) */
   "metric.valuation": "التقييم",
   "metric.perShare": "للسهم الواحد",
