@@ -16,7 +16,9 @@ import { normaliseLeaderboard, type LeaderboardRow } from "@/lib/leaderboard";
  *     pas décider — la base lui refuse d'écrire `league_id` ;
  *   * `league_list` compte les participants, lecture que la RLS interdit à
  *     juste titre à un membre ;
- *   * `league_leaderboard` classe les membres contre le capital de la ligue.
+ *   * `league_leaderboard` classe les membres contre le capital de la ligue ;
+ *   * `league_delete` supprime une ligue et, par cascade, les portefeuilles
+ *     de ses participants — administrateur principal seulement.
  *
  * Masquer un bouton reste cosmétique : c'est la base qui tranche, ici comme
  * pour l'espace d'administration et les actualités.
@@ -159,3 +161,13 @@ export const createLeague = (v: {
     p_ends_at: v.endsAt,
     p_start_capital: v.startCapital,
   });
+
+/**
+ * Supprime une ligue (administrateur principal seulement).
+ *
+ * La cascade emporte les portefeuilles de ses participants — positions,
+ * transactions, ordres et instantanés compris. Irréversible : le client
+ * demande confirmation avant d'appeler.
+ */
+export const deleteLeague = (leagueId: string): Promise<void> =>
+  callRpc<void>("league_delete", { p_league_id: leagueId });

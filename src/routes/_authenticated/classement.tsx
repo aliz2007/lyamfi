@@ -2,13 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { CalendarRange, Trophy, Users } from "lucide-react";
+import { CalendarRange, Trash2, Trophy, Users } from "lucide-react";
 import { toast } from "sonner";
 import { getLiveQuotes } from "@/lib/quotes.functions";
 import { useRecordDailyQuotes } from "@/lib/quotes.history";
 import { leaderboardQuery, type LeaderboardRow } from "@/lib/leaderboard";
 import {
   createLeague,
+  deleteLeague,
   joinLeague,
   leagueLeaderboardQuery,
   leagueStatus,
@@ -16,7 +17,8 @@ import {
   type League,
   type LeagueStatus,
 } from "@/lib/leagues";
-import { myRoleQuery } from "@/lib/admin";
+import { isPrincipalAdminEmail, myRoleQuery } from "@/lib/admin";
+import { useAuth } from "@/hooks/useAuth";
 import { GoldenGoat } from "@/components/GoldenGoat";
 import { EMPTY, useFormat, type Formatter } from "@/lib/format";
 import { useI18n, usePageTitle, type Key, type Translate } from "@/lib/i18n";
@@ -127,8 +129,12 @@ function LeaderboardPage() {
  */
 function Leagues({ t, f }: { t: Translate; f: Formatter }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const { data: role } = useQuery(myRoleQuery);
   const isAdmin = role === "admin";
+  // La suppression d'une ligue emporte les portefeuilles de tous ses
+  // participants : réservée au principal, comme la suppression d'un compte.
+  const isPrincipal = isPrincipalAdminEmail(user?.email);
 
   const { data: leagues = [], isLoading, error } = useQuery(leaguesQuery);
   const [openLeague, setOpenLeague] = useState<string | null>(null);
@@ -146,6 +152,21 @@ function Leagues({ t, f }: { t: Translate; f: Formatter }) {
       // invalidation, le portefeuille tout juste ouvert n'y figure pas encore.
       void qc.invalidateQueries({ queryKey: ["vportfolio"] });
       setOpenLeague(leagueId);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    // Le nom voyage avec la mutation, comme pour `join` ci-dessus.
+    mutationFn: (v: { id: string; name: string }) => deleteLeague(v.id),
+    onSuccess: (_r, v) => {
+      toast.success(t("league.deleted", { name: v.name }));
+      // Si la ligue supprimée était ouverte, son classement se referme avec elle.
+      setOpenLeague((cur) => (cur === v.id ? null : cur));
+      void qc.invalidateQueries({ queryKey: ["leagues"] });
+      // Les portefeuilles de la ligue partent avec elle : le sélecteur de la
+      // page Portefeuille lit la même liste.
+      void qc.invalidateQueries({ queryKey: ["vportfolio"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -187,6 +208,18 @@ function Leagues({ t, f }: { t: Translate; f: Formatter }) {
               onToggle={() => setOpenLeague((cur) => (cur === l.id ? null : l.id))}
               onJoin={() => join.mutate({ id: l.id, name: l.name })}
               joining={join.isPending && join.variables?.id === l.id}
+              onDelete={
+                isPrincipal
+                  ? () => {
+                      // Destructif et irréversible : confirmation explicite,
+                      // comme pour la suppression d'un commentaire d'article.
+                      if (window.confirm(t("league.deleteConfirm", { name: l.name }))) {
+                        del.mutate({ id: l.id, name: l.name });
+                      }
+                    }
+                  : undefined
+              }
+              deleting={del.isPending && del.variables?.id === l.id}
               t={t}
               f={f}
             />
@@ -211,6 +244,8 @@ function LeagueCard({
   onToggle,
   onJoin,
   joining,
+  onDelete,
+  deleting,
   t,
   f,
 }: {
@@ -219,6 +254,9 @@ function LeagueCard({
   onToggle: () => void;
   onJoin: () => void;
   joining: boolean;
+  /** Présent uniquement pour l'administrateur principal. */
+  onDelete?: (() => void) | undefined;
+  deleting: boolean;
   t: Translate;
   f: Formatter;
 }) {
@@ -233,17 +271,31 @@ function LeagueCard({
     <div className="surface-raised flex min-w-0 flex-col gap-4 p-5">
       <div className="flex items-start justify-between gap-3">
         <h3 className="min-w-0 break-words font-semibold">{league.name}</h3>
-        <span
-          className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${
-            status === "open"
-              ? "border-[var(--success)]/40 text-[var(--success)]"
-              : status === "upcoming"
-                ? "border-primary/40 bg-accent text-accent-foreground"
-                : "border-border text-muted-foreground"
-          }`}
-        >
-          {t(STATUS_LABEL[status])}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span
+            className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${
+              status === "open"
+                ? "border-[var(--success)]/40 text-[var(--success)]"
+                : status === "upcoming"
+                  ? "border-primary/40 bg-accent text-accent-foreground"
+                  : "border-border text-muted-foreground"
+            }`}
+          >
+            {t(STATUS_LABEL[status])}
+          </span>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={deleting}
+              aria-label={t("league.delete")}
+              title={t("league.delete")}
+              className="press inline-flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-destructive/60 hover:text-destructive disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <dl className="space-y-2 text-xs">
