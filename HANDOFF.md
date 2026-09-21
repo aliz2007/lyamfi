@@ -2,7 +2,9 @@
 
 _Written 2026-08-18, last revised 2026-09-14. Everything below was read from the source and, where marked ✅, executed._
 
-> **Latest change (2026-09-14):** **the stock sheet and the news feed cross-link** (§9n). A company keyword chip (« Mutandis ») now opens the stock sheet directly instead of the keyword page, and the stock sheet carries a **Dans la presse** panel at the bottom: the feed articles that cite the stock, each opening its reading page, with a link to the full keyword page. Theme chips are unchanged — they still open their keyword page. **No SQL to run:** pure front-end, see §12.
+> **Latest change (2026-09-14, later):** four items from the owner's brief (§9o). **The investment simulator prices in inflation**: an estimated-rate input (default 1.8 %, the Moroccan historical average), a second dashed curve for the inflation-adjusted capital, and the real final capital under the nominal one. **The `/bourse` header sentence is gone.** **The credit donut's tooltip text is white** — Recharts left it black on the dark popover. **The principal admin can delete a league** from its card, participants' league wallets included (cascade), via a new `league_delete` RPC that only `is_principal_admin()` opens. **One migration to run:** see §12.
+>
+> _2026-09-14:_ **the stock sheet and the news feed cross-link** (§9n). A company keyword chip (« Mutandis ») now opens the stock sheet directly instead of the keyword page, and the stock sheet carries a **Dans la presse** panel at the bottom: the feed articles that cite the stock, each opening its reading page, with a link to the full keyword page. Theme chips are unchanged — they still open their keyword page. **No SQL to run:** pure front-end, see §12.
 >
 > _2026-09-12:_ three things from the owner's brief. **Actualités runs itself** (§9f): the page now fetches the latest Boursenews articles server-side, caches them in `news_items`, machine-translates them into the selected language with a provider chain, and the manual posting form is gone — the admin's job is now an optional **insight** (`news_insights`) under any article, his read on what the news means for the market, translated like the rest. **The Académie speaks English and Arabic** (§9b): all 14 modules and their 140 quiz questions are translated, glossary-bound and editorially reviewed, overlaid on the French database rows by slug — no schema change. **The header logo survives French** (§9m): the nav no longer crushes the wordmark down to « L ». **One migration to run:** see §12. ⚠️ `supabase/setup.sql` is regenerated locally but could not be pushed through the LLM-sized push channel (300 KB); regenerate after pull with `python3 scripts/build-setup-sql.py` (§12).
 >
@@ -46,7 +48,7 @@ Eight surfaces:
 | Académie | `/academie`, `/academie/$slug` | 14 lessons in 3 gated levels, quiz + badge per lesson |
 | Actualités | `/actualites`, `/actualites/$id`, `/actualites/mot/$kw` | Auto-fetched Boursenews + Le Boursier (Medias24) + AlphaBourse feed, translated into the selected language, smart keyword chips (≤6) with their own pages, optional admin insight per article |
 | Macroéconomie | `/macroeconomie` | 5 TradingView charts on the Moroccan economy |
-| Simulateurs | `/simulateurs` | Compound interest (3 risk profiles) and a credit simulator |
+| Simulateurs | `/simulateurs` | Compound interest (3 risk profiles, inflation-adjusted) and a credit simulator |
 
 Nav order is fixed in `components/AppShell.tsx`: Actualités sits between Académie and Simulateurs. `/macroeconomie` is reached from the banner atop `/actualites`, not from the nav. `/budget` still resolves: it redirects to `/simulateurs` so old links keep working.
 
@@ -628,7 +630,7 @@ All portfolio resolution goes through `src/lib/portfolios.ts` now. **Do not rein
 
 Applied to a throwaway PostgreSQL 16 with Supabase's default privileges in place, twice, then exercised: a member cannot create a league; a blank name, an inverted window and a zero capital are refused; joining twice returns the same wallet and credits nothing; a finished league is refused; the principal admin is refused; a second wallet in one league is refused. Alice's 48 000 MAD of league stock stays out of the general leaderboard. **Carole — who joined a league and never opened the Portefeuille page, so her only wallet is a league one** — appears in the general ranking at the platform capital, shows no figures in the admin console, and still ranks first in her league at +80 %. The admin RPCs were checked to keep `anon` and `PUBLIC` off their `EXECUTE` after the generator's `DROP FUNCTION`. The window logic (including the unparseable-dates case) was checked under `node --experimental-strip-types`.
 
-Not built, and not asked for: **there is no way to edit or delete a league.** A typo in a name, a date or a capital is permanent. `leagues.updated_at` and its trigger exist for the `league_update` that would fix that; see §11.
+Not built, and not asked for: **there is no way to edit a league.** A typo in a name, a date or a capital is permanent. `leagues.updated_at` and its trigger exist for the `league_update` that would fix that; see §11. Deletion, on the other hand, shipped on 2026-09-14 for the principal admin (§9o).
 
 ---
 
@@ -680,6 +682,19 @@ Entirely front-end: no schema change, no migration.
 
 ---
 
+## 9o. Inflation in the simulator, bourse header, donut tooltip, league deletion (2026-09-14)
+
+Four items, one brief.
+
+- **The investment simulator prices in inflation.** `simulateurs.tsx` gains an `inflationRate` state (default **1.8 %**, the Moroccan historical average), set from a `Field` beside the monthly amount, duration and risk profile — the panel is now `lg:grid-cols-4`. Each yearly point carries a `real` key, the nominal capital deflated: `real = nominal / (1 + inflationRate / 100)^year`. The chart overlays it as a dashed, unfilled gold curve (`strokeDasharray="5 5"`, `strokeOpacity` 0.55) so the deflated value reads as a correction of the nominal one, not a second projection; the tooltip already formats every series, so a hover shows nominal and real side by side. In the results row, the first card keeps the nominal final capital prominent and adds the **real final capital (pouvoir d'achat)** below it, smaller and in `text-muted-foreground`, with an `Info` icon whose `<title>` explains « Valeur de votre capital ajustée à l'inflation. ».
+- **The `/bourse` header sentence is gone** — the « Les 80 valeurs cotées, avec leur cours en direct… » paragraph and its `bourse.intro` key in all three locales. The title, the session badge and the gainers/losers chips stay; `coveredCount` went with the sentence (the covered-first sort itself is untouched).
+- **The credit donut's tooltip text is white.** Recharts' default tooltip leaves its label and entries uncoloured, which rendered black on the dark popover. The `Tooltip` now pins `color`, `labelStyle` and `itemStyle` to `var(--popover-foreground)`.
+- **The principal admin can delete a league.** A small trash icon on each league card (visible only to `isPrincipalAdminEmail(user?.email)`), a `window.confirm` naming the league — the same pattern as the insight deletion — then `league_delete`, a `SECURITY DEFINER` RPC gated on `is_principal_admin()`. Deleting the league cascades: `portfolios.league_id` has been `ON DELETE CASCADE` since the leagues migration precisely for this, and holdings, trades, snapshots and orders cascade from `portfolios` in turn — so every participant's league wallet disappears with the league, while main wallets (`league_id IS NULL`) are never touched. Reserved to the principal rather than any admin because it is a mass deletion of other people's play data, the same gravity as deleting an account (§9c). **Editing** a league is still not possible — `league_update` remains §11 item 0b.
+
+One migration: `20260914090000_league_delete.sql` (§12). The other three items are front-end only.
+
+---
+
 ## 10. Known issues, ranked
 
 ### 🔴 Trading integrity is entirely client-side
@@ -710,7 +725,7 @@ Not reachable through the app as it stands: PostgREST exposes no verb that issue
 
 ### 🟠 A league can be created but never corrected
 
-There is no `league_update` and no `league_delete`. A wrong name, a wrong window or a wrong capital is permanent, on a form whose `datetime-local` fields are read in the browser's timezone — the input most likely to be entered wrong. `leagues.updated_at` and its trigger exist for the update that would fix it. Not asked for in the brief, so not built; see §11.
+There is no `league_update`. A wrong name, a wrong window or a wrong capital is permanent, on a form whose `datetime-local` fields are read in the browser's timezone — the input most likely to be entered wrong. `leagues.updated_at` and its trigger exist for the update that would fix it. Not asked for in the brief, so not built; see §11. Deletion shipped on 2026-09-14 (`league_delete`, principal admin only, §9o) — the escape hatch is now "delete and recreate", which costs the participants' wallets.
 
 ### 🟠 A league contest is only as honest as the client
 
@@ -771,7 +786,7 @@ Roughly in order of value-per-effort:
 
 0. **Send the corrected CRS block.** Cartier Saada is the one listing without a shareholding card: its workbook block sums to 108,09 and stayed out of `shareholders.ts` rather than be guessed (§9l). One corrected line from the owner and the card fills itself in.
    0a. **Say how `S2M` is quoted.** It is the one listing the workbook does not cover. Its sector was inferred (Technologies, §5); its **quotation mode was not**, so it shows under neither the Continu nor the Fixing chip (§9k). One line in `LISTING_BY_CODE` — and, if Lyamfi publishes its 31 December close, a YTD with it.
-   0b. **Let an admin fix a league.** `league_update(id, name, starts_at, ends_at)`, `SECURITY DEFINER` on `is_admin()`, plus an edit state on the card. Deliberately not `start_capital`: it is already credited into every participant's `cash`, so moving it would rewrite everyone's performance retroactively. A `league_delete` guarded on having no participants would go with it (§10).
+   0b. **Let an admin fix a league.** `league_update(id, name, starts_at, ends_at)`, `SECURITY DEFINER` on `is_admin()`, plus an edit state on the card. Deliberately not `start_capital`: it is already credited into every participant's `cash`, so moving it would rewrite everyone's performance retroactively. Deletion, the other half of league maintenance, shipped on 2026-09-14 (`league_delete`, principal admin only, §9o) — what remains here is the correction.
 1. **Check `/macroeconomie` on the live site.** Three things: whether the policy-rate card shows the « série tenue à la main » warning (if it does, the IMF request is failing and wants another source), whether the five _Marchés internationaux_ cards paint at all, and specifically whether **natural gas** does — `TVC:NATGAS` was wrong and its replacement could not be confirmed from here (§9h).
 2. **Move trading to a `SECURITY DEFINER` RPC.** The two 🔴 issues below are the same fix and the only ones that block a competitive feature. Now that the session gates execution, that RPC should also own the clock, so the server decides what "open" means rather than the browser.
 3. ~~**Translate the lesson content**~~ — **done 2026-09-12** without a schema change: translations live in `src/lib/lessons-i18n/` and overlay by slug (§9b). The news feed is machine-translated on fetch (§9f).
@@ -802,6 +817,18 @@ The live TradingView endpoint (`scanner.tradingview.com/morocco/scan`) could not
 ---
 
 ## 12. What to run in the Supabase SQL editor
+
+### 2026-09-14, later: one migration
+
+**Run `supabase/migrations/20260914090000_league_delete.sql`** in the SQL editor. It creates `league_delete`, the principal-admin-only RPC that removes a league and, by cascade, its participants' wallets (§9o). Idempotent (`CREATE OR REPLACE`), nothing else touched. The inflation simulator, the `/bourse` header and the donut tooltip of the same brief are front-end only — nothing to run for them. Regenerate `supabase/setup.sql` after pulling (`python3 scripts/build-setup-sql.py`): it is regenerated locally but, at ~311 KB, still beyond what the push channel carries.
+
+Quick check after running it:
+
+```sql
+select count(*) = 1 as league_delete_presente
+from information_schema.routines
+where routine_schema = 'public' and routine_name = 'league_delete';
+```
 
 ### 2026-09-14: nothing
 
