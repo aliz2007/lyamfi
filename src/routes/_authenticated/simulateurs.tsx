@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Landmark, TrendingUp } from "lucide-react";
+import { Info, Landmark, TrendingUp } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -52,11 +52,15 @@ function SimulatorsPage() {
   const [monthly, setMonthly] = useState(1000);
   const [years, setYears] = useState(20);
   const [profile, setProfile] = useState<(typeof PROFILES)[number]["id"]>("modere");
+  // Moyenne historique marocaine : l'inflation est ce qui sépare le capital
+  // affiché du pouvoir d'achat qu'il représentera.
+  const [inflationRate, setInflationRate] = useState(1.8);
 
   const rate = PROFILES.find((p) => p.id === profile)!.rate;
 
   const data = useMemo(() => {
     const r = rate / 100 / 12;
+    const deflator = 1 + inflationRate / 100;
     const out = [];
     let capital = 0;
     for (let y = 0; y <= years; y++) {
@@ -64,13 +68,21 @@ function SimulatorsPage() {
         for (let m = 0; m < 12; m++) capital = capital * (1 + r) + monthly;
       }
       const versed = monthly * 12 * y;
-      out.push({ year: y, compound: Math.round(capital), plain: versed });
+      out.push({
+        year: y,
+        compound: Math.round(capital),
+        // Capital réel = nominal déflaté : ce que ces dirhams futurs
+        // permettront d'acheter en dirhams d'aujourd'hui.
+        real: Math.round(capital / deflator ** y),
+        plain: versed,
+      });
     }
     return out;
-  }, [monthly, years, rate]);
+  }, [monthly, years, rate, inflationRate]);
 
   const last = data[data.length - 1]!;
   const final = last.compound;
+  const finalReal = last.real;
   const versed = last.plain;
 
   return (
@@ -93,7 +105,7 @@ function SimulatorsPage() {
         {t("budget.intro")}
       </p>
 
-      <section className="surface-raised grid gap-7 p-6 sm:p-8 lg:grid-cols-3">
+      <section className="surface-raised grid gap-7 p-6 sm:p-8 lg:grid-cols-4">
         <div>
           <label className="text-xs text-muted-foreground">{t("budget.monthly")}</label>
           <input
@@ -144,6 +156,17 @@ function SimulatorsPage() {
             ))}
           </div>
         </div>
+        <Field
+          id="invest-inflation"
+          label={t("budget.inflation")}
+          value={inflationRate}
+          min={0}
+          max={15}
+          step={0.1}
+          onChange={setInflationRate}
+          suffix="%"
+          hint={t("budget.inflationHint")}
+        />
       </section>
 
       <section className="surface-raised p-5 sm:p-7">
@@ -191,6 +214,18 @@ function SimulatorsPage() {
                 strokeWidth={2.5}
                 fill="url(#compFill)"
               />
+              {/* Capital réel : même courbe déflatée, en pointillés et sans
+                  remplissage — une valeur corrigée, pas une seconde projection. */}
+              <Area
+                name={t("budget.realCapital")}
+                type="monotone"
+                dataKey="real"
+                stroke="var(--gold)"
+                strokeOpacity={0.55}
+                strokeDasharray="5 5"
+                strokeWidth={1.5}
+                fill="transparent"
+              />
               <Area
                 name={t("budget.simpleSaving")}
                 type="monotone"
@@ -211,6 +246,22 @@ function SimulatorsPage() {
           <p className="mt-3 text-3xl font-bold tabular-nums text-gradient-gold">
             {f.mad(final, 0)}
           </p>
+          {/* Le pouvoir d'achat, juste sous le nominal : plus discret, mais
+              c'est le chiffre qui dit ce que l'épargne vaudra vraiment. */}
+          <div className="mt-4 border-t border-border/40 pt-3">
+            <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              {t("budget.finalReal")}
+              <Info
+                className="h-3.5 w-3.5 shrink-0 cursor-help opacity-70"
+                aria-label={t("budget.realHint")}
+              >
+                <title>{t("budget.realHint")}</title>
+              </Info>
+            </p>
+            <p className="mt-1 text-lg font-semibold tabular-nums text-muted-foreground">
+              {f.mad(finalReal, 0)}
+            </p>
+          </div>
         </div>
         <div className="surface-raised p-6">
           <p className="text-xs text-muted-foreground">{t("budget.totalPaid")}</p>
@@ -395,7 +446,12 @@ function CreditSimulator() {
                       border: "1px solid var(--border)",
                       borderRadius: 12,
                       fontSize: 12,
+                      color: "var(--popover-foreground)",
                     }}
+                    // Sans ces couleurs explicites, Recharts laisse le texte de
+                    // l'infobulle en noir — illisible sur le fond sombre.
+                    labelStyle={{ color: "var(--popover-foreground)" }}
+                    itemStyle={{ color: "var(--popover-foreground)" }}
                     formatter={(v: number) => f.mad(v, 0)}
                   />
                 </PieChart>

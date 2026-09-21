@@ -290,7 +290,6 @@ function BoursePage() {
 
   useEffect(() => setLimit(PAGE), [q, sector, quotation, sort, onlyFavourites]);
 
-  const coveredCount = listings.filter((l) => l.covered).length;
   const up = filtered.filter((l) => (l.changePct ?? 0) > 0).length;
   const down = filtered.filter((l) => (l.changePct ?? 0) < 0).length;
 
@@ -298,9 +297,6 @@ function BoursePage() {
     <div className="space-y-6 sm:space-y-8">
       <header className="rise">
         <h1 className="text-3xl font-bold sm:text-4xl">{t("bourse.title")}</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          {t("bourse.intro", { total: CSE_SYMBOLS.length - 1, covered: coveredCount })}
-        </p>
         <MarketSessionBadge className="mt-5" />
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--success)]/40 px-3 py-1 text-[var(--success)]">
