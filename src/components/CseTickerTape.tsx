@@ -41,7 +41,11 @@ export function CseTickerTape() {
   }, []);
 
   return (
-    <div className="w-full border-b border-border bg-background" style={{ minHeight: TAPE_HEIGHT }}>
+    <div
+      className="w-full border-b border-border bg-background"
+      style={{ minHeight: TAPE_HEIGHT }}
+      data-app-shell-ticker
+    >
       {mounted && (
         <TradingViewWidget
           widget="ticker-tape"

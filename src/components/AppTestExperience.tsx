@@ -10,10 +10,15 @@ import {
   Share,
   ShieldCheck,
   Smartphone,
-  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  APP_TEST_FRAME_STYLE,
+  AppTestHeader,
+  AppTestMoreSheet,
+  AppTestTabBar,
+} from "@/components/AppTestChrome";
 import { Logo } from "@/components/Logo";
 import {
   APP_TEST,
@@ -46,7 +51,10 @@ export function AppTestExperience() {
   const [minimumElapsed, setMinimumElapsed] = useState(false);
   const [forceReveal, setForceReveal] = useState(false);
   const [frameError, setFrameError] = useState(false);
+  const [currentPath, setCurrentPath] = useState<string>(APP_TEST.entryPath);
+  const [moreOpen, setMoreOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const frameRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     if (!phone) return;
@@ -99,6 +107,24 @@ export function AppTestExperience() {
     if (!panelOpen && dialog.open) dialog.close();
   }, [panelOpen]);
 
+  useEffect(() => {
+    if (!phone) return;
+
+    // TanStack Router navigue sans recharger l'iframe : la lecture périodique
+    // garde donc le titre et l'onglet actif synchronisés, y compris sur les
+    // pages de détail et après les liens internes à l'application.
+    const syncPath = () => {
+      try {
+        const path = frameRef.current?.contentWindow?.location.pathname;
+        if (path) setCurrentPath((current) => (current === path ? current : path));
+      } catch {
+        setFrameError(true);
+      }
+    };
+    const interval = window.setInterval(syncPath, 250);
+    return () => window.clearInterval(interval);
+  }, [frameKey, phone]);
+
   if (!phone) return <PhoneRequired />;
 
   const ios = isIosPhone();
@@ -120,21 +146,114 @@ export function AppTestExperience() {
     }
   };
 
+  const handleFrameLoad = () => {
+    const frame = frameRef.current;
+    try {
+      const frameDocument = frame?.contentDocument;
+      const frameWindow = frame?.contentWindow;
+      if (!frameDocument || !frameWindow) {
+        setFrameError(true);
+        return;
+      }
+
+      let style = frameDocument.getElementById("lyamfi-app-test-style");
+      if (!style) {
+        style = frameDocument.createElement("style");
+        style.id = "lyamfi-app-test-style";
+        frameDocument.head.appendChild(style);
+      }
+      style.textContent = APP_TEST_FRAME_STYLE;
+      setCurrentPath(frameWindow.location.pathname);
+      setFrameLoaded(true);
+    } catch {
+      setFrameError(true);
+    }
+  };
+
+  const navigateFrame = (path: string) => {
+    setMoreOpen(false);
+    setPanelOpen(false);
+
+    const frame = frameRef.current;
+    const frameWindow = frame?.contentWindow;
+    if (!frame || !frameWindow) {
+      setFrameError(true);
+      return;
+    }
+
+    try {
+      if (frameWindow.location.pathname === path) {
+        const reduceMotion = frameWindow.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        frameWindow.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+        setCurrentPath(path);
+        return;
+      }
+
+      // Utiliser un vrai lien TanStack Router quand il existe évite un rechargement
+      // complet et conserve le même comportement que l'application native.
+      const link = frame.contentDocument?.querySelector<HTMLAnchorElement>(`a[href="${path}"]`);
+      if (link) link.click();
+      else frameWindow.location.assign(path);
+      setCurrentPath(path);
+    } catch {
+      setFrameError(true);
+    }
+  };
+
+  const reloadFrame = () => {
+    setMoreOpen(false);
+    setPanelOpen(false);
+    setCurrentPath(APP_TEST.entryPath);
+    setFrameKey((key) => key + 1);
+  };
+
+  const openSettings = () => {
+    setMoreOpen(false);
+    setPanelOpen(true);
+  };
+
   return (
     <main
-      className="relative h-dvh w-full overflow-hidden"
+      className="relative flex h-dvh w-full flex-col overflow-hidden"
       style={{ backgroundColor: APP_TEST.background }}
       data-testid="app-test-phone"
     >
-      <iframe
-        key={frameKey}
-        src={APP_TEST.entryPath}
-        title={t("appTest.frameTitle")}
-        className="h-full w-full border-0"
-        allow="fullscreen"
-        referrerPolicy="same-origin"
-        onLoad={() => setFrameLoaded(true)}
-        onError={() => setFrameError(true)}
+      <AppTestHeader
+        currentPath={currentPath}
+        onHome={() => navigateFrame(APP_TEST.entryPath)}
+        onOpenSettings={openSettings}
+      />
+
+      <div className="relative min-h-0 flex-1">
+        <iframe
+          ref={frameRef}
+          key={frameKey}
+          src={APP_TEST.entryPath}
+          title={t("appTest.frameTitle")}
+          className="block h-full w-full border-0"
+          allow="fullscreen"
+          referrerPolicy="same-origin"
+          onLoad={handleFrameLoad}
+          onError={() => setFrameError(true)}
+        />
+      </div>
+
+      <AppTestTabBar
+        currentPath={currentPath}
+        moreOpen={moreOpen}
+        onNavigate={navigateFrame}
+        onOpenMore={() => {
+          setPanelOpen(false);
+          setMoreOpen((open) => !open);
+        }}
+      />
+
+      <AppTestMoreSheet
+        open={moreOpen}
+        currentPath={currentPath}
+        onClose={() => setMoreOpen(false)}
+        onNavigate={navigateFrame}
+        onOpenSettings={openSettings}
       />
 
       {splashVisible && (
@@ -165,7 +284,7 @@ export function AppTestExperience() {
             </p>
             <button
               type="button"
-              onClick={() => setFrameKey((key) => key + 1)}
+              onClick={reloadFrame}
               className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gradient-gold px-6 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -174,16 +293,6 @@ export function AppTestExperience() {
           </div>
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={() => setPanelOpen(true)}
-        className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] end-4 z-10 inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/35 bg-background/90 px-4 text-xs font-semibold text-primary shadow-lg backdrop-blur-xl transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.98]"
-        aria-label={t("appTest.openControls")}
-      >
-        <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-        App Test
-      </button>
 
       <dialog
         ref={dialogRef}
@@ -297,10 +406,7 @@ export function AppTestExperience() {
 
           <button
             type="button"
-            onClick={() => {
-              setFrameKey((key) => key + 1);
-              setPanelOpen(false);
-            }}
+            onClick={reloadFrame}
             className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border px-5 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />

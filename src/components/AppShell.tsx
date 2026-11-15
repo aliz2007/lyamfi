@@ -39,10 +39,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const active = (to: string) => path.startsWith(to);
 
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="relative min-h-screen bg-background" data-app-shell-root>
       <div className="grid-lines h-[38rem]" aria-hidden="true" />
 
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl">
+      <header
+        className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl"
+        data-app-shell-header
+      >
         {/*
           La marque ne se fait plus écraser par la navigation. L'ancienne
           grille `minmax(0,1fr)_auto` donnait toute la place aux libellés de
@@ -165,7 +168,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </header>
 
-      <main className="safe-x relative mx-auto w-full max-w-7xl py-6 sm:py-12">{children}</main>
+      <main className="safe-x relative mx-auto w-full max-w-7xl py-6 sm:py-12" data-app-shell-main>
+        {children}
+      </main>
     </div>
   );
 }
