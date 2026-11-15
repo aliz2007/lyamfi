@@ -1,0 +1,30 @@
+{
+  "id": "/app-test",
+  "name": "Lyamfi App Test",
+  "short_name": "App Test",
+  "description": "Preview administrateur plein écran de l'application mobile Lyamfi.",
+  "lang": "fr",
+  "dir": "auto",
+  "start_url": "/app-test",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone"],
+  "orientation": "portrait",
+  "background_color": "#080807",
+  "theme_color": "#080807",
+  "categories": ["finance", "education"],
+  "icons": [
+    {
+      "src": "/app-test-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
