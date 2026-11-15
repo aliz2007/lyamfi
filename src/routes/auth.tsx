@@ -24,10 +24,10 @@ export const Route = createFileRoute("/auth")({
       { property: "og:description", content: "Accède à ton parcours d'éducation financière." },
     ],
   }),
-  validateSearch: (s: Record<string, unknown>): { mode?: Mode } => {
+  validateSearch: (s: Record<string, unknown>): { mode?: Mode; redirect?: "/app-test" } => {
     const raw = s["mode"];
     const mode: Mode = raw === "signup" ? "signup" : raw === "forgot" ? "forgot" : "login";
-    return { mode };
+    return s["redirect"] === "/app-test" ? { mode, redirect: "/app-test" } : { mode };
   },
   // Enveloppé : un visiteur déjà connecté n'a rien à faire sur le
   // formulaire de connexion, il part directement au tableau de bord.
@@ -53,7 +53,7 @@ function translateAuthError(message: string, t: Translate): string {
 }
 
 function AuthPage() {
-  const { mode: initialMode } = Route.useSearch();
+  const { mode: initialMode, redirect: redirectAfterLogin } = Route.useSearch();
   const navigate = useNavigate();
   const { t } = useI18n();
 
@@ -184,7 +184,9 @@ function AuthPage() {
       toast.error(translateAuthError(error.message, t));
       return;
     }
-    navigate({ to: "/dashboard" });
+    // Une installation iOS peut posséder un stockage de session distinct de
+    // Safari. Après cette reconnexion, App Test retrouve donc son écran initial.
+    navigate({ to: redirectAfterLogin ?? "/dashboard" });
   };
 
   // ---------------------------------------------------------------- écran envoyé

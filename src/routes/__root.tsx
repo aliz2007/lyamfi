@@ -5,6 +5,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -23,7 +24,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
 
@@ -156,6 +157,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   // Le cache React Query survit à la déconnexion (une seule instance par
   // chargement de page, gcTime de 5 min) et aucune clé n'est indexée par
@@ -178,7 +180,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <CseTickerTape />
+        {/* Le preview App Test embarque déjà le site réel dans son iframe. Sans
+            cette exclusion, son bandeau serait dupliqué au-dessus du shell. */}
+        {pathname !== "/app-test" && <CseTickerTape />}
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <Toaster />
