@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ChevronRight, Search, ShieldAlert, ShieldCheck } from "lucide-react";
+import { ChevronRight, Search, ShieldAlert, ShieldCheck, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import {
   adminUsersQuery,
@@ -105,6 +105,13 @@ function Console({
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           {t(principal ? "admin.subtitlePrincipal" : "admin.subtitleSecondary")}
         </p>
+        <Link
+          to="/app-test"
+          className="press mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/35 px-5 text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <Smartphone className="h-4 w-4" aria-hidden="true" />
+          App Test
+        </Link>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-3">
