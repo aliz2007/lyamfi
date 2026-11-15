@@ -13,6 +13,41 @@ export const APP_TEST = {
   serviceWorkerPath: "/app-test-sw.js",
 } as const;
 
+export const APP_TEST_TABS = [
+  { id: "home", path: "/dashboard", labelKey: "appTest.tabHome" },
+  { id: "market", path: "/bourse", labelKey: "appTest.tabMarket" },
+  { id: "portfolio", path: "/portefeuille", labelKey: "appTest.tabPortfolio" },
+  { id: "academy", path: "/academie", labelKey: "appTest.tabAcademy" },
+] as const;
+
+export const APP_TEST_MORE_ROUTES = [
+  { id: "news", path: "/actualites", labelKey: "appTest.moreNews" },
+  { id: "leaderboard", path: "/classement", labelKey: "appTest.moreLeaderboard" },
+  { id: "simulators", path: "/simulateurs", labelKey: "appTest.moreSimulators" },
+  { id: "budget", path: "/budget", labelKey: "appTest.moreBudget" },
+  { id: "macro", path: "/macroeconomie", labelKey: "appTest.moreMacro" },
+  { id: "account", path: "/compte", labelKey: "appTest.moreAccount" },
+  { id: "admin", path: "/admin", labelKey: "appTest.moreAdmin" },
+] as const;
+
+export type AppTestTabId = (typeof APP_TEST_TABS)[number]["id"] | "more";
+
+function matchesPath(path: string, base: string): boolean {
+  return path === base || path.startsWith(`${base}/`);
+}
+
+export function appTestTabForPath(path: string): AppTestTabId {
+  const tab = APP_TEST_TABS.find((route) => matchesPath(path, route.path));
+  return tab?.id ?? "more";
+}
+
+export function appTestLabelKeyForPath(path: string) {
+  const route = [...APP_TEST_TABS, ...APP_TEST_MORE_ROUTES].find((item) =>
+    matchesPath(path, item.path),
+  );
+  return route?.labelKey ?? "appTest.tabMore";
+}
+
 type NavigatorWithMobileHints = Navigator & {
   standalone?: boolean;
   userAgentData?: { mobile?: boolean };

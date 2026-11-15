@@ -36,6 +36,21 @@ const fr = {
   "appTest.phoneOnlyText":
     "Ouvre https://lyamfi.com/app-test directement sur ton iPhone ou ton téléphone Android avec ton compte administrateur.",
   "appTest.backAdmin": "Retour à l’administration",
+  "appTest.tabHome": "Accueil",
+  "appTest.tabMarket": "Bourse",
+  "appTest.tabPortfolio": "Portefeuille",
+  "appTest.tabAcademy": "Académie",
+  "appTest.tabMore": "Plus",
+  "appTest.moreTitle": "Plus de sections",
+  "appTest.moreNews": "Actualités",
+  "appTest.moreLeaderboard": "Classement",
+  "appTest.moreSimulators": "Simulateurs",
+  "appTest.moreBudget": "Budget",
+  "appTest.moreMacro": "Macroéconomie",
+  "appTest.moreAccount": "Mon compte",
+  "appTest.moreAdmin": "Administration",
+  "appTest.openSettings": "Réglages App Test",
+  "appTest.sectionNavigation": "Navigation de l’application",
 } as const;
 
 type AppTestKey = keyof typeof fr;
@@ -75,6 +90,21 @@ const en: AppTestDictionary = {
   "appTest.phoneOnlyText":
     "Open https://lyamfi.com/app-test directly on your iPhone or Android phone using your administrator account.",
   "appTest.backAdmin": "Back to administration",
+  "appTest.tabHome": "Home",
+  "appTest.tabMarket": "Market",
+  "appTest.tabPortfolio": "Portfolio",
+  "appTest.tabAcademy": "Academy",
+  "appTest.tabMore": "More",
+  "appTest.moreTitle": "More sections",
+  "appTest.moreNews": "News",
+  "appTest.moreLeaderboard": "Leaderboard",
+  "appTest.moreSimulators": "Simulators",
+  "appTest.moreBudget": "Budget",
+  "appTest.moreMacro": "Macroeconomy",
+  "appTest.moreAccount": "My account",
+  "appTest.moreAdmin": "Administration",
+  "appTest.openSettings": "App Test settings",
+  "appTest.sectionNavigation": "Application navigation",
 };
 
 const ar: AppTestDictionary = {
@@ -111,6 +141,21 @@ const ar: AppTestDictionary = {
   "appTest.phoneOnlyText":
     "افتح https://lyamfi.com/app-test مباشرة على iPhone أو هاتف Android باستخدام حساب المشرف.",
   "appTest.backAdmin": "العودة إلى الإدارة",
+  "appTest.tabHome": "الرئيسية",
+  "appTest.tabMarket": "البورصة",
+  "appTest.tabPortfolio": "المحفظة",
+  "appTest.tabAcademy": "الأكاديمية",
+  "appTest.tabMore": "المزيد",
+  "appTest.moreTitle": "المزيد من الأقسام",
+  "appTest.moreNews": "الأخبار",
+  "appTest.moreLeaderboard": "الترتيب",
+  "appTest.moreSimulators": "المحاكيات",
+  "appTest.moreBudget": "الميزانية",
+  "appTest.moreMacro": "الاقتصاد الكلي",
+  "appTest.moreAccount": "حسابي",
+  "appTest.moreAdmin": "الإدارة",
+  "appTest.openSettings": "إعدادات App Test",
+  "appTest.sectionNavigation": "التنقل في التطبيق",
 };
 
 const dictionaries: Record<Lang, AppTestDictionary> = { fr, en, ar };
